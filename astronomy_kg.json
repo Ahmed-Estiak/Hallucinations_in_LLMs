@@ -1,0 +1,42 @@
+[
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 80,
+    "time": "2022-11",
+    "unit": "moons",
+    "source": "https://www.astronomy.com/science/jupiter-now-has-92-moons-surpassing-saturn-for-record/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 95,
+    "time": "2023-02",
+    "unit": "moons",
+    "source": "https://www.saltwire.com/atlantic-canada/atlantic-skies-all-in-the-family-the-number-of-moons-orbiting-around-jupiter-keeps-growing-and-growing-100832545"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "mass",
+    "object": 5.972e24,
+    "unit": "kg",
+    "note": "Standard scientific consensus",
+    "source": "https://spaceplace.nasa.gov/planets-weight/en/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "discovered_on",
+    "object": "1846-09-23",
+    "note": "Discovered by Johann Galle based on predictions by Urbain Le Verrier",
+    "source": "https://www.britannica.com/place/Neptune-planet"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": false,
+    "time": "2006-07",
+    "note": "Pluto remained classified as a planet by convention until the IAU redefinition in August 2006, but it does not satisfy the modern IAU planet criteria.",
+    "source": "https://en.wikipedia.org/wiki/Pluto"
+  },
+  
+]
