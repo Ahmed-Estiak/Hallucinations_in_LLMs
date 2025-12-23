@@ -13,7 +13,7 @@
     "object": 95,
     "time": "2023-02",
     "unit": "moons",
-    "source": "https://www.saltwire.com/atlantic-canada/atlantic-skies-all-in-the-family-the-number-of-moons-orbiting-around-jupiter-keeps-growing-and-growing-100832545"
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
   },
   {
     "subject": "Earth",
@@ -43,7 +43,6 @@
     "predicate": "is_planet",
     "object": true,
     "time": "2004",
-    "unit": null,
     "note": "Pluto was still considered a planet in 2004; its reclassification as a dwarf planet occurred in 2006.",
     "source": "https://science.nasa.gov/dwarf-planets/pluto/facts/"
   },
@@ -51,27 +50,24 @@
     "subject": "Venus",
     "predicate": "distance_from_sun",
     "object": 108000000,
-    "time": null,
     "unit": "km",
-    "note": "Venus orbits the Sun at an average distance of about 108 million kilometers:contentReference[oaicite:1]{index=1}.",
+    "note": "Venus orbits the Sun at an average distance of about 108 million kilometers.",
     "source": "https://science.nasa.gov/venus/venus-facts/"
   },
   {
     "subject": "Saturn",
     "predicate": "most_moons",
     "object": true,
-    "time": "2022-03",
-    "unit": null,
-    "note": "By March 2022, Saturn had 82 known moons – more than any other planet at that time.",
+    "time": "2022-11",
+    "note": "By November 2022, Saturn had 82 known moons – more than any other planet at that time.",
     "source": "https://science.nasa.gov/solar-system/moons/"
   },
   {
     "subject": "Neptune",
     "predicate": "latest_moon_discovery",
     "object": "Hippocamp",
-    "time": "2013-07",
-    "unit": null,
-    "note": "The most recently discovered moon of Neptune is Hippocamp, first announced in 2013:contentReference[oaicite:3]{index=3}.",
+    "time": "2012-08",
+    "note": "The most recently discovered moon of Neptune is Hippocamp, first announced in 2013",
     "source": "https://www.space.com/22222-neptunes-moons.html"
   },
   {
@@ -80,16 +76,15 @@
     "object": 2,
     "time": "2022-08",
     "unit": null,
-    "note": "Mars has two officially confirmed moons (Phobos and Deimos):contentReference[oaicite:4]{index=4}.",
-    "source": "https://science.nasa.gov/solar-system/moons/"
+    "note": "Mars has two officially confirmed moons (Phobos and Deimos).",
+    "source": "https://science.nasa.gov/mars/moons/"
   },
   {
     "subject": "Jupiter",
     "predicate": "moon_count_rank",
     "object": 2,
     "time": "2022-08",
-    "unit": null,
-    "note": "Jupiter had the second-highest number of moons as of August 2022 (79 moons, fewer only than Saturn’s 82):contentReference[oaicite:5]{index=5}.",
+    "note": "Jupiter had the second-highest number of moons as of August 2022 (79 moons, fewer only than Saturn’s 82).",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
   {
