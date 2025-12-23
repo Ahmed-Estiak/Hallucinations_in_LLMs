@@ -38,5 +38,384 @@
     "note": "Pluto remained classified as a planet by convention until the IAU redefinition in August 2006, but it does not satisfy the modern IAU planet criteria.",
     "source": "https://en.wikipedia.org/wiki/Pluto"
   },
-  
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": true,
+    "time": "2004",
+    "unit": null,
+    "note": "Pluto was still considered a planet in 2004; its reclassification as a dwarf planet occurred in 2006.",
+    "source": "https://science.nasa.gov/dwarf-planets/pluto/facts/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "distance_from_sun",
+    "object": 108000000,
+    "time": null,
+    "unit": "km",
+    "note": "Venus orbits the Sun at an average distance of about 108 million kilometers:contentReference[oaicite:1]{index=1}.",
+    "source": "https://science.nasa.gov/venus/venus-facts/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "most_moons",
+    "object": true,
+    "time": "2022-03",
+    "unit": null,
+    "note": "By March 2022, Saturn had 82 known moons – more than any other planet at that time.",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "latest_moon_discovery",
+    "object": "Hippocamp",
+    "time": "2013-07",
+    "unit": null,
+    "note": "The most recently discovered moon of Neptune is Hippocamp, first announced in 2013:contentReference[oaicite:3]{index=3}.",
+    "source": "https://www.space.com/22222-neptunes-moons.html"
+  },
+  {
+    "subject": "Mars",
+    "predicate": "moon_count",
+    "object": 2,
+    "time": "2022-08",
+    "unit": null,
+    "note": "Mars has two officially confirmed moons (Phobos and Deimos):contentReference[oaicite:4]{index=4}.",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count_rank",
+    "object": 2,
+    "time": "2022-08",
+    "unit": null,
+    "note": "Jupiter had the second-highest number of moons as of August 2022 (79 moons, fewer only than Saturn’s 82):contentReference[oaicite:5]{index=5}.",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "overtook_saturn_by_2022",
+    "object": false,
+    "time": "2022",
+    "unit": null,
+    "note": "Jupiter had not overtaken Saturn in moon count by the end of 2022 – Saturn still had more moons (82 vs Jupiter’s 79 at that time).",
+    "source": "https://revolutionized.com/saturns-moons/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 27,
+    "time": "2022-04",
+    "unit": null,
+    "note": "Uranus has 27 known moons:contentReference[oaicite:8]{index=8}.",
+    "source": "https://science.nasa.gov/uranus/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": false,
+    "time": "2006-08",
+    "unit": null,
+    "note": "In August 2006, Pluto was not officially a planet – the IAU had just reclassified it as a dwarf planet.",
+    "source": "https://www.iau.org/news/pressreleases/ detail/iau0603/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "moon_count",
+    "object": 5,
+    "time": "2022-10",
+    "unit": null,
+    "note": "Pluto has five confirmed moons (Charon, Styx, Nix, Kerberos, and Hydra).",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_largest_dwarf_planet",
+    "object": true,
+    "time": "2022",
+    "unit": null,
+    "note": "Pluto is the largest dwarf planet by size, being slightly larger in diameter than Eris.",
+    "source": "https://science.nasa.gov/solar-system/planets/planet-sizes-and-locations-in-our-solar-system/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": true,
+    "time": "2005-08",
+    "unit": null,
+    "note": "Ceres is not in the Kuiper Belt; it resides in the asteroid belt between Mars and Jupiter.",
+    "source": "https://science.nasa.gov/dwarf-planets/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": true,
+    "time": "2006-07",
+    "unit": null,
+    "note": "Pluto was still classified as a planet in July 2006, shortly before the new definition in August 2006 demoted it.",
+    "source": "https://www.theguardian.com/science/2006/aug/24/spaceexploration1"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "discovered_by",
+    "object": "Johann Galle",
+    "time": "1846",
+    "unit": null,
+    "note": "Neptune was discovered by astronomer Johann G. Galle on September 23, 1846.",
+    "source": "https://history.com/this-day-in-history/planet-neptune-is-discovered"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "discovered_in_17th_century",
+    "object": false,
+    "time": "1781",
+    "unit": null,
+    "note": "Uranus was discovered in 1781 (18th century) by William Herschel, not in the 17th century.",
+    "source": "https://science.nasa.gov/uranus/facts/"
+  },
+  {
+    "subject": "Percival Lowell",
+    "predicate": "discovered_Pluto",
+    "object": false,
+    "time": "1930",
+    "unit": null,
+    "note": "Pluto was discovered in 1930 by Clyde Tombaugh, not by Percival Lowell.",
+    "source": "https://history.com/this-day-in-history/pluto-discovered"
+  },
+  {
+    "subject": "Ceres",
+    "predicate": "classified_as_planet_at_discovery",
+    "object": true,
+    "time": "1801",
+    "unit": null,
+    "note": "When Ceres was discovered (1801), it was announced as a new planet, though it was later reclassified as an asteroid/dwarf planet:contentReference[oaicite:19]{index=19}.",
+    "source": "https://en.wikipedia.org/wiki/Ceres_(dwarf_planet)"
+  },
+  {
+    "subject": "Planet Nine",
+    "predicate": "officially_discovered",
+    "object": false,
+    "time": "2022",
+    "unit": null,
+    "note": "As of 2022, the hypothesized \"Planet Nine\" has not been officially discovered (its existence remains unconfirmed).",
+    "source": "https://science.nasa.gov/solar-system/planet-x/"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "is_planet",
+    "object": true,
+    "time": "2006-07",
+    "unit": null,
+    "note": "Pluto was still classified as a planet in July 2006 (the IAU demotion occurred in late August 2006).",
+    "source": "https://science.nasa.gov/dwarf-planets/"
+  },
+  {
+    "subject": "Kuiper Belt dwarf planets",
+    "predicate": "with_confirmed_moons",
+    "object": "Pluto, Haumea, Makemake",
+    "time": "2022",
+    "unit": null,
+    "note": "Pluto (5 moons), Haumea (2 moons), and Makemake (1 moon) are dwarf planets in the Kuiper Belt that have confirmed moons.",
+    "source": "https://en.wikipedia.org/wiki/Dwarf_planet"
+  },
+  {
+    "subject": "Ceres",
+    "predicate": "in_Kuiper_Belt",
+    "object": false,
+    "time": null,
+    "unit": null,
+    "note": "Ceres orbits in the asteroid belt (between Mars and Jupiter), not in the Kuiper Belt.",
+    "source": "https://science.nasa.gov/dwarf-planets/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "discovered_first_among_Kuiper_dwarfs",
+    "object": false,
+    "time": null,
+    "unit": null,
+    "note": "This is a trick question – Neptune is a planet, not a dwarf planet. Among Kuiper Belt dwarf planets, Pluto (discovered 1930) was discovered well before others like Haumea or Makemake (2004–2005).",
+    "source": null,
+    "is_supported": false,
+    "reason": "Neptune is not a dwarf planet. Pluto was the first Kuiper Belt dwarf planet to be discovered (in 1930)."
+  },
+  {
+    "subject": "Planet Nine",
+    "predicate": "same_as_Lowell_Planet_X",
+    "object": false,
+    "time": null,
+    "unit": null,
+    "note": "The term \"Planet X\" originally referred to Percival Lowell’s early-20th-century hypothetical planet (ultimately leading to Pluto), whereas \"Planet Nine\" is a modern hypothesis from 2016 – they are not the same object.",
+    "source": "https://science.nasa.gov/solar-system/planet-x/"
+  },
+  {
+    "subject": "Planet X",
+    "predicate": "confirmed_beyond_Neptune",
+    "object": false,
+    "time": null,
+    "unit": null,
+    "note": "No \"Planet X\" has been confirmed beyond Neptune – any such planet remains hypothetical (e.g. the proposed Planet Nine).",
+    "source": "https://science.nasa.gov/solar-system/planet-x/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 82,
+    "time": "2022",
+    "unit": null,
+    "note": "Saturn had 82 confirmed moons as of 2022, which was more than Jupiter’s 79.",
+    "source": "https://revolutionized.com/saturns-moons/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "mass",
+    "object": 1.898e+27,
+    "time": null,
+    "unit": "kg",
+    "note": "Jupiter is the most massive planet. In descending order of mass, the planets are: Jupiter, Saturn, Neptune, Uranus, Earth, Venus, Mars, and Mercury:contentReference[oaicite:27]{index=27}.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+  },
+  {
+    "subject": "Planets by moons",
+    "predicate": "ranked",
+    "object": "Saturn > Jupiter > Uranus > Neptune > Mars > Earth > Mercury = Venus",
+    "time": "2022",
+    "unit": null,
+    "note": "From most to fewest moons (as of 2022): Saturn (82) > Jupiter (79) > Uranus (27) > Neptune (14) > Mars (2) > Earth (1) > Mercury (0) = Venus (0):contentReference[oaicite:29]{index=29}.",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Terrestrial planets",
+    "predicate": "by_mass",
+    "object": "Earth > Venus > Mars > Mercury",
+    "time": null,
+    "unit": null,
+    "note": "Ordering the terrestrial planets by mass (most to least): Earth (~5.97×10^24 kg) > Venus (~4.87×10^24 kg) > Mars (~0.64×10^24 kg) > Mercury (~0.33×10^24 kg):contentReference[oaicite:30]{index=30}.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+  },
+  {
+    "subject": "Planets",
+    "predicate": "by_distance_from_sun",
+    "object": "Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune",
+    "time": null,
+    "unit": null,
+    "note": "From closest to farthest from the Sun: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.",
+    "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+  },
+  {
+    "subject": "Discovery vs Reclassification",
+    "predicate": "which_came_first",
+    "object": "Neptune was discovered before Ceres was reclassified",
+    "time": null,
+    "unit": null,
+    "note": "Neptune’s discovery in 1846 occurred before Ceres was reclassified as an asteroid/dwarf planet (by the 1850s).",
+    "source": "https://en.wikipedia.org/wiki/Dwarf_planet"
+  },
+  {
+    "subject": "Planet with criteria",
+    "predicate": "exists",
+    "object": false,
+    "time": null,
+    "unit": null,
+    "note": "No planet has greater surface gravity than Earth while also having fewer moons than Mars – gas giants with higher gravity have many moons, and terrestrial planets with 0–1 moons have lower gravity.",
+    "source": null,
+    "is_supported": false,
+    "reason": "No known planet meets the condition of higher gravity than Earth and fewer than 2 moons."
+  },
+  {
+    "subject": "Gas giant",
+    "predicate": "less_massive_than_Jupiter_more_moons_than_Uranus",
+    "object": "Saturn",
+    "time": "2022",
+    "unit": null,
+    "note": "Saturn is less massive than Jupiter yet had more moons than Uranus as of 2022 (Saturn’s 82 vs Uranus’s 27).",
+    "source": "https://starsandscienceaustin.com/saturn-lord-of-the-rings"
+  },
+  {
+    "subject": "Inner planets",
+    "predicate": "closer_than_earth_no_moons",
+    "object": "Mercury, Venus",
+    "time": null,
+    "unit": null,
+    "note": "Both Mercury and Venus are closer to the Sun than Earth and neither has any moons:contentReference[oaicite:34]{index=34}.",
+    "source": "https://mdn.github.io/learning-area/html/tables/assessment-finished/planets-data.html"
+  },
+  {
+    "subject": "Pluto",
+    "predicate": "moon_count",
+    "object": 5,
+    "time": null,
+    "unit": null,
+    "note": "Pluto has five known moons.",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Ceres",
+    "predicate": "classification",
+    "object": "dwarf planet",
+    "time": "2022",
+    "unit": null,
+    "note": "As of 2022, Ceres is classified as a dwarf planet (the largest object in the asteroid belt), not counted as a major planet.",
+    "source": "https://science.nasa.gov/dwarf-planets/"
+  },
+  {
+    "subject": "Solar System",
+    "predicate": "planet_count",
+    "object": 8,
+    "time": "2022",
+    "unit": null,
+    "note": "There are eight officially recognized planets in the Solar System.",
+    "source": "https://science.nasa.gov/solar-system/planets/overview"
+  },
+  {
+    "subject": "Blue moon",
+    "predicate": "planet_with",
+    "object": null,
+    "time": null,
+    "unit": null,
+    "note": "The phrase \"blue moon\" refers to an extra full moon on Earth; no other planet has a phenomenon termed a \"blue moon.\"",
+    "source": null,
+    "is_supported": false,
+    "reason": "“Blue moon” is an Earth-specific term for an extra full moon in a calendar cycle – no other planet has a concept of a “blue moon.”"
+  },
+  {
+    "subject": "Planetary rings",
+    "predicate": "entirely_ice_crystals",
+    "object": null,
+    "time": null,
+    "unit": null,
+    "note": "No planet has rings made \"entirely\" of ice crystals. (Saturn’s rings are largely ice but contain dust and rock as well.)",
+    "source": null,
+    "is_supported": false,
+    "reason": "No known planetary ring system is composed purely of ice crystals without any other material."
+  },
+  {
+    "subject": "Twin moons",
+    "predicate": "highest_number",
+    "object": null,
+    "time": null,
+    "unit": null,
+    "note": "The concept of “twin moons” is not a standard classification – no planet is recognized for having a set of moons termed “twins.”",
+    "source": null,
+    "is_supported": false,
+    "reason": "“Twin moons” is not a defined astronomical term, and no planet is described as having the highest number of \"twin moons.\""
+  },
+  {
+    "subject": "Eris",
+    "predicate": "moon_count",
+    "object": 1,
+    "time": "2022",
+    "unit": null,
+    "note": "The dwarf planet Eris has one known moon, named Dysnomia.",
+    "source": "https://science.nasa.gov/dwarf-planets/eris/"
+  },
+  {
+    "subject": "Pluto vs Haumea",
+    "predicate": "more_moons",
+    "object": "Pluto",
+    "time": "2022",
+    "unit": null,
+    "note": "Pluto has more moons than Haumea – Pluto has five moons, whereas Haumea has two.",
+    "source": "https://www.universetoday.com/120650/haumea-moons/"
+  }
+
 ]
