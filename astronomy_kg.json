@@ -16,6 +16,14 @@
     "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
   },
   {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 83,
+    "time": "2023-02",
+    "unit": "moons",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
     "subject": "Earth",
     "predicate": "mass",
     "object": 5.972e24,
@@ -71,30 +79,60 @@
     "source": "https://www.space.com/22222-neptunes-moons.html"
   },
   {
+    "subject": "Mercury",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2022-08",
+    "source": "https://spaceplace.nasa.gov/how-many-moons/en/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2022-08",
+    "source": "https://spaceplace.nasa.gov/how-many-moons/en/"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "moon_count",
+    "object": 1,
+    "time": "2022-08",
+    "source": "https://spaceplace.nasa.gov/how-many-moons/en/"
+  },
+  {
     "subject": "Mars",
     "predicate": "moon_count",
     "object": 2,
     "time": "2022-08",
-    "unit": null,
-    "note": "Mars has two officially confirmed moons (Phobos and Deimos).",
     "source": "https://science.nasa.gov/mars/moons/"
   },
   {
     "subject": "Jupiter",
-    "predicate": "moon_count_rank",
-    "object": 2,
+    "predicate": "moon_count",
+    "object": 80,
     "time": "2022-08",
-    "note": "Jupiter had the second-highest number of moons as of August 2022 (79 moons, fewer only than Saturn’s 82).",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 83,
+    "time": "2022-08",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
   {
-    "subject": "Jupiter",
-    "predicate": "overtook_saturn_by_2022",
-    "object": false,
-    "time": "2022",
-    "unit": null,
-    "note": "Jupiter had not overtaken Saturn in moon count by the end of 2022 – Saturn still had more moons (82 vs Jupiter’s 79 at that time).",
-    "source": "https://revolutionized.com/saturns-moons/"
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 27,
+    "time": "2022-08",
+    "source": "https://www.skyatnightmagazine.com/space-science/uranus-moons/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 14,
+    "time": "2022-08",
+    "source": "https://www.britannica.com/topic/moons-of-Neptune-2237322"
   },
   {
     "subject": "Uranus",
@@ -102,15 +140,14 @@
     "object": 27,
     "time": "2022-04",
     "unit": null,
-    "note": "Uranus has 27 known moons:contentReference[oaicite:8]{index=8}.",
+    "note": "Uranus has 27 known moons:contentReference.",
     "source": "https://science.nasa.gov/uranus/"
   },
   {
     "subject": "Pluto",
     "predicate": "is_planet",
     "object": false,
-    "time": "2006-08",
-    "unit": null,
+    "time": "2006-09",
     "note": "In August 2006, Pluto was not officially a planet – the IAU had just reclassified it as a dwarf planet.",
     "source": "https://www.iau.org/news/pressreleases/ detail/iau0603/"
   },
