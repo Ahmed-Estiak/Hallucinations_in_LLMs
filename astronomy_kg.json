@@ -149,16 +149,15 @@
     "object": false,
     "time": "2006-09",
     "note": "In August 2006, Pluto was not officially a planet – the IAU had just reclassified it as a dwarf planet.",
-    "source": "https://www.iau.org/news/pressreleases/ detail/iau0603/"
+    "source": "https://www.astronomy.com/today-in-the-history-of-astronomy/aug-24-2006-pluto-is-demoted/"
   },
   {
     "subject": "Pluto",
     "predicate": "moon_count",
     "object": 5,
     "time": "2022-10",
-    "unit": null,
     "note": "Pluto has five confirmed moons (Charon, Styx, Nix, Kerberos, and Hydra).",
-    "source": "https://science.nasa.gov/solar-system/moons/"
+    "source": "https://science.nasa.gov/dwarf-planets/pluto/moons/"
   },
   {
     "subject": "Pluto",
@@ -174,34 +173,29 @@
     "predicate": "is_planet",
     "object": true,
     "time": "2005-08",
-    "unit": null,
-    "note": "Ceres is not in the Kuiper Belt; it resides in the asteroid belt between Mars and Jupiter.",
-    "source": "https://science.nasa.gov/dwarf-planets/"
+    "source": "https://www.astronomy.com/today-in-the-history-of-astronomy/aug-24-2006-pluto-is-demoted/"
   },
   {
     "subject": "Pluto",
     "predicate": "is_planet",
     "object": true,
     "time": "2006-07",
-    "unit": null,
     "note": "Pluto was still classified as a planet in July 2006, shortly before the new definition in August 2006 demoted it.",
-    "source": "https://www.theguardian.com/science/2006/aug/24/spaceexploration1"
+    "source": "https://www.astronomy.com/today-in-the-history-of-astronomy/aug-24-2006-pluto-is-demoted/"
   },
   {
     "subject": "Neptune",
     "predicate": "discovered_by",
     "object": "Johann Galle",
-    "time": "1846",
-    "unit": null,
+    "time": "1846", 
     "note": "Neptune was discovered by astronomer Johann G. Galle on September 23, 1846.",
-    "source": "https://history.com/this-day-in-history/planet-neptune-is-discovered"
+    "source": "https://en.wikipedia.org/wiki/Discovery_of_Neptune"
   },
   {
     "subject": "Uranus",
     "predicate": "discovered_in_17th_century",
     "object": false,
     "time": "1781",
-    "unit": null,
     "note": "Uranus was discovered in 1781 (18th century) by William Herschel, not in the 17th century.",
     "source": "https://science.nasa.gov/uranus/facts/"
   },
@@ -210,16 +204,14 @@
     "predicate": "discovered_Pluto",
     "object": false,
     "time": "1930",
-    "unit": null,
     "note": "Pluto was discovered in 1930 by Clyde Tombaugh, not by Percival Lowell.",
-    "source": "https://history.com/this-day-in-history/pluto-discovered"
+    "source": "https://earthsky.org/space/clyde-tombaugh-discovered-pluto-on-february-18-1930/"
   },
   {
     "subject": "Ceres",
     "predicate": "classified_as_planet_at_discovery",
     "object": true,
     "time": "1801",
-    "unit": null,
     "note": "When Ceres was discovered (1801), it was announced as a new planet, though it was later reclassified as an asteroid/dwarf planet:contentReference[oaicite:19]{index=19}.",
     "source": "https://en.wikipedia.org/wiki/Ceres_(dwarf_planet)"
   },
@@ -228,7 +220,6 @@
     "predicate": "officially_discovered",
     "object": false,
     "time": "2022",
-    "unit": null,
     "note": "As of 2022, the hypothesized \"Planet Nine\" has not been officially discovered (its existence remains unconfirmed).",
     "source": "https://science.nasa.gov/solar-system/planet-x/"
   },
@@ -237,25 +228,21 @@
     "predicate": "is_planet",
     "object": true,
     "time": "2006-07",
-    "unit": null,
     "note": "Pluto was still classified as a planet in July 2006 (the IAU demotion occurred in late August 2006).",
     "source": "https://science.nasa.gov/dwarf-planets/"
   },
   {
     "subject": "Kuiper Belt dwarf planets",
     "predicate": "with_confirmed_moons",
-    "object": "Pluto, Haumea, Makemake",
-    "time": "2022",
-    "unit": null,
-    "note": "Pluto (5 moons), Haumea (2 moons), and Makemake (1 moon) are dwarf planets in the Kuiper Belt that have confirmed moons.",
-    "source": "https://en.wikipedia.org/wiki/Dwarf_planet"
+    "object": "Pluto, Eris, Haumea, Makemake",
+    "time": "2025-12",
+    "note": "Pluto, Eris, Haumea, and Makemake are dwarf planets in the Kuiper Belt that have confirmed moons.",
+    "source": "https://www.rmg.co.uk/stories/space-astronomy/dwarf-planets-pluto-ceres-haumea-makemake-eris"
   },
   {
     "subject": "Ceres",
     "predicate": "in_Kuiper_Belt",
     "object": false,
-    "time": null,
-    "unit": null,
     "note": "Ceres orbits in the asteroid belt (between Mars and Jupiter), not in the Kuiper Belt.",
     "source": "https://science.nasa.gov/dwarf-planets/"
   },
