@@ -16,10 +16,34 @@
     "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
   },
   {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 95,
+    "time": "2023-03",
+    "unit": "moons",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
+  },
+  {
     "subject": "Saturn",
     "predicate": "moon_count",
     "object": 83,
     "time": "2023-02",
+    "unit": "moons",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+   {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 83,
+    "time": "2023-03",
+    "unit": "moons",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 83,
+    "time": "2022-11",
     "unit": "moons",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
@@ -55,18 +79,10 @@
     "source": "https://science.nasa.gov/venus/venus-facts/"
   },
   {
-    "subject": "Saturn",
-    "predicate": "most_moons",
-    "object": true,
-    "time": "2022-11",
-    "note": "By November 2022, Saturn had 82 known moons – more than any other planet at that time.",
-    "source": "https://science.nasa.gov/solar-system/moons/"
-  },
-  {
     "subject": "Neptune",
-    "predicate": "latest_moon_discovery",
+    "predicate": "latest_known_moon",
     "object": "Hippocamp",
-    "time": "2012-08",
+    "time": "2022-08",
     "note": "The most recently discovered moon of Neptune is Hippocamp, first announced in 2013",
     "source": "https://www.space.com/22222-neptunes-moons.html"
   },
@@ -131,7 +147,7 @@
     "predicate": "moon_count",
     "object": 27,
     "time": "2022-04",
-    "unit": null,
+    "unit": "moons",
     "note": "Uranus has 27 known moons:contentReference.",
     "source": "https://science.nasa.gov/uranus/"
   },
@@ -185,8 +201,8 @@
   },
   {
     "subject": "Uranus",
-    "predicate": "discovered_in_17th_century",
-    "object": false,
+    "predicate": "discovered_in_18th_century",
+    "object": true,
     "time": "1781",
     "note": "Uranus was discovered in 1781 (18th century) by William Herschel, not in the 17th century.",
     "source": "https://science.nasa.gov/uranus/facts/"
@@ -203,7 +219,6 @@
     "subject": "Ceres",
     "predicate": "classified_as_planet_at_discovery",
     "object": true,
-    "time": "1801",
     "note": "When Ceres was discovered (1801), it was announced as a new planet, though it was later reclassified as an asteroid/dwarf planet:contentReference[oaicite:19]{index=19}.",
     "source": "https://en.wikipedia.org/wiki/Ceres_(dwarf_planet)"
   },
@@ -214,14 +229,6 @@
     "time": "2022",
     "note": "As of 2022, the hypothesized \"Planet Nine\" has not been officially discovered (its existence remains unconfirmed).",
     "source": "https://science.nasa.gov/solar-system/planet-x/"
-  },
-  {
-    "subject": "Pluto",
-    "predicate": "is_planet",
-    "object": true,
-    "time": "2006-07",
-    "note": "Pluto was still classified as a planet in July 2006 (the IAU demotion occurred in late August 2006).",
-    "source": "https://science.nasa.gov/dwarf-planets/"
   },
   {
     "subject": "Kuiper Belt dwarf planets",
