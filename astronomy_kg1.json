@@ -239,12 +239,107 @@
     "source": "https://www.rmg.co.uk/stories/space-astronomy/dwarf-planets-pluto-ceres-haumea-makemake-eris"
   },
   {
-    "subject": "Ceres",
-    "predicate": "in_Kuiper_Belt",
-    "object": false,
-    "note": "Ceres orbits in the asteroid belt (between Mars and Jupiter), not in the Kuiper Belt.",
-    "source": "https://science.nasa.gov/dwarf-planets/"
-  },
+  "subject": "Pluto",
+  "predicate": "classification",
+  "object": "dwarf planet",
+  "time": "2022",
+  "source": "https://science.nasa.gov/dwarf-planets/pluto/"
+},
+
+{
+  "subject": "Pluto",
+  "predicate": "location",
+  "object": "Kuiper Belt",
+  "source": "https://science.nasa.gov/dwarf-planets/pluto/"
+},
+{
+  "subject": "Pluto",
+  "predicate": "moon_count",
+  "object": 5,
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
+{
+  "subject": "Makemake",
+  "predicate": "classification",
+  "object": "dwarf planet",
+  "time": "2022",
+  "source": "https://science.nasa.gov/dwarf-planets/makemake/"
+},
+  {
+  "subject": "Makemake",
+  "predicate": "location",
+  "object": "Kuiper Belt",
+  "source": "https://science.nasa.gov/dwarf-planets/makemake/"
+},
+{
+  "subject": "Makemake",
+  "predicate": "moon_count",
+  "object": 1,
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
+{
+  "subject": "Eris",
+  "predicate": "classification",
+  "object": "dwarf planet",
+  "time": "2022",
+  "source": "https://science.nasa.gov/dwarf-planets/eris/"
+},
+{
+  "subject": "Eris",
+  "predicate": "location",
+  "object": "Kuiper Belt",
+  "source": "https://science.nasa.gov/dwarf-planets/eris/"
+},
+{
+  "subject": "Eris",
+  "predicate": "moon_count",
+  "object": 1,
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
+{
+  "subject": "Haumea",
+  "predicate": "classification",
+  "object": "dwarf planet",
+  "time": "2022",
+  "source": "https://science.nasa.gov/dwarf-planets/haumea/"
+},
+{
+  "subject": "Haumea",
+  "predicate": "location",
+  "object": "Kuiper Belt",
+  "source": "https://science.nasa.gov/dwarf-planets/haumea/"
+},
+{
+  "subject": "Haumea",
+  "predicate": "moon_count",
+  "object": 2,
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
+
+{
+  "subject": "Ceres",
+  "predicate": "classification",
+  "object": "dwarf planet",
+  "time": "2022",
+  "source": "https://science.nasa.gov/dwarf-planets/ceres/"
+},
+{
+  "subject": "Ceres",
+  "predicate": "location",
+  "object": "Asteroid Belt",
+  "source": "https://science.nasa.gov/dwarf-planets/ceres/"
+},
+{
+  "subject": "Ceres",
+  "predicate": "moon_count",
+  "object": 0,
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
   {
     "subject": "Neptune",
     "predicate": "discovered_first_among_Kuiper_dwarfs",
