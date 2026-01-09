@@ -63,6 +63,13 @@
     "source": "https://www.britannica.com/place/Neptune-planet"
   },
   {
+  "subject": "Uranus",
+  "predicate": "discovered_on",
+  "object": "1781-03-13",
+  "time": null,
+  "source": "https://science.nasa.gov/uranus/facts/"
+},
+  {
   "subject": "Pluto",
   "predicate": "classification",
   "object": "planet",
@@ -198,14 +205,6 @@
     "time": "1846", 
     "note": "Neptune was discovered by astronomer Johann G. Galle on September 23, 1846.",
     "source": "https://en.wikipedia.org/wiki/Discovery_of_Neptune"
-  },
-  {
-    "subject": "Uranus",
-    "predicate": "discovered_in_18th_century",
-    "object": true,
-    "time": "1781",
-    "note": "Uranus was discovered in 1781 (18th century) by William Herschel, not in the 17th century.",
-    "source": "https://science.nasa.gov/uranus/facts/"
   },
   {
     "subject": "Percival Lowell",
@@ -438,31 +437,53 @@
   "source": "https://science.nasa.gov/mars/facts/"
 },
   {
-    "subject": "Planets by moons",
-    "predicate": "ranked",
-    "object": "Saturn > Jupiter > Uranus > Neptune > Mars > Earth > Mercury = Venus",
-    "time": "2022",
-    "unit": null,
-    "note": "From most to fewest moons (as of 2022): Saturn (82) > Jupiter (79) > Uranus (27) > Neptune (14) > Mars (2) > Earth (1) > Mercury (0) = Venus (0):contentReference[oaicite:29]{index=29}.",
-    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+    "subject": "Mercury",
+    "predicate": "distance_from_sun",
+    "object": 5.79e7,
+    "unit": "km",
+    "source": "https://science.nasa.gov/mercury/facts/"
   },
   {
-    "subject": "Terrestrial planets",
-    "predicate": "by_mass",
-    "object": "Earth > Venus > Mars > Mercury",
-    "time": null,
-    "unit": null,
-    "note": "Ordering the terrestrial planets by mass (most to least): Earth (~5.97×10^24 kg) > Venus (~4.87×10^24 kg) > Mars (~0.64×10^24 kg) > Mercury (~0.33×10^24 kg):contentReference[oaicite:30]{index=30}.",
-    "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+    "subject": "Earth",
+    "predicate": "distance_from_sun",
+    "object": 1.496e8,
+    "unit": "km",
+    "source": "https://science.nasa.gov/earth/facts/"
   },
   {
-    "subject": "Planets",
-    "predicate": "by_distance_from_sun",
-    "object": "Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune",
-    "time": null,
-    "unit": null,
-    "note": "From closest to farthest from the Sun: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.",
-    "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
+    "subject": "Mars",
+    "predicate": "distance_from_sun",
+    "object": 2.279e8,
+    "unit": "km",
+    "source": "https://science.nasa.gov/mars/facts/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "distance_from_sun",
+    "object": 7.785e8,
+    "unit": "km",
+    "source": "https://science.nasa.gov/jupiter/facts/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "distance_from_sun",
+    "object": 1.433e9,
+    "unit": "km",
+    "source": "https://science.nasa.gov/saturn/facts/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "distance_from_sun",
+    "object": 2.872e9,
+    "unit": "km",
+    "source": "https://science.nasa.gov/uranus/facts/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "distance_from_sun",
+    "object": 4.495e9,
+    "unit": "km",
+    "source": "https://science.nasa.gov/neptune/facts/"
   },
   {
     "subject": "Discovery vs Reclassification",
