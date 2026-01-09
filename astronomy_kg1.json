@@ -231,14 +231,6 @@
     "source": "https://science.nasa.gov/solar-system/planet-x/"
   },
   {
-    "subject": "Kuiper Belt dwarf planets",
-    "predicate": "with_confirmed_moons",
-    "object": "Pluto, Eris, Haumea, Makemake",
-    "time": "2025-12",
-    "note": "Pluto, Eris, Haumea, and Makemake are dwarf planets in the Kuiper Belt that have confirmed moons.",
-    "source": "https://www.rmg.co.uk/stories/space-astronomy/dwarf-planets-pluto-ceres-haumea-makemake-eris"
-  },
-  {
   "subject": "Pluto",
   "predicate": "classification",
   "object": "dwarf planet",
@@ -340,17 +332,37 @@
   "time": "2022",
   "source": "https://science.nasa.gov/solar-system/moons/"
 },
-  {
-    "subject": "Neptune",
-    "predicate": "discovered_first_among_Kuiper_dwarfs",
-    "object": false,
-    "time": null,
-    "unit": null,
-    "note": "This is a trick question – Neptune is a planet, not a dwarf planet. Among Kuiper Belt dwarf planets, Pluto (discovered 1930) was discovered well before others like Haumea or Makemake (2004–2005).",
-    "source": null,
-    "is_supported": false,
-    "reason": "Neptune is not a dwarf planet. Pluto was the first Kuiper Belt dwarf planet to be discovered (in 1930)."
-  },
+{
+  "subject": "Pluto",
+  "predicate": "discovered_on",
+  "object": "1930-02-18",
+  "source": "https://science.nasa.gov/dwarf-planets/pluto/"
+},
+{
+  "subject": "Haumea",
+  "predicate": "discovered_on",
+  "object": "2004-12-28",
+  "source": "https://science.nasa.gov/dwarf-planets/haumea/"
+},
+{
+  "subject": "Makemake",
+  "predicate": "discovered_on",
+  "object": "2005-03-31",
+  "source": "https://science.nasa.gov/dwarf-planets/makemake/"
+},
+{
+  "subject": "Ceres",
+  "predicate": "discovered_on",
+  "object": "1801-01-01",
+  "source": "https://science.nasa.gov/dwarf-planets/ceres/"
+},
+{
+  "subject": "Eris",
+  "predicate": "discovered_on",
+  "object": "2005-01-05",
+  "source": "https://science.nasa.gov/dwarf-planets/eris/"
+},
+
   {
     "subject": "Planet Nine",
     "predicate": "same_as_Lowell_Planet_X",
@@ -364,29 +376,67 @@
     "subject": "Planet X",
     "predicate": "confirmed_beyond_Neptune",
     "object": false,
-    "time": null,
-    "unit": null,
     "note": "No \"Planet X\" has been confirmed beyond Neptune – any such planet remains hypothetical (e.g. the proposed Planet Nine).",
     "source": "https://science.nasa.gov/solar-system/planet-x/"
   },
   {
-    "subject": "Saturn",
-    "predicate": "moon_count",
-    "object": 82,
-    "time": "2022",
-    "unit": null,
-    "note": "Saturn had 82 confirmed moons as of 2022, which was more than Jupiter’s 79.",
-    "source": "https://revolutionized.com/saturns-moons/"
-  },
+  "subject": "Planet Nine",
+  "predicate": "discovery_status",
+  "object": "not discovered",
+  "time": "2022",
+  "source": "https://science.nasa.gov/solar-system/planet-nine/"
+},
+  {
+  "subject": "Saturn",
+  "predicate": "moon_count",
+  "object": 146,
+  "time": "2023",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
+{
+  "subject": "Jupiter",
+  "predicate": "moon_count",
+  "object": 95,
+  "time": "2023",
+  "source": "https://science.nasa.gov/solar-system/moons/"
+},
   {
     "subject": "Jupiter",
     "predicate": "mass",
     "object": 1.898e+27,
-    "time": null,
     "unit": "kg",
     "note": "Jupiter is the most massive planet. In descending order of mass, the planets are: Jupiter, Saturn, Neptune, Uranus, Earth, Venus, Mars, and Mercury:contentReference[oaicite:27]{index=27}.",
     "source": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/"
   },
+  {
+  "subject": "Neptune",
+  "predicate": "mass",
+  "object": 1.024e26,
+  "unit": "kg",
+  "source": "https://science.nasa.gov/planetary-science/neptune/"
+},
+{
+  "subject": "Uranus",
+  "predicate": "mass",
+  "object": 8.681e25,
+  "unit": "kg",
+  "time": null,
+  "source": "https://science.nasa.gov/planetary-science/uranus/"
+},
+{
+  "subject": "Earth",
+  "predicate": "surface_gravity",
+  "object": 9.807,
+  "unit": "m/s^2",
+  "source": "https://science.nasa.gov/earth/facts/"
+},
+{
+  "subject": "Mars",
+  "predicate": "surface_gravity",
+  "object": 3.721,
+  "unit": "m/s^2",
+  "source": "https://science.nasa.gov/mars/facts/"
+},
   {
     "subject": "Planets by moons",
     "predicate": "ranked",
