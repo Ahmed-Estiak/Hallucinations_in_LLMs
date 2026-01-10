@@ -63,6 +63,12 @@
     "source": "https://www.britannica.com/place/Neptune-planet"
   },
   {
+  "subject": "Astraea",
+  "predicate": "discovered_on",
+  "object": "1845-12-08",
+  "source": "https://science.nasa.gov/solar-system/asteroids/5-astraea/"
+},
+  {
   "subject": "Uranus",
   "predicate": "discovered_on",
   "object": "1781-03-13",
@@ -697,54 +703,6 @@
     "predicate": "planet_type",
     "object": "terrestrial",
     "source": "https://science.nasa.gov/solar-system/planets/"
-  },
-
-  {
-    "subject": "Discovery vs Reclassification",
-    "predicate": "which_came_first",
-    "object": "Neptune was discovered before Ceres was reclassified",
-    "time": null,
-    "unit": null,
-    "note": "Neptune’s discovery in 1846 occurred before Ceres was reclassified as an asteroid/dwarf planet (by the 1850s).",
-    "source": "https://en.wikipedia.org/wiki/Dwarf_planet"
-  },
-  {
-    "subject": "Planet with criteria",
-    "predicate": "exists",
-    "object": false,
-    "time": null,
-    "unit": null,
-    "note": "No planet has greater surface gravity than Earth while also having fewer moons than Mars – gas giants with higher gravity have many moons, and terrestrial planets with 0–1 moons have lower gravity.",
-    "source": null,
-    "is_supported": false,
-    "reason": "No known planet meets the condition of higher gravity than Earth and fewer than 2 moons."
-  },
-  {
-    "subject": "Gas giant",
-    "predicate": "less_massive_than_Jupiter_more_moons_than_Uranus",
-    "object": "Saturn",
-    "time": "2022",
-    "unit": null,
-    "note": "Saturn is less massive than Jupiter yet had more moons than Uranus as of 2022 (Saturn’s 82 vs Uranus’s 27).",
-    "source": "https://starsandscienceaustin.com/saturn-lord-of-the-rings"
-  },
-  {
-    "subject": "Inner planets",
-    "predicate": "closer_than_earth_no_moons",
-    "object": "Mercury, Venus",
-    "time": null,
-    "unit": null,
-    "note": "Both Mercury and Venus are closer to the Sun than Earth and neither has any moons:contentReference[oaicite:34]{index=34}.",
-    "source": "https://mdn.github.io/learning-area/html/tables/assessment-finished/planets-data.html"
-  },
-  {
-    "subject": "Pluto",
-    "predicate": "moon_count",
-    "object": 5,
-    "time": null,
-    "unit": null,
-    "note": "Pluto has five known moons.",
-    "source": "https://science.nasa.gov/solar-system/moons/"
   },
   {
     "subject": "Ceres",
