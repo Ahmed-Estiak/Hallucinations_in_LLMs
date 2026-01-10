@@ -72,8 +72,8 @@
   {
     "subject": "Jupiter",
     "predicate": "moon_count",
-    "object": "2026-01-10",
-    "time": "2023",
+    "object": "97",
+    "time": "2026-01-10",
     "source": "https://science.nasa.gov/solar-system/moons/"
   },
   {
@@ -83,6 +83,49 @@
     "time": "2026-01-10",
     "source": "https://science.nasa.gov/solar-system/moons/"
   },
+  {
+    "subject": "Mercury",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/mercury/facts/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/venus/venus-facts/"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "moon_count",
+    "object": 1,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/earth/facts/"
+  },
+  {
+    "subject": "Mars",
+    "predicate": "moon_count",
+    "object": 2,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/mars/facts/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 274,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/saturn/moons/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 16,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/neptune/moons/"
+  },
+
   {
   "subject": "Pluto",
   "predicate": "classification",
@@ -419,9 +462,43 @@
   "predicate": "mass",
   "object": 8.681e25,
   "unit": "kg",
-  "time": null,
   "source": "https://science.nasa.gov/planetary-science/uranus/"
 },
+  {
+    "subject": "Mercury",
+    "predicate": "mass",
+    "object": 3.30103e23,
+    "unit": "kg",
+    "source": "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "mass",
+    "object": 4.86731e24,
+    "unit": "kg",
+    "source": "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "mass",
+    "object": 5.97217e24,
+    "unit": "kg",
+    "source": "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+  },
+  {
+    "subject": "Mars",
+    "predicate": "mass",
+    "object": 6.41691e23,
+    "unit": "kg",
+    "source": "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "mass",
+    "object": 5.68317e26,
+    "unit": "kg",
+    "source": "https://ssd.jpl.nasa.gov/planets/phys_par.html"
+  },
 {
   "subject": "Earth",
   "predicate": "surface_gravity",
@@ -436,6 +513,49 @@
   "unit": "m/s^2",
   "source": "https://science.nasa.gov/mars/facts/"
 },
+[
+  {
+    "subject": "Mercury",
+    "predicate": "surface_gravity",
+    "object": 3.7,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/mercury/facts/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "surface_gravity",
+    "object": 8.87,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/venus/facts/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "surface_gravity",
+    "object": 24.79,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/jupiter/facts/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "surface_gravity",
+    "object": 10.44,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/saturn/facts/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "surface_gravity",
+    "object": 8.69,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/uranus/facts/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "surface_gravity",
+    "object": 11.15,
+    "unit": "m/s^2",
+    "source": "https://science.nasa.gov/neptune/facts/"
+  },
   {
     "subject": "Mercury",
     "predicate": "distance_from_sun",
@@ -540,6 +660,43 @@
     "object": 16,
     "time": "2023-12",
     "source": "https://science.nasa.gov/neptune/moons/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "planet_type",
+    "object": "gas giant",
+    "source": "https://science.nasa.gov/jupiter/facts/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "planet_type",
+    "object": "gas giant",
+    "source": "https://science.nasa.gov/saturn/facts/"
+  },
+
+  {
+    "subject": "Mercury",
+    "predicate": "planet_type",
+    "object": "terrestrial",
+    "source": "https://science.nasa.gov/solar-system/planets/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "planet_type",
+    "object": "terrestrial",
+    "source": "https://science.nasa.gov/solar-system/planets/"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "planet_type",
+    "object": "terrestrial",
+    "source": "https://science.nasa.gov/solar-system/planets/"
+  },
+  {
+    "subject": "Mars",
+    "predicate": "planet_type",
+    "object": "terrestrial",
+    "source": "https://science.nasa.gov/solar-system/planets/"
   },
 
   {
