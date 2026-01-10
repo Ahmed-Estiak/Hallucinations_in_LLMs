@@ -70,6 +70,20 @@
   "source": "https://science.nasa.gov/uranus/facts/"
 },
   {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": "2026-01-10",
+    "time": "2023",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 29,
+    "time": "2026-01-10",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
   "subject": "Pluto",
   "predicate": "classification",
   "object": "planet",
@@ -384,21 +398,7 @@
   "object": "not discovered",
   "time": "2022",
   "source": "https://science.nasa.gov/solar-system/planet-nine/"
-},
-  {
-  "subject": "Saturn",
-  "predicate": "moon_count",
-  "object": 146,
-  "time": "2023",
-  "source": "https://science.nasa.gov/solar-system/moons/"
-},
-{
-  "subject": "Jupiter",
-  "predicate": "moon_count",
-  "object": 95,
-  "time": "2023",
-  "source": "https://science.nasa.gov/solar-system/moons/"
-},
+}, 
   {
     "subject": "Jupiter",
     "predicate": "mass",
@@ -485,6 +485,63 @@
     "unit": "km",
     "source": "https://science.nasa.gov/neptune/facts/"
   },
+  {
+    "subject": "Mercury",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Venus",
+    "predicate": "moon_count",
+    "object": 0,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Earth",
+    "predicate": "moon_count",
+    "object": 1,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Mars",
+    "predicate": "moon_count",
+    "object": 2,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 95,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/jupiter/jupiter-moons/"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 145,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/saturn/facts/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 28,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/uranus/moons/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 16,
+    "time": "2023-12",
+    "source": "https://science.nasa.gov/neptune/moons/"
+  },
+
   {
     "subject": "Discovery vs Reclassification",
     "predicate": "which_came_first",
