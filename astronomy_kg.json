@@ -397,27 +397,14 @@
     "reason": "“Blue moon” is an Earth-specific term for an extra full moon in a calendar cycle – no other planet has a concept of a “blue moon.”"
   },
   {
-    "subject": "Planetary rings",
-    "predicate": "entirely_ice_crystals",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "No planet has rings made \"entirely\" of ice crystals. (Saturn’s rings are largely ice but contain dust and rock as well.)",
-    "source": null,
-    "is_supported": false,
-    "reason": "No known planetary ring system is composed purely of ice crystals without any other material."
-  },
-  {
-    "subject": "Twin moons",
-    "predicate": "highest_number",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "The concept of “twin moons” is not a standard classification – no planet is recognized for having a set of moons termed “twins.”",
-    "source": null,
-    "is_supported": false,
-    "reason": "“Twin moons” is not a defined astronomical term, and no planet is described as having the highest number of \"twin moons.\""
-  },
+  "subject": "Planetary rings",
+  "predicate": "composition",
+  "object": "100% ice crystals",
+  "is_supported": false,
+  "reason": "No planet has rings composed entirely of ice crystals; even Saturn’s rings contain dust and rocky material in addition to water ice.",
+  "source": null
+},
+
   {
     "subject": "Eris",
     "predicate": "moon_count",
