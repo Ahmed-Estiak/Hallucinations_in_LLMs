@@ -721,32 +721,24 @@
   },
 
   {
-  "subject": "Blue moon",
-  "predicate": "revolves_around",
-  "object": null,
-  "is_supported": false,
-  "reason": "A 'blue moon' is a calendar-based lunar phenomenon referring to the timing of Earth's Moon and does not physically revolve around any planet."
-},
- 
- {
+    "subject": "Blue moon",
+    "predicate": "planet_with",
+    "object": null,
+    "time": null,
+    "unit": null,
+    "note": "The phrase \"blue moon\" refers to an extra full moon on Earth; no other planet has a phenomenon termed a \"blue moon.\"",
+    "source": null,
+    "is_supported": false,
+    "reason": "“Blue moon” is an Earth-specific term for an extra full moon in a calendar cycle – no other planet has a concept of a “blue moon.”"
+  },
+  {
   "subject": "Planetary rings",
   "predicate": "composition",
   "object": "100% ice crystals",
   "is_supported": false,
-  "reason": "No planet has rings composed entirely of ice crystals; even Saturn’s rings contain dust and rocky material in addition to water ice."
+  "reason": "No planet has rings composed entirely of ice crystals; even Saturn’s rings contain dust and rocky material in addition to water ice.",
+  "source": null
 },
-
-  {
-    "subject": "Twin moons",
-    "predicate": "highest_number",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "The concept of “twin moons” is not a standard classification – no planet is recognized for having a set of moons termed “twins.”",
-    "source": null,
-    "is_supported": false,
-    "reason": "“Twin moons” is not a defined astronomical term, and no planet is described as having the highest number of \"twin moons.\""
-  },
   {
     "subject": "Eris",
     "predicate": "moon_count",
@@ -761,8 +753,8 @@
     "predicate": "more_moons",
     "object": "Pluto",
     "time": "2022",
-    "unit": null,
     "note": "Pluto has more moons than Haumea – Pluto has five moons, whereas Haumea has two.",
     "source": "https://www.universetoday.com/120650/haumea-moons/"
-  }
+  } 
+
 ]
