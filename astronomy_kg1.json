@@ -703,6 +703,18 @@
     "source": "https://science.nasa.gov/solar-system/planets/"
   },
   {
+  "subject": "Uranus",
+  "predicate": "planet_type",
+  "object": "ice giant",
+  "source": "https://science.nasa.gov/uranus/facts/"
+},
+{
+  "subject": "Neptune",
+  "predicate": "planet_type",
+  "object": "ice giant",
+  "source": "https://science.nasa.gov/neptune/facts/"
+},
+  {
     "subject": "Ceres",
     "predicate": "classification",
     "object": "dwarf planet",
@@ -746,15 +758,6 @@
     "unit": null,
     "note": "The dwarf planet Eris has one known moon, named Dysnomia.",
     "source": "https://science.nasa.gov/dwarf-planets/eris/"
-  },
-  {
-    "subject": "Pluto vs Haumea",
-    "predicate": "more_moons",
-    "object": "Pluto",
-    "time": "2022",
-    "note": "Pluto has more moons than Haumea – Pluto has five moons, whereas Haumea has two.",
-    "source": "https://www.universetoday.com/120650/haumea-moons/"
   }
-
 
 ]
