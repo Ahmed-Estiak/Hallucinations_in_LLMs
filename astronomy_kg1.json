@@ -239,7 +239,7 @@
   },
   {
     "subject": "Pluto",
-    "predicate": "is_largest_dwarf_planet",
+    "predicate": "is_largest_dwarf_planet_by_size",
     "object": true,
     "time": "2022",
     "unit": null,
@@ -270,13 +270,12 @@
     "source": "https://en.wikipedia.org/wiki/Discovery_of_Neptune"
   },
   {
-    "subject": "Percival Lowell",
-    "predicate": "discovered_Pluto",
-    "object": false,
-    "time": "1930",
-    "note": "Pluto was discovered in 1930 by Clyde Tombaugh, not by Percival Lowell.",
-    "source": "https://earthsky.org/space/clyde-tombaugh-discovered-pluto-on-february-18-1930/"
-  },
+  "subject": "Pluto",
+  "predicate": "discovered_by",
+  "object": "Clyde Tombaugh",
+  "time": "1930",
+  "source": "https://science.nasa.gov/dwarf-planets/pluto/"
+},
   {
     "subject": "Ceres",
     "predicate": "classified_as_planet_at_discovery",
@@ -755,6 +754,7 @@
     "time": "2022",
     "note": "Pluto has more moons than Haumea – Pluto has five moons, whereas Haumea has two.",
     "source": "https://www.universetoday.com/120650/haumea-moons/"
-  } 
+  }
+
 
 ]
