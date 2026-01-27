@@ -519,8 +519,7 @@
   "unit": "m/s^2",
   "source": "https://science.nasa.gov/mars/facts/"
 },
-[
-  {
+{
     "subject": "Mercury",
     "predicate": "surface_gravity",
     "object": 3.7,
@@ -709,7 +708,6 @@
     "predicate": "classification",
     "object": "dwarf planet",
     "time": "2022",
-    "unit": null,
     "note": "As of 2022, Ceres is classified as a dwarf planet (the largest object in the asteroid belt), not counted as a major planet.",
     "source": "https://science.nasa.gov/dwarf-planets/"
   },
@@ -718,32 +716,26 @@
     "predicate": "planet_count",
     "object": 8,
     "time": "2022",
-    "unit": null,
     "note": "There are eight officially recognized planets in the Solar System.",
     "source": "https://science.nasa.gov/solar-system/planets/overview"
   },
+
   {
-    "subject": "Blue moon",
-    "predicate": "planet_with",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "The phrase \"blue moon\" refers to an extra full moon on Earth; no other planet has a phenomenon termed a \"blue moon.\"",
-    "source": null,
-    "is_supported": false,
-    "reason": "“Blue moon” is an Earth-specific term for an extra full moon in a calendar cycle – no other planet has a concept of a “blue moon.”"
-  },
-  {
-    "subject": "Planetary rings",
-    "predicate": "entirely_ice_crystals",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "No planet has rings made \"entirely\" of ice crystals. (Saturn’s rings are largely ice but contain dust and rock as well.)",
-    "source": null,
-    "is_supported": false,
-    "reason": "No known planetary ring system is composed purely of ice crystals without any other material."
-  },
+  "subject": "Blue moon",
+  "predicate": "revolves_around",
+  "object": null,
+  "is_supported": false,
+  "reason": "A 'blue moon' is a calendar-based lunar phenomenon referring to the timing of Earth's Moon and does not physically revolve around any planet."
+},
+ 
+ {
+  "subject": "Planetary rings",
+  "predicate": "composition",
+  "object": "100% ice crystals",
+  "is_supported": false,
+  "reason": "No planet has rings composed entirely of ice crystals; even Saturn’s rings contain dust and rocky material in addition to water ice."
+},
+
   {
     "subject": "Twin moons",
     "predicate": "highest_number",
@@ -773,5 +765,4 @@
     "note": "Pluto has more moons than Haumea – Pluto has five moons, whereas Haumea has two.",
     "source": "https://www.universetoday.com/120650/haumea-moons/"
   }
-
 ]
