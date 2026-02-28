@@ -825,7 +825,7 @@
   {
     "subject": "Jupiter",
     "predicate": "moon_count",
-    "object": 92,
+    "object": 80,
     "time": "2022-11",
     "source": "https://www.planetary.org/articles/secrets-of-jupiters-new-moons"
   },
