@@ -762,6 +762,13 @@
   {
     "subject": "Jupiter",
     "predicate": "moon_count",
+    "object": 6,
+    "time": "1904-12",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
     "object": 7,
     "time": "1905-01",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
