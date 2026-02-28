@@ -758,6 +758,13 @@
     "unit": null,
     "note": "The dwarf planet Eris has one known moon, named Dysnomia.",
     "source": "https://science.nasa.gov/dwarf-planets/eris/"
-  }
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 80,
+    "time": "2022-08",
+    "source": "https://science.nasa.gov/solar-system/moons/"
+  },
 
 ]
