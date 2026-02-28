@@ -881,8 +881,15 @@
   {
     "subject": "Uranus",
     "predicate": "moon_count",
-    "object": 29,
+    "object": 28,
     "time": "2025-02",
+    "source": "https://www.swri.org/newsroom/press-releases/swri-led-webb-telescope-survey-discovers-new-moon-orbiting-uranus"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 29,
+    "time": "2025-08",
     "source": "https://www.swri.org/newsroom/press-releases/swri-led-webb-telescope-survey-discovers-new-moon-orbiting-uranus"
   },
   {
