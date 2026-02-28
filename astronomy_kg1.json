@@ -762,9 +762,233 @@
   {
     "subject": "Jupiter",
     "predicate": "moon_count",
-    "object": 80,
-    "time": "2022-08",
-    "source": "https://science.nasa.gov/solar-system/moons/"
+    "object": 7,
+    "time": "1905-01",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
   },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 12,
+    "time": "1974-08",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 13,
+    "time": "1974-09",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 69,
+    "time": "2018-06",
+    "source": "https://www.inverse.com/article/47101-jupiter-moon-discovery-brings-count-to-79"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 79,
+    "time": "2018-07",
+    "source": "https://carnegiescience.edu/news/dozen-new-moons-jupiter-discovered-including-one-oddball"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 79,
+    "time": "2021-10",
+    "source": "https://www.astronomy.com/science/jupiter-now-has-92-moons-surpassing-saturn-for-record/"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 80,
+    "time": "2021-11",
+    "source": "https://en.wikipedia.org/wiki/Timeline_of_discovery_of_Solar_System_planets_and_their_moons"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 80,
+    "time": "2022-02",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Jupiter"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 92,
+    "time": "2022-11",
+    "source": "https://www.planetary.org/articles/secrets-of-jupiters-new-moons"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 95,
+    "time": "2025-06",
+    "source": "https://kids.kiddle.co/Moons_of_Jupiter"
+  },
+  {
+    "subject": "Jupiter",
+    "predicate": "moon_count",
+    "object": 95,
+    "time": "2025-07",
+    "source": "https://kids.kiddle.co/Moons_of_Jupiter"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 5,
+    "time": "1985-11",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Uranus"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 6,
+    "time": "1985-12",
+    "source": "https://en.wikipedia.org/wiki/Puck_(moon)"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 15,
+    "time": "1986-01",
+    "source": "https://earthsky.org/space/voyager-2-meets-uranus-jan-24-1986/"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 27,
+    "time": "2024-01",
+    "source": "https://en.wikipedia.org/wiki/S/2023_U_1"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 28,
+    "time": "2025-01",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Uranus"
+  },
+  {
+    "subject": "Uranus",
+    "predicate": "moon_count",
+    "object": 29,
+    "time": "2025-02",
+    "source": "https://www.swri.org/newsroom/press-releases/swri-led-webb-telescope-survey-discovers-new-moon-orbiting-uranus"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 3,
+    "time": "1981-12",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 4,
+    "time": "1989-07",
+    "source": "https://www.jpl.nasa.gov/news/voyager-2-discovers-new-neptune-moon/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 8,
+    "time": "1989-08",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 13,
+    "time": "2002-08",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 13,
+    "time": "2003-08",
+    "source": "https://news.harvard.edu/gazette/story/2003/01/new-moons-found-around-neptune/"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 13,
+    "time": "2003-09",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 16,
+    "time": "2024-02",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 11,
+    "time": "1979-12",
+    "source": "https://www.britannica.com/place/moons-of-Saturn-2237282"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 17,
+    "time": "1980-12",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 17,
+    "time": "1981-12",
+    "source": "https://epizodsspace.airbase.ru/bibl/inostr-yazyki/NASA-Press-Kit/1981/NASA_Press_Kit_Voyager_2_Encounter_With_Saturn_(Release-No_81-97)_13-07-1981.pdf"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 18,
+    "time": "1990-10",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 62,
+    "time": "2019-09",
+    "source": "https://kids.kiddle.co/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 82,
+    "time": "2019-10",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 83,
+    "time": "2021-10",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 146,
+    "time": "2023-05",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
+  },
+  {
+    "subject": "Saturn",
+    "predicate": "moon_count",
+    "object": 274,
+    "time": "2025-03",
+    "source": "https://www.theguardian.com/science/2025/mar/11/astronomers-discover-128-new-moons-orbiting-saturn"
+  }
 
 ]
