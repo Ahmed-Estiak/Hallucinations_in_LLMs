@@ -916,14 +916,21 @@
   {
     "subject": "Neptune",
     "predicate": "moon_count",
-    "object": 13,
+    "object": 8,
     "time": "2002-08",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
   },
   {
     "subject": "Neptune",
     "predicate": "moon_count",
-    "object": 13,
+    "object": 11,
+    "time": "2003-01",
+    "source": "https://en.wikipedia.org/wiki/Moons_of_Neptune"
+  },
+  {
+    "subject": "Neptune",
+    "predicate": "moon_count",
+    "object": 12,
     "time": "2003-08",
     "source": "https://news.harvard.edu/gazette/story/2003/01/new-moons-found-around-neptune/"
   },
@@ -951,7 +958,7 @@
   {
     "subject": "Saturn",
     "predicate": "moon_count",
-    "object": 17,
+    "object": 15,
     "time": "1980-12",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
@@ -987,7 +994,7 @@
     "subject": "Saturn",
     "predicate": "moon_count",
     "object": 83,
-    "time": "2021-10",
+    "time": "2021-11",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
   {
