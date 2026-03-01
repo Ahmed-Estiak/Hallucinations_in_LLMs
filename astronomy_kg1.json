@@ -1000,7 +1000,7 @@
   {
     "subject": "Saturn",
     "predicate": "moon_count",
-    "object": 146,
+    "object": 145,
     "time": "2023-05",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
