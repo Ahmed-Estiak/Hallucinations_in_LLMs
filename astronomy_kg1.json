@@ -2,14 +2,6 @@
   {
     "subject": "Jupiter",
     "predicate": "moon_count",
-    "object": 80,
-    "time": "2022-11",
-    "unit": "moons",
-    "source": "https://www.astronomy.com/science/jupiter-now-has-92-moons-surpassing-saturn-for-record/"
-  },
-  {
-    "subject": "Jupiter",
-    "predicate": "moon_count",
     "object": 95,
     "time": "2023-02",
     "unit": "moons",
