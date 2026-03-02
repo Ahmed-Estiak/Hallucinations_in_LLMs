@@ -128,7 +128,7 @@
   "subject": "Pluto",
   "predicate": "classification",
   "object": "planet",
-  "time": "2004",
+  "time": "2004-12",
   "note": "Pluto remained classified as a planet by convention until the IAU redefinition in August 2006, but it does not satisfy the modern IAU planet criteria.",
   "source": "https://en.wikipedia.org/wiki/Pluto"
 },
@@ -225,7 +225,7 @@
     "subject": "Pluto",
     "predicate": "moon_count",
     "object": 5,
-    "time": "2022-10",
+    "time": "2022-09",
     "note": "Pluto has five confirmed moons (Charon, Styx, Nix, Kerberos, and Hydra).",
     "source": "https://science.nasa.gov/dwarf-planets/pluto/moons/"
   },
@@ -233,7 +233,7 @@
     "subject": "Pluto",
     "predicate": "is_largest_dwarf_planet_by_size",
     "object": true,
-    "time": "2022",
+    "time": "2022-12",
     "unit": null,
     "note": "Pluto is the largest dwarf planet by size, being slightly larger in diameter than Eris.",
     "source": "https://science.nasa.gov/solar-system/planets/planet-sizes-and-locations-in-our-solar-system/"
@@ -279,7 +279,7 @@
     "subject": "Planet Nine",
     "predicate": "officially_discovered",
     "object": false,
-    "time": "2022",
+    "time": "2022-12",
     "note": "As of 2022, the hypothesized \"Planet Nine\" has not been officially discovered (its existence remains unconfirmed).",
     "source": "https://science.nasa.gov/solar-system/planet-x/"
   },
@@ -287,7 +287,7 @@
   "subject": "Pluto",
   "predicate": "classification",
   "object": "dwarf planet",
-  "time": "2022",
+  "time": "2022-12",
   "source": "https://science.nasa.gov/dwarf-planets/pluto/"
 },
 
@@ -436,7 +436,7 @@
   "subject": "Planet Nine",
   "predicate": "discovery_status",
   "object": "not discovered",
-  "time": "2022",
+  "time": "2022-12",
   "source": "https://science.nasa.gov/solar-system/planet-nine/"
 }, 
   {
@@ -718,7 +718,7 @@
     "subject": "Solar System",
     "predicate": "planet_count",
     "object": 8,
-    "time": "2022",
+    "time": "2022-12",
     "note": "There are eight officially recognized planets in the Solar System.",
     "source": "https://science.nasa.gov/solar-system/planets/overview"
   },
@@ -746,7 +746,7 @@
     "subject": "Eris",
     "predicate": "moon_count",
     "object": 1,
-    "time": "2022",
+    "time": "2022-12",
     "unit": null,
     "note": "The dwarf planet Eris has one known moon, named Dysnomia.",
     "source": "https://science.nasa.gov/dwarf-planets/eris/"
