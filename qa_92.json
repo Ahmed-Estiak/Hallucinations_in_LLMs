@@ -1,0 +1,155 @@
+[
+  {
+    "id": 1,
+    "question": "As of November 2022, how many confirmed moons orbit Jupiter?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 80
+    },
+    "entities": ["Jupiter"],
+    "type": "numeric"
+  },
+  {
+    "id": 2,
+    "question": "As of June 2025, how many officially confirmed moons does Jupiter have?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 95
+    },
+    "entities": ["Jupiter"],
+    "type": "numeric"
+  },
+  {
+    "id": 3,
+    "question": "In what year was Neptune discovered, and who discovered it?",
+    "answer_spec": {
+      "kind": "multi_field",
+      "fields": [
+        { "name": "year", "type": "year", "value": 1846 },
+        { "name": "discoverer", "type": "entity", "value": "Johann Gottfried Galle" }
+      ]
+    },
+    "entities": ["Neptune", "Johann Gottfried Galle"],
+    "type": "composite"
+  },
+  {
+    "id": 4,
+    "question": "As of February 2025, what is the total number of confirmed moons of Uranus?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 28
+    },
+    "entities": ["Uranus"],
+    "type": "numeric"
+  },
+  {
+    "id": 5,
+    "question": "Before 1980, how many of Saturn’s moons had been officially confirmed?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 17
+    },
+    "entities": ["Saturn"],
+    "type": "numeric"
+  },
+  {
+    "id": 6,
+    "question": "As of May 2023, what was the number of confirmed moons orbiting Saturn?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 145
+    },
+    "entities": ["Saturn"],
+    "type": "numeric"
+  },
+  {
+    "id": 7,
+    "question": "By April 2022, how many confirmed moons did Uranus have?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 27
+    },
+    "entities": ["Uranus"],
+    "type": "numeric"
+  },
+  {
+    "id": 8,
+    "question": "As of 2022, did the IAU recognize Pluto as the dwarf planet with the largest diameter?",
+    "answer_spec": {
+      "kind": "boolean",
+      "value": true
+    },
+    "entities": ["Pluto", "IAU"],
+    "type": "boolean"
+  },
+  {
+    "id": 9,
+    "question": "Which dwarf planet located in the Kuiper Belt was discovered first?",
+    "answer_spec": {
+      "kind": "entity",
+      "value": "Pluto"
+    },
+    "entities": ["Pluto"],
+    "type": "entity"
+  },
+  {
+    "id": 10,
+    "question": "Between Neptune and Uranus, which planet has the greater mass?",
+    "answer_spec": {
+      "kind": "entity",
+      "value": "Neptune"
+    },
+    "entities": ["Neptune", "Uranus"],
+    "type": "entity"
+  },
+  {
+    "id": 11,
+    "question": "Which planets orbit beyond Earth yet have fewer moons than Jupiter?",
+    "answer_spec": {
+      "kind": "entity_list",
+      "value": ["Mars", "Uranus", "Neptune"]
+    },
+    "entities": ["Mars", "Jupiter", "Uranus", "Neptune"],
+    "type": "list"
+  },
+  {
+    "id": 12,
+    "question": "List the terrestrial planets in order of decreasing mass.",
+    "answer_spec": {
+      "kind": "ordered_list",
+      "value": ["Earth", "Venus", "Mars", "Mercury"]
+    },
+    "entities": ["Earth", "Venus", "Mars", "Mercury"],
+    "type": "ordered_list"
+  },
+  {
+    "id": 13,
+    "question": "What is the total number of known moons orbiting Pluto?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 5
+    },
+    "entities": ["Pluto"],
+    "type": "numeric"
+  },
+  {
+    "id": 14,
+    "question": "Between Saturn and Uranus, which one is farther from the Sun?",
+    "answer_spec": {
+      "kind": "entity",
+      "value": "Uranus"
+    },
+    "entities": ["Saturn", "Uranus"],
+    "type": "entity"
+  },
+  {
+    "id": 15,
+    "question": "As of November 2021, how many confirmed moons did Saturn have?",
+    "answer_spec": {
+      "kind": "single_number",
+      "value": 82
+    },
+    "entities": ["Saturn"],
+    "type": "numeric"
+  }
+]
