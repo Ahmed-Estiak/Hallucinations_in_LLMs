@@ -17,6 +17,10 @@ def normalize_text(text: Any) -> str:
 
 BOOLEAN_TOKEN_RE = re.compile(r"\b(yes|no)\b")
 NEGATED_BOOLEAN_RE = re.compile(r"\b(?:not|never)\s+(yes|no)\b")
+SAFE_BOOLEAN_PREFIX_RE = re.compile(
+    r"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*(yes|no)[\s\W]*$|"
+    r"^(?:the\s+answer\s+is|it\s+is|it's)\s+(yes|no)[\s\W]*$"
+)
 HEDGING_WORDS = {
     "maybe",
     "probably",
@@ -74,6 +78,15 @@ def _parse_boolean_answer(text: str) -> Dict[str, Any]:
             "predicted_value": None,
             "manual_check": True,
             "reason": "ambiguous_negated_boolean",
+        }
+
+    safe_prefix_match = SAFE_BOOLEAN_PREFIX_RE.fullmatch(text)
+    if safe_prefix_match:
+        token = safe_prefix_match.group(1) or safe_prefix_match.group(2)
+        return {
+            "predicted_value": token == "yes",
+            "manual_check": False,
+            "reason": "parsed_safe_prefixed_boolean",
         }
 
     matches = list(BOOLEAN_TOKEN_RE.finditer(text))
