@@ -83,16 +83,19 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
         }
 
     is_correct = candidate == normalized_truth
+    should_manual_check = manual_check and (
+        is_correct or str(parsed_result["reason"]) == "ambiguous_multiple_entities"
+    )
 
     mismatch_reason = (
         "entity_not_matched"
-        if parsed_result["reason"] == "parsed_clean_entity"
+        if parsed_result["reason"] in {"parsed_clean_entity", "parsed_entity_with_formatting_noise"}
         else str(parsed_result["reason"])
     )
 
     return {
         "is_correct": is_correct,
-        "manual_check": manual_check,
+        "manual_check": should_manual_check,
         "normalized_answer": candidate,
         "normalized_truth": normalized_truth,
         "reason": "matched" if is_correct else mismatch_reason
