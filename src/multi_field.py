@@ -134,6 +134,7 @@ def evaluate_multi_field(answer: Any, fields: List[Dict[str, Any]]) -> Dict[str,
     manual_check = any(bool(result["manual_check"]) for result in field_results.values())
 
     if mapping_strategy == "fallback" and len(fields) > 1:
+        is_correct = False
         manual_check = True
 
     predicted_fields = {
