@@ -19,6 +19,7 @@ LEADING_NOISE_RE = re.compile(
     r"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*|^(?:the\s+answer\s+is|it\s+is|it's)\s+"
 )
 MULTI_ENTITY_SEPARATOR_RE = re.compile(r",|;|\band\b|\bor\b|\s+/\s+")
+AMBIGUITY_MARKER_RE = re.compile(r"\b(?:not|never|maybe|perhaps|probably|possibly|or)\b|,|;|\s+/\s+")
 
 
 def _canonicalize_entity_text(text: str) -> str:
@@ -100,6 +101,89 @@ def _match_person_name_variant(candidate_text: str, truth_text: str) -> Dict[str
         "matched": True,
         "manual_check": True,
         "reason": "matched_person_name_variant",
+    }
+
+
+def _has_ambiguity_markers(text: str) -> bool:
+    return bool(AMBIGUITY_MARKER_RE.search(text))
+
+
+def _find_exact_truth_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
+    if not truth_text:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    if truth_text not in answer_text:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    if _has_ambiguity_markers(answer_text):
+        return {
+            "matched": False,
+            "manual_check": True,
+            "reason": "ambiguous_embedded_entity_match",
+        }
+
+    return {
+        "matched": True,
+        "manual_check": True,
+        "reason": "matched_embedded_entity_span",
+    }
+
+
+def _find_person_name_variant_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
+    answer_tokens = _tokenize_person_name(answer_text)
+    truth_tokens = _tokenize_person_name(truth_text)
+
+    if len(answer_tokens) < 2 or len(truth_tokens) < 2:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    candidate_windows = []
+    min_window = 2
+    max_window = min(len(answer_tokens), len(truth_tokens) + 1)
+
+    for window_size in range(min_window, max_window + 1):
+        for start in range(len(answer_tokens) - window_size + 1):
+            window_tokens = answer_tokens[start:start + window_size]
+            candidate_windows.append(" ".join(window_tokens))
+
+    matches = [
+        candidate_window
+        for candidate_window in candidate_windows
+        if _match_person_name_variant(candidate_window, truth_text)["matched"]
+    ]
+
+    if not matches:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    max_match_length = max(len(match.split()) for match in matches)
+    strongest_matches = {match for match in matches if len(match.split()) == max_match_length}
+
+    if len(strongest_matches) > 1 or _has_ambiguity_markers(answer_text):
+        return {
+            "matched": False,
+            "manual_check": True,
+            "reason": "ambiguous_embedded_person_name_match",
+        }
+
+    return {
+        "matched": True,
+        "manual_check": True,
+        "reason": "matched_embedded_person_name_variant",
     }
 
 
@@ -190,6 +274,45 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
                 "normalized_answer": candidate,
                 "normalized_truth": normalized_truth,
                 "reason": str(person_match_result["reason"]),
+            }
+
+    exact_span_result = _find_exact_truth_span(normalized_answer, normalized_truth)
+    if exact_span_result["matched"]:
+        return {
+            "is_correct": True,
+            "manual_check": True,
+            "normalized_answer": normalized_answer,
+            "normalized_truth": normalized_truth,
+            "reason": "matched",
+        }
+
+    if exact_span_result["manual_check"]:
+        return {
+            "is_correct": False,
+            "manual_check": True,
+            "normalized_answer": normalized_answer,
+            "normalized_truth": normalized_truth,
+            "reason": str(exact_span_result["reason"]),
+        }
+
+    if is_person_like_truth:
+        person_span_result = _find_person_name_variant_span(normalized_answer, normalized_truth)
+        if person_span_result["matched"]:
+            return {
+                "is_correct": True,
+                "manual_check": True,
+                "normalized_answer": normalized_answer,
+                "normalized_truth": normalized_truth,
+                "reason": "matched",
+            }
+
+        if person_span_result["manual_check"]:
+            return {
+                "is_correct": False,
+                "manual_check": True,
+                "normalized_answer": normalized_answer,
+                "normalized_truth": normalized_truth,
+                "reason": str(person_span_result["reason"]),
             }
 
     should_manual_check = manual_check and (
