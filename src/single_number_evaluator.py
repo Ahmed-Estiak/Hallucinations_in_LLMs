@@ -141,6 +141,15 @@ def evaluate_single_number(answer: Any, truth_value: float) -> Dict[str, Any]:
             "reason": "ambiguous_multiple_numbers"
         }
 
+    if parsed_result["reason"] == "ambiguous_hedged_number":
+        return {
+            "is_correct": False,
+            "manual_check": True,
+            "normalized_answer": normalized_answer,
+            "predicted_numbers": predicted_numbers,
+            "reason": "ambiguous_hedged_number"
+        }
+
     matched = exact_or_approx_match(predicted_numbers[0], truth_value)
 
     return {
