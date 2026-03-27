@@ -23,8 +23,8 @@ MULTI_ENTITY_SEPARATOR_RE = re.compile(r",|;|\band\b|\bor\b|\s+/\s+")
 
 def _canonicalize_entity_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
-    text = re.sub(r"^[\s'\"“”‘’(\[]+", "", text)
-    text = re.sub(r"[\s'\"“”‘’)\].,!?;:]+$", "", text)
+    text = re.sub(r"^[\s'\"(\[]+", "", text)
+    text = re.sub(r"[\s'\")\].,!?;:]+$", "", text)
     return text
 
 
