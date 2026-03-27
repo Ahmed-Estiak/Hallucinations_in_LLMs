@@ -28,6 +28,81 @@ def _canonicalize_entity_text(text: str) -> str:
     return text
 
 
+def _tokenize_person_name(text: str) -> list[str]:
+    return re.findall(r"[a-z]+", text)
+
+
+def _is_person_like_truth(text: str) -> bool:
+    tokens = _tokenize_person_name(text)
+    return len(tokens) >= 2 and " " in text
+
+
+def _can_match_given_tokens(candidate_tokens: list[str], truth_tokens: list[str]) -> bool:
+    unused_truth_tokens = truth_tokens[:]
+
+    for candidate_token in candidate_tokens:
+        matched_index = None
+
+        for index, truth_token in enumerate(unused_truth_tokens):
+            if candidate_token == truth_token:
+                matched_index = index
+                break
+
+            if len(candidate_token) == 1 and truth_token.startswith(candidate_token):
+                matched_index = index
+                break
+
+        if matched_index is None:
+            return False
+
+        unused_truth_tokens.pop(matched_index)
+
+    return True
+
+
+def _match_person_name_variant(candidate_text: str, truth_text: str) -> Dict[str, Any]:
+    candidate_tokens = _tokenize_person_name(candidate_text)
+    truth_tokens = _tokenize_person_name(truth_text)
+
+    if len(candidate_tokens) < 2 or len(truth_tokens) < 2:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    truth_surname = truth_tokens[-1]
+    truth_given_tokens = truth_tokens[:-1]
+
+    if truth_surname not in candidate_tokens:
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    candidate_given_tokens = [token for token in candidate_tokens if token != truth_surname]
+    if not candidate_given_tokens:
+        return {
+            "matched": False,
+            "manual_check": True,
+            "reason": "ambiguous_partial_person_name",
+        }
+
+    if not _can_match_given_tokens(candidate_given_tokens, truth_given_tokens):
+        return {
+            "matched": False,
+            "manual_check": False,
+            "reason": "entity_not_matched",
+        }
+
+    return {
+        "matched": True,
+        "manual_check": True,
+        "reason": "matched_person_name_variant",
+    }
+
+
 def _extract_entity_candidate(text: str) -> Dict[str, Optional[str]]:
     canonical_text = _canonicalize_entity_text(text)
     if not canonical_text:
@@ -72,17 +147,51 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
     parsed_result = _extract_entity_candidate(normalized_answer)
     candidate = parsed_result["candidate"]
     manual_check = bool(parsed_result["manual_check"])
+    is_person_like_truth = _is_person_like_truth(normalized_truth)
 
     if candidate is None:
+        if is_person_like_truth and parsed_result["reason"] == "ambiguous_multiple_entities":
+            person_match_result = _match_person_name_variant(normalized_answer, normalized_truth)
+            if person_match_result["matched"]:
+                return {
+                    "is_correct": True,
+                    "manual_check": True,
+                    "normalized_answer": _canonicalize_entity_text(normalized_answer),
+                    "normalized_truth": normalized_truth,
+                    "reason": "matched",
+                }
+
         return {
             "is_correct": False,
-            "manual_check": manual_check,
+            "manual_check": manual_check or (
+                is_person_like_truth and parsed_result["reason"] == "ambiguous_partial_person_name"
+            ),
             "normalized_answer": normalized_answer,
             "normalized_truth": normalized_truth,
             "reason": str(parsed_result["reason"]),
         }
 
     is_correct = candidate == normalized_truth
+    if not is_correct and is_person_like_truth:
+        person_match_result = _match_person_name_variant(candidate, normalized_truth)
+        if person_match_result["matched"]:
+            return {
+                "is_correct": True,
+                "manual_check": True,
+                "normalized_answer": candidate,
+                "normalized_truth": normalized_truth,
+                "reason": "matched",
+            }
+
+        if person_match_result["manual_check"]:
+            return {
+                "is_correct": False,
+                "manual_check": True,
+                "normalized_answer": candidate,
+                "normalized_truth": normalized_truth,
+                "reason": str(person_match_result["reason"]),
+            }
+
     should_manual_check = manual_check and (
         is_correct or str(parsed_result["reason"]) == "ambiguous_multiple_entities"
     )
