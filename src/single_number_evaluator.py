@@ -1,15 +1,15 @@
 import re
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
-NUMBER_PATTERN = r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?"
+NUMBER_PATTERN = r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?"
 SAFE_NUMBER_PREFIX_RE = re.compile(
     rf"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*({NUMBER_PATTERN})[\s\W]*$|"
     rf"^(?:the\s+answer\s+is|it\s+is|it's)\s+({NUMBER_PATTERN})[\s\W]*$"
 )
 HEDGED_NUMBER_RE = re.compile(
-    rf"\b(?:about|approximately|approx|around|at least|more than)\b[^\d\-+]*({NUMBER_PATTERN})\b"
+    rf"\b(?:about|approximately|approx|around|at least|more than|less than|under|at most|fewer than|no more than|no less than|over)\b[^\d\-+]*({NUMBER_PATTERN})\b"
 )
 
 
@@ -37,7 +37,7 @@ def extract_numbers(text: Any) -> List[float]:
     if not matches:
         return []
 
-    return [float(x) for x in matches]
+    return [float(x.replace(",", "")) for x in matches]
 
 
 def exact_or_approx_match(pred_num: float, truth_num: float, tol: float = 1e-9) -> bool:
@@ -66,7 +66,7 @@ def _parse_single_number_answer(text: str) -> Dict[str, Any]:
     if safe_prefix_match:
         token = safe_prefix_match.group(1) or safe_prefix_match.group(2)
         return {
-            "predicted_numbers": [float(token)],
+            "predicted_numbers": [float(token.replace(",", ""))],
             "manual_check": False,
             "reason": "parsed_safe_prefixed_number",
         }
@@ -74,7 +74,7 @@ def _parse_single_number_answer(text: str) -> Dict[str, Any]:
     hedged_match = HEDGED_NUMBER_RE.search(text)
     if hedged_match:
         return {
-            "predicted_numbers": [float(hedged_match.group(1))],
+            "predicted_numbers": [float(hedged_match.group(1).replace(",", ""))],
             "manual_check": True,
             "reason": "ambiguous_hedged_number",
         }
@@ -103,7 +103,7 @@ def _parse_single_number_answer(text: str) -> Dict[str, Any]:
 
     return {
         "predicted_numbers": predicted_numbers,
-        "manual_check": False,
+        "manual_check": True,
         "reason": "parsed_number_with_extra_context",
     }
 
