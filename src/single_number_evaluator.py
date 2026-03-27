@@ -4,6 +4,9 @@ from typing import Any, Dict, List
 
 
 NUMBER_PATTERN = r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?"
+NUMBER_WITH_BOUNDARY_PATTERN = re.compile(
+    rf"(?<![a-z0-9])({NUMBER_PATTERN})(?![a-z0-9])"
+)
 SAFE_NUMBER_PREFIX_RE = re.compile(
     rf"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*({NUMBER_PATTERN})[\s\W]*$|"
     rf"^(?:the\s+answer\s+is|it\s+is|it's)\s+({NUMBER_PATTERN})[\s\W]*$"
@@ -32,7 +35,7 @@ def extract_numbers(text: Any) -> List[float]:
     'abc 45 yy 49 zz 59,39' -> [45.0, 49.0, 59.0, 39.0]
     """
     text = "" if text is None else str(text)
-    matches = re.findall(NUMBER_PATTERN, text)
+    matches = [match.group(1) for match in NUMBER_WITH_BOUNDARY_PATTERN.finditer(text)]
 
     if not matches:
         return []
