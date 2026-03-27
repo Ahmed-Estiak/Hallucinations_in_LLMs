@@ -116,7 +116,8 @@ def _find_exact_truth_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
             "reason": "entity_not_matched",
         }
 
-    if truth_text not in answer_text:
+    truth_pattern = re.compile(rf"(?<![a-z0-9]){re.escape(truth_text)}(?![a-z0-9])")
+    if not truth_pattern.search(answer_text):
         return {
             "matched": False,
             "manual_check": False,
