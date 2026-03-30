@@ -257,6 +257,19 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
         }
 
     is_correct = candidate == normalized_truth
+    should_manual_check = manual_check and (
+        is_correct or str(parsed_result["reason"]) == "ambiguous_multiple_entities"
+    )
+
+    if is_correct:
+        return {
+            "is_correct": True,
+            "manual_check": should_manual_check,
+            "normalized_answer": candidate,
+            "normalized_truth": normalized_truth,
+            "reason": "matched",
+        }
+
     if not is_correct and is_person_like_truth:
         person_match_result = _match_person_name_variant(candidate, normalized_truth)
         if person_match_result["matched"]:
@@ -315,10 +328,6 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
                 "normalized_truth": normalized_truth,
                 "reason": str(person_span_result["reason"]),
             }
-
-    should_manual_check = manual_check and (
-        is_correct or str(parsed_result["reason"]) == "ambiguous_multiple_entities"
-    )
 
     mismatch_reason = (
         "entity_not_matched"
