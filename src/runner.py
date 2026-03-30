@@ -55,9 +55,6 @@ def run_benchmark():
         openai_manual_check_count += int(bool(openai_eval["manual_check"]))
         gemini_manual_check_count += int(bool(gemini_eval["manual_check"]))
 
-        openai_accuracy = (openai_correct_count / index) * 100
-        gemini_accuracy = (gemini_correct_count / index) * 100
-
         results.append({
             "id": qid,
             "question": question,
@@ -75,19 +72,6 @@ def run_benchmark():
             "openai_eval": json.dumps(openai_eval, ensure_ascii=False),
             "gemini_eval": json.dumps(gemini_eval, ensure_ascii=False),
         })
-
-        print(
-            "OpenAI -> "
-            f"correct: {openai_correct_count}/{index} "
-            f"({openai_accuracy:.2f}%), "
-            f"manual_check: {openai_manual_check_count}"
-        )
-        print(
-            "Gemini -> "
-            f"correct: {gemini_correct_count}/{index} "
-            f"({gemini_accuracy:.2f}%), "
-            f"manual_check: {gemini_manual_check_count}"
-        )
 
         gemini_counter += 1
 
