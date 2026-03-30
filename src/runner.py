@@ -1,5 +1,7 @@
 import json
 import time
+from pathlib import Path
+
 import pandas as pd
 
 from src.models import ask_openai, ask_gemini
@@ -12,13 +14,15 @@ def run_benchmark():
         questions = json.load(f)
 
     results = []
+    Path("results").mkdir(exist_ok=True)
 
     gemini_counter = 0
 
-    for q in questions[:15]:
+    for q in questions:
 
         qid = q["id"]
         question = q["question"]
+        kind = q["answer_spec"]["kind"]
 
         print("Running:", qid)
 
@@ -26,17 +30,23 @@ def run_benchmark():
 
         gemini_ans = ask_gemini(question)
 
-        openai_correct = evaluate_answer(q, openai_ans)
-        gemini_correct = evaluate_answer(q, gemini_ans)
+        openai_eval = evaluate_answer(q, openai_ans)
+        gemini_eval = evaluate_answer(q, gemini_ans)
 
         results.append({
-
             "id": qid,
             "question": question,
+            "kind": kind,
             "openai_answer": openai_ans,
             "gemini_answer": gemini_ans,
-            "openai_correct": openai_correct,
-            "gemini_correct": gemini_correct
+            "openai_is_correct": openai_eval["is_correct"],
+            "openai_manual_check": openai_eval["manual_check"],
+            "openai_reason": openai_eval["reason"],
+            "openai_eval": json.dumps(openai_eval, ensure_ascii=False),
+            "gemini_is_correct": gemini_eval["is_correct"],
+            "gemini_manual_check": gemini_eval["manual_check"],
+            "gemini_reason": gemini_eval["reason"],
+            "gemini_eval": json.dumps(gemini_eval, ensure_ascii=False),
         })
 
         gemini_counter += 1

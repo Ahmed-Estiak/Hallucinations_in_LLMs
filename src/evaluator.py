@@ -1,76 +1,37 @@
-import re
+from typing import Any, Dict
+
+from src.boolean_evaluator import evaluate_boolean
+from src.entity_evaluator import evaluate_entity
+from src.entity_list_evaluator import evaluate_entity_list
+from src.multi_field import evaluate_multi_field
+from src.ordered_list_evaluator import evaluate_ordered_list
+from src.single_number_evaluator import evaluate_single_number
 
 
-def extract_number(text):
-
-    m = re.search(r"\d+", text)
-    if m:
-        return int(m.group())
-
-    return None
-
-
-def extract_boolean(text):
-
-    text = text.lower()
-
-    if "yes" in text:
-        return True
-
-    if "no" in text:
-        return False
-
-    return None
-
-
-def extract_list(text):
-
-    return [x.strip() for x in text.split(",")]
-
-
-def evaluate_answer(question, answer):
-
+def evaluate_answer(question: Dict[str, Any], answer: Any) -> Dict[str, Any]:
     kind = question["answer_spec"]["kind"]
+    answer_spec = question["answer_spec"]
 
     if kind == "single_number":
-
-        pred = extract_number(answer)
-        truth = question["answer_spec"]["value"]
-
-        return pred == truth
-
+        return evaluate_single_number(answer, answer_spec["value"])
 
     if kind == "boolean":
-
-        pred = extract_boolean(answer)
-        truth = question["answer_spec"]["value"]
-
-        return pred == truth
-
+        return evaluate_boolean(answer, answer_spec["value"])
 
     if kind == "entity":
+        return evaluate_entity(answer, answer_spec["value"])
 
-        pred = answer.strip()
-        truth = question["answer_spec"]["value"]
+    if kind == "entity_list":
+        return evaluate_entity_list(answer, answer_spec["value"])
 
-        return pred.lower() == truth.lower()
-
-
-    if kind == "entity_list" or kind == "ordered_list":
-
-        pred = extract_list(answer)
-        truth = question["answer_spec"]["value"]
-
-        return pred == truth
-
+    if kind == "ordered_list":
+        return evaluate_ordered_list(answer, answer_spec["value"])
 
     if kind == "multi_field":
+        return evaluate_multi_field(answer, answer_spec["fields"])
 
-        pred = extract_list(answer)
-
-        year_truth = question["answer_spec"]["fields"][0]["value"]
-        name_truth = question["answer_spec"]["fields"][1]["value"]
-
-        return str(year_truth) in pred[0] and name_truth.lower() in pred[1].lower()
-
-    return False
+    return {
+        "is_correct": False,
+        "manual_check": True,
+        "reason": f"unsupported_answer_kind:{kind}",
+    }
