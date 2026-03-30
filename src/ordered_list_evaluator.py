@@ -29,13 +29,18 @@ def _clean_item(text: str) -> str:
 
 
 def _normalize_list_separators(text: str) -> str:
-    text = re.sub(r"\s*,\s*and\s+", ", ", text)
-    text = re.sub(r"\s*,\s*", ", ", text)
     text = re.sub(r"\s*;\s*", ", ", text)
     text = re.sub(r"\s*\|\s*", ", ", text)
     text = re.sub(r"\s*\n\s*", ", ", text)
-    text = re.sub(r"\band\s+", "", text) if text.startswith("and ") else text
-    text = re.sub(r"\s+\band\b\s+", ", ", text)
+    text = re.sub(r"\s*,\s*", ", ", text)
+    text = re.sub(r"^\s*and\s+", "", text)
+
+    if "," in text:
+        text = re.sub(r",\s*and\s+", ", ", text)
+        text = re.sub(r",\s*([^,]+?)\s+and\s+([^,]+?)\s*$", r", \1, \2", text)
+    else:
+        text = re.sub(r"\s+\band\b\s+", ", ", text)
+
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r"(?:,\s*){2,}", ", ", text)
     return text.strip(" ,;|")
