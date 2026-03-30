@@ -7,8 +7,7 @@ from src.entity_evaluator import evaluate_entity
 LEADING_NOISE_RE = re.compile(
     r"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*|^(?:the\s+answer\s+is|it\s+is|it's)\s+"
 )
-STRONG_LIST_SEPARATOR_RE = re.compile(r"\s*[,;|\n]\s*")
-RELAXED_AND_SEPARATOR_RE = re.compile(r"\s+\band\b\s+")
+LIST_SEPARATOR_RE = re.compile(r"\s*,\s*|\s*;\s*|\s*\|\s*|\s*\n\s*")
 ITEM_PREFIX_RE = re.compile(r"^(?:\d+[\).\:-]\s*|[-*]\s*)")
 
 
@@ -29,6 +28,19 @@ def _clean_item(text: str) -> str:
     return text.strip(" ,;|")
 
 
+def _normalize_list_separators(text: str) -> str:
+    text = re.sub(r"\s*,\s*and\s+", ", ", text)
+    text = re.sub(r"\s*,\s*", ", ", text)
+    text = re.sub(r"\s*;\s*", ", ", text)
+    text = re.sub(r"\s*\|\s*", ", ", text)
+    text = re.sub(r"\s*\n\s*", ", ", text)
+    text = re.sub(r"\band\s+", "", text) if text.startswith("and ") else text
+    text = re.sub(r"\s+\band\b\s+", ", ", text)
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"(?:,\s*){2,}", ", ", text)
+    return text.strip(" ,;|")
+
+
 def _parse_entity_list(answer: str) -> Dict[str, Any]:
     normalized_answer = normalize_text(answer)
     stripped_answer = LEADING_NOISE_RE.sub("", normalized_answer)
@@ -41,25 +53,17 @@ def _parse_entity_list(answer: str) -> Dict[str, Any]:
             "reason": "invalid_entity_list_format",
         }
 
-    if STRONG_LIST_SEPARATOR_RE.search(stripped_answer):
-        raw_items = STRONG_LIST_SEPARATOR_RE.split(stripped_answer)
+    normalized_separators = _normalize_list_separators(stripped_answer)
+    if LIST_SEPARATOR_RE.search(normalized_separators):
+        raw_items = LIST_SEPARATOR_RE.split(normalized_separators)
         items = [_clean_item(item) for item in raw_items if _clean_item(item)]
         return {
             "items": items,
-            "manual_check": manual_check,
-            "reason": "parsed_strong_separated_entity_list",
+            "manual_check": manual_check or normalized_separators != stripped_answer,
+            "reason": "parsed_normalized_entity_list",
         }
 
-    if RELAXED_AND_SEPARATOR_RE.search(stripped_answer):
-        raw_items = RELAXED_AND_SEPARATOR_RE.split(stripped_answer)
-        items = [_clean_item(item) for item in raw_items if _clean_item(item)]
-        return {
-            "items": items,
-            "manual_check": True,
-            "reason": "parsed_relaxed_and_entity_list",
-        }
-
-    item = _clean_item(stripped_answer)
+    item = _clean_item(normalized_separators)
     return {
         "items": [item] if item else [],
         "manual_check": manual_check,
