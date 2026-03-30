@@ -8,6 +8,16 @@ from src.models import ask_openai, ask_gemini
 from src.evaluator import evaluate_answer
 
 
+def _serialize_ground_truth(answer_spec):
+    if "value" in answer_spec:
+        return json.dumps(answer_spec["value"], ensure_ascii=False)
+
+    if "fields" in answer_spec:
+        return json.dumps(answer_spec["fields"], ensure_ascii=False)
+
+    return ""
+
+
 def run_benchmark():
 
     with open("data/qa_92.json") as f:
@@ -23,6 +33,8 @@ def run_benchmark():
         qid = q["id"]
         question = q["question"]
         kind = q["answer_spec"]["kind"]
+        question_type = q.get("type", "")
+        ground_truth = _serialize_ground_truth(q["answer_spec"])
 
         print("Running:", qid)
 
@@ -37,6 +49,8 @@ def run_benchmark():
             "id": qid,
             "question": question,
             "kind": kind,
+            "type": question_type,
+            "ground_truth": ground_truth,
             "openai_answer": openai_ans,
             "gemini_answer": gemini_ans,
             "openai_is_correct": openai_eval["is_correct"],
