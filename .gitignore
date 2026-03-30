@@ -5,3 +5,4 @@ hallucination_llm_env/
 *.pyc
 .DS_Store
 .vscode/
+results/*.ods
