@@ -24,29 +24,60 @@ def normalize_text(text: Any) -> str:
 
 def _clean_item(text: str) -> str:
     text = ITEM_PREFIX_RE.sub("", text.strip())
+    text = re.sub(r"^and\s+", "", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip(" ,;|")
 
 
-def _normalize_list_separators(text: str) -> str:
+def _split_rightmost_and(text: str, splits_needed: int) -> Optional[List[str]]:
+    parts = [text.strip()]
+
+    for _ in range(splits_needed):
+        current_text = parts[0]
+        rightmost_match = None
+        for match in re.finditer(r"\s+\band\b\s+", current_text):
+            rightmost_match = match
+
+        if rightmost_match is None:
+            return None
+
+        left = current_text[:rightmost_match.start()].strip()
+        right = current_text[rightmost_match.end():].strip()
+        parts = [left, right, *parts[1:]]
+
+    return parts if all(parts) else None
+
+
+def _normalize_list_items(text: str, expected_count: int) -> List[str]:
     text = re.sub(r"\s*;\s*", ", ", text)
     text = re.sub(r"\s*\|\s*", ", ", text)
     text = re.sub(r"\s*\n\s*", ", ", text)
     text = re.sub(r"\s*,\s*", ", ", text)
     text = re.sub(r"^\s*and\s+", "", text)
+    text = re.sub(r"\s+", " ", text).strip(" ,;|")
 
     if "," in text:
         text = re.sub(r",\s*and\s+", ", ", text)
-        text = re.sub(r",\s*([^,]+?)\s+and\s+([^,]+?)\s*$", r", \1, \2", text)
-    else:
-        text = re.sub(r"\s+\band\b\s+", ", ", text)
+        items = [_clean_item(item) for item in LIST_SEPARATOR_RE.split(text) if _clean_item(item)]
 
-    text = re.sub(r"\s+", " ", text)
-    text = re.sub(r"(?:,\s*){2,}", ", ", text)
-    return text.strip(" ,;|")
+        if len(items) < expected_count and items:
+            tail_splits_needed = expected_count - len(items)
+            tail_parts = _split_rightmost_and(items[-1], tail_splits_needed)
+            if tail_parts is not None:
+                items = items[:-1] + [_clean_item(item) for item in tail_parts if _clean_item(item)]
+
+        return items
+
+    and_splits_needed = max(expected_count - 1, 0)
+    and_items = _split_rightmost_and(text, and_splits_needed)
+    if and_items is not None and len(and_items) == expected_count:
+        return [_clean_item(item) for item in and_items if _clean_item(item)]
+
+    item = _clean_item(text)
+    return [item] if item else []
 
 
-def _parse_entity_list(answer: str) -> Dict[str, Any]:
+def _parse_entity_list(answer: str, expected_count: int) -> Dict[str, Any]:
     normalized_answer = normalize_text(answer)
     stripped_answer = LEADING_NOISE_RE.sub("", normalized_answer)
     manual_check = stripped_answer != normalized_answer
@@ -58,17 +89,15 @@ def _parse_entity_list(answer: str) -> Dict[str, Any]:
             "reason": "invalid_entity_list_format",
         }
 
-    normalized_separators = _normalize_list_separators(stripped_answer)
-    if LIST_SEPARATOR_RE.search(normalized_separators):
-        raw_items = LIST_SEPARATOR_RE.split(normalized_separators)
-        items = [_clean_item(item) for item in raw_items if _clean_item(item)]
+    items = _normalize_list_items(stripped_answer, expected_count)
+    if len(items) > 1:
         return {
             "items": items,
-            "manual_check": manual_check or normalized_separators != stripped_answer,
+            "manual_check": manual_check or normalize_text(", ".join(items)) != stripped_answer,
             "reason": "parsed_normalized_entity_list",
         }
 
-    item = _clean_item(normalized_separators)
+    item = items[0] if items else ""
     return {
         "items": [item] if item else [],
         "manual_check": manual_check,
@@ -113,7 +142,7 @@ def evaluate_entity_list(answer: Any, truth_value: List[str]) -> Dict[str, Any]:
     """
     normalized_answer = normalize_text(answer)
     normalized_truth = [normalize_text(item) for item in truth_value]
-    parsed_result = _parse_entity_list(normalized_answer)
+    parsed_result = _parse_entity_list(normalized_answer, len(normalized_truth))
     predicted_items = parsed_result["items"]
     manual_check = bool(parsed_result["manual_check"])
 
