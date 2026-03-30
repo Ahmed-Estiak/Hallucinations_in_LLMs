@@ -31,31 +31,59 @@ def _field_label_variants(field_name: str) -> List[str]:
     return sorted(variants, key=len, reverse=True)
 
 
+def _field_candidate_strong_fit(field_type: str, candidate: str) -> bool:
+    candidate = normalize_text(candidate)
+
+    if field_type in {"single_number", "number", "year"}:
+        return bool(re.fullmatch(r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?", candidate))
+
+    if field_type == "boolean":
+        return candidate in {"yes", "no"}
+
+    if field_type == "entity":
+        return bool(candidate)
+
+    return bool(candidate)
+
+
 def _extract_labeled_candidates(answer: str, fields: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
     candidates: Dict[str, str] = {}
+    label_matches = []
 
     for field in fields:
         field_name = field["name"]
         label_pattern = "|".join(re.escape(label) for label in _field_label_variants(field_name))
-        match = re.search(rf"\b(?:{label_pattern})\b\s*[:\-]\s*", answer)
-        if not match:
+        for match in re.finditer(rf"\b(?:{label_pattern})\b(?:\s*[:\-]\s*|\s+)", answer):
+            label_matches.append({
+                "field_name": field_name,
+                "start": match.start(),
+                "end": match.end(),
+            })
+
+    if not label_matches:
+        return None
+
+    label_matches.sort(key=lambda item: item["start"])
+    unique_label_matches = []
+    seen_fields = set()
+
+    for match in label_matches:
+        if match["field_name"] in seen_fields:
             continue
+        seen_fields.add(match["field_name"])
+        unique_label_matches.append(match)
 
-        start = match.end()
-        next_starts = []
+    if len(unique_label_matches) != len(fields):
+        return None
 
-        for other_field in fields:
-            if other_field["name"] == field_name:
-                continue
-
-            other_pattern = "|".join(
-                re.escape(label) for label in _field_label_variants(other_field["name"])
-            )
-            other_match = re.search(rf"\b(?:{other_pattern})\b\s*[:\-]\s*", answer[start:])
-            if other_match:
-                next_starts.append(start + other_match.start())
-
-        end = min(next_starts) if next_starts else len(answer)
+    for index, match in enumerate(unique_label_matches):
+        field_name = match["field_name"]
+        start = match["end"]
+        end = (
+            unique_label_matches[index + 1]["start"]
+            if index + 1 < len(unique_label_matches)
+            else len(answer)
+        )
         candidate = answer[start:end].strip(" ,;|")
 
         if candidate:
@@ -73,6 +101,29 @@ def _split_ordered_candidates(answer: str, expected_count: int) -> Optional[List
         return parts
 
     return None
+
+
+def _split_relaxed_two_field_candidates(answer: str, fields: List[Dict[str, Any]]) -> Optional[List[str]]:
+    if len(fields) != 2:
+        return None
+
+    if answer.count(" and ") != 1:
+        return None
+
+    left_candidate, right_candidate = [part.strip() for part in answer.split(" and ", 1)]
+    if not left_candidate or not right_candidate:
+        return None
+
+    first_field_type = str(fields[0]["type"]).lower()
+    second_field_type = str(fields[1]["type"]).lower()
+
+    if not _field_candidate_strong_fit(first_field_type, left_candidate):
+        return None
+
+    if not _field_candidate_strong_fit(second_field_type, right_candidate):
+        return None
+
+    return [left_candidate, right_candidate]
 
 
 def _evaluate_field(field_type: str, candidate: Any, truth_value: Any) -> Dict[str, Any]:
@@ -114,11 +165,19 @@ def evaluate_multi_field(answer: Any, fields: List[Dict[str, Any]]) -> Dict[str,
             }
             mapping_strategy = "ordered"
         else:
-            candidate_map = {
-                field["name"]: normalized_answer
-                for field in fields
-            }
-            mapping_strategy = "fallback"
+            relaxed_candidates = _split_relaxed_two_field_candidates(normalized_answer, fields)
+            if relaxed_candidates is not None:
+                candidate_map = {
+                    field["name"]: relaxed_candidates[index]
+                    for index, field in enumerate(fields)
+                }
+                mapping_strategy = "relaxed_ordered"
+            else:
+                candidate_map = {
+                    field["name"]: normalized_answer
+                    for field in fields
+                }
+                mapping_strategy = "fallback"
 
     field_results: Dict[str, Dict[str, Any]] = {}
 
@@ -135,6 +194,8 @@ def evaluate_multi_field(answer: Any, fields: List[Dict[str, Any]]) -> Dict[str,
 
     if mapping_strategy == "fallback" and len(fields) > 1:
         is_correct = False
+        manual_check = True
+    elif mapping_strategy == "relaxed_ordered":
         manual_check = True
 
     predicted_fields = {
