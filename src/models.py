@@ -1,10 +1,12 @@
 from openai import OpenAI
-from google import genai
+import google.generativeai as genai
+
 from src.config import OPENAI_API_KEY, GEMINI_API_KEY
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 PROMPT_TEMPLATE = """
@@ -16,12 +18,12 @@ Rules:
 - Do not add extra words.
 
 Output format rules:
-- number → only the number
-- boolean → yes or no
-- entity → only the name
-- list → comma separated
-- ordered list → comma separated in correct order
-- multi-field → comma separated
+- number -> only the number
+- boolean -> yes or no
+- entity -> only the name
+- list -> comma separated
+- ordered list -> comma separated in correct order
+- multi-field -> comma separated
 
 Question:
 {question}
@@ -31,7 +33,6 @@ Answer:
 
 
 def ask_openai(question):
-
     prompt = PROMPT_TEMPLATE.format(question=question)
 
     resp = openai_client.responses.create(
@@ -43,12 +44,6 @@ def ask_openai(question):
 
 
 def ask_gemini(question):
-
     prompt = PROMPT_TEMPLATE.format(question=question)
-
-    resp = gemini_client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-
+    resp = gemini_model.generate_content(prompt)
     return resp.text.strip()
