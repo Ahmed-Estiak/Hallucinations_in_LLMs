@@ -1,0 +1,190 @@
+"""
+KG Retriever: Fetch relevant facts from knowledge graph based on parsed question
+"""
+import json
+from typing import List, Dict, Optional
+from pathlib import Path
+from datetime import datetime
+
+
+class KGRetriever:
+    """
+    Retrieves relevant knowledge graph facts for a parsed question.
+    Supports entity matching, predicate matching, and time-based ranking.
+    """
+    
+    def __init__(self, kg_path: str = "data/astronomy_kg1.json"):
+        """Load knowledge graph from JSON file."""
+        with open(kg_path, "r") as f:
+            self.kg = json.load(f)
+    
+    def _normalize_entity(self, entity: str) -> str:
+        """Normalize entity name for matching (case-insensitive, etc.)."""
+        return entity.strip().lower()
+    
+    def _normalize_predicate(self, pred: str) -> str:
+        """Normalize predicate name."""
+        return pred.strip().lower()
+    
+    def _time_relevance_score(self, fact_time: Optional[str], constraint_time: Optional[str]) -> float:
+        """
+        Score how relevant a fact is based on time constraint.
+        Returns score between 0 and 1.
+        
+        Rules:
+        - Exact match: 1.0
+        - Close match (within 1 year): 0.9
+        - Same year: 0.8
+        - Closest to constraint: 0.7
+        - No constraint or no time in fact: 0.5
+        """
+        if not constraint_time or not fact_time:
+            return 0.5
+        
+        try:
+            # Try to parse times
+            if len(str(constraint_time)) == 4 and str(constraint_time).isdigit():
+                constraint_year = int(constraint_time)
+            else:
+                # Try parsing "2022-08" format
+                constraint_year = int(str(constraint_time).split("-")[0])
+            
+            if len(str(fact_time)) == 4 and str(fact_time).isdigit():
+                fact_year = int(fact_time)
+            else:
+                fact_year = int(str(fact_time).split("-")[0])
+            
+            diff = abs(constraint_year - fact_year)
+            
+            if diff == 0:
+                return 1.0
+            elif diff == 1:
+                return 0.9
+            elif diff <= 2:
+                return 0.8
+            else:
+                return max(0.5, 1.0 - (diff * 0.02))  # Decay with distance
+        except:
+            return 0.5
+    
+    def retrieve(
+        self,
+        entities: List[str],
+        predicates: List[str],
+        time_constraint: Optional[str] = None,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Retrieve relevant facts from KG.
+        
+        Args:
+            entities: List of entity names to search for
+            predicates: List of predicates to search for
+            time_constraint: Optional time constraint (e.g., "2022-08", "2022")
+            limit: Max number of facts to return
+        
+        Returns:
+            List of relevant facts, ranked by relevance score
+        """
+        candidates = []
+        
+        # Normalize inputs
+        entities_norm = [self._normalize_entity(e) for e in entities]
+        predicates_norm = [self._normalize_predicate(p) for p in predicates]
+        
+        # Iterate through KG and find matches
+        for fact in self.kg:
+            subject = self._normalize_entity(fact.get("subject", ""))
+            predicate = self._normalize_predicate(fact.get("predicate", ""))
+            fact_time = fact.get("time")
+            
+            # Check if subject matches
+            entity_match = subject in entities_norm
+            
+            # Check if predicate matches
+            pred_match = predicate in predicates_norm
+            
+            # Include fact if either entity or predicate matches
+            if entity_match or pred_match:
+                # Calculate relevance score
+                entity_score = 1.0 if entity_match else 0.0
+                pred_score = 1.0 if pred_match else 0.0
+                time_score = self._time_relevance_score(fact_time, time_constraint)
+                
+                # Combined score: prioritize exact entity+predicate matches
+                if entity_match and pred_match:
+                    combined_score = 1.0 * time_score  # Exact match
+                elif entity_match:
+                    combined_score = 0.9 * time_score
+                else:
+                    combined_score = 0.7 * time_score
+                
+                candidates.append({
+                    "fact": fact,
+                    "score": combined_score,
+                    "entity_match": entity_match,
+                    "pred_match": pred_match,
+                    "time_score": time_score
+                })
+        
+        # Sort by score descending and return top N
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        
+        return [c["fact"] for c in candidates[:limit]]
+    
+    def format_facts_for_prompt(self, facts: List[Dict]) -> str:
+        """
+        Format retrieved facts as a readable string for LLM prompt.
+        
+        Returns:
+            Formatted string with all facts
+        """
+        if not facts:
+            return "No relevant facts found in the knowledge graph."
+        
+        formatted = "Knowledge Graph Facts:\n"
+        for i, fact in enumerate(facts, 1):
+            subject = fact.get("subject", "?")
+            predicate = fact.get("predicate", "?")
+            obj = fact.get("object", "?")
+            time = fact.get("time", "unknown time")
+            source = fact.get("source", "unknown source")
+            
+            formatted += f"{i}. {subject} | {predicate} = {obj} (as of {time})\n"
+            formatted += f"   Source: {source}\n"
+        
+        return formatted
+
+
+# Test
+if __name__ == "__main__":
+    retriever = KGRetriever()
+    
+    # Test case 1: Jupiter moons as of 2022
+    facts = retriever.retrieve(
+        entities=["Jupiter"],
+        predicates=["moon_count"],
+        time_constraint="2022-08"
+    )
+    print("Test 1: Jupiter moon_count as of 2022-08")
+    print(retriever.format_facts_for_prompt(facts))
+    print()
+    
+    # Test case 2: Neptune discovery
+    facts = retriever.retrieve(
+        entities=["Neptune"],
+        predicates=["discovered_on", "discovered_by"],
+        time_constraint="1846"
+    )
+    print("Test 2: Neptune discovery info")
+    print(retriever.format_facts_for_prompt(facts))
+    print()
+    
+    # Test case 3: Uranus moons
+    facts = retriever.retrieve(
+        entities=["Uranus"],
+        predicates=["moon_count"],
+        time_constraint="2025-02"
+    )
+    print("Test 3: Uranus moon_count as of 2025-02")
+    print(retriever.format_facts_for_prompt(facts))
