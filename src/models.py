@@ -11,7 +11,6 @@ gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
 PROMPT_TEMPLATE = """
 Answer the astronomy question using the most appropriate format from the list below.
-
 Rules:
 - Output only the final answer.
 - Do not explain.
