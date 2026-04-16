@@ -38,6 +38,7 @@ Answer:
 
 
 def ask_openai(question):
+    """Ask OpenAI with vanilla prompt (no KG facts)."""
     prompt = PROMPT_TEMPLATE.format(question=question)
 
     resp = openai_client.responses.create(
@@ -49,6 +50,7 @@ def ask_openai(question):
 
 
 def ask_gemini(question):
+    """Ask Gemini with vanilla prompt (no KG facts)."""
     prompt = PROMPT_TEMPLATE.format(question=question)
     resp = gemini_model.generate_content(prompt)
     return resp.text.strip()

@@ -2,10 +2,15 @@
 KG Runner: Benchmark with KG-grounded LLM answers
 Runs in parallel with vanilla LLM benchmark (does not modify existing code)
 Outputs results to results/results_with_kg.csv
+Integrates Advanced KG Reasoning System with question classification
 """
 import json
 import time
+import sys
 from pathlib import Path
+
+# Add workspace root to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
 
@@ -13,6 +18,8 @@ from src.question_parser import parse_question
 from src.kg_retriever import KGRetriever
 from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
 from src.evaluator import evaluate_answer
+from src.question_classifier import QuestionClassifier
+from src.kg_reasoning_engine import KGReasoningEngine, format_reasoned_facts
 
 
 def _serialize_ground_truth(answer_spec):
@@ -55,7 +62,7 @@ def _load_vanilla_results():
 
 
 def run_kg_benchmark():
-    """Run benchmark with KG integration."""
+    """Run benchmark with KG integration and advanced question reasoning."""
     
     # Initialize
     with open("data/qa_92.json") as f:
@@ -67,6 +74,8 @@ def run_kg_benchmark():
     print(f"Loaded {loaded_vanilla_count} vanilla results from results/results.csv for reuse.")
 
     kg_retriever = KGRetriever()
+    question_classifier = QuestionClassifier()
+    kg_reasoning_engine = KGReasoningEngine()
     results = []
     Path("results").mkdir(exist_ok=True)
 
@@ -102,7 +111,27 @@ def run_kg_benchmark():
         predicates = parsed["predicates"]
         time_constraint = parsed["time_constraint"]
 
-        # Step 2: Retrieve KG facts
+        # Step 1.5: Classify question for advanced reasoning
+        classified_q = question_classifier.classify(question)
+        primary_type = classified_q.primary_type.name if classified_q.primary_type else "UNKNOWN"
+        time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
+        
+        # Step 2: Retrieve KG facts via advanced reasoning engine
+        # Apply reasoning only for question types where it's proven to help
+        use_kg_reasoning = classified_q.primary_type.name in ["MULTI_FIELD"]
+        
+        if use_kg_reasoning:
+            reasoned_facts, reasoning_strategy = kg_reasoning_engine.reason(
+                classified_q, 
+                entities, 
+                predicates
+            )
+        else:
+            # For other types, use standard retrieval
+            reasoned_facts = []
+            reasoning_strategy = "vanilla_retrieval"
+        
+        # Also retrieve raw facts for comparison
         kg_facts = kg_retriever.retrieve(
             entities=entities,
             predicates=predicates,
@@ -114,7 +143,11 @@ def run_kg_benchmark():
         if kg_found:
             kg_found_count += 1
 
-        kg_facts_text = kg_retriever.format_facts_for_prompt(kg_facts)
+        # Use reasoned facts if available (from advanced reasoning), otherwise use raw retrieval
+        if reasoned_facts:
+            kg_facts_text = format_reasoned_facts(reasoned_facts, reasoning_strategy)
+        else:
+            kg_facts_text = kg_retriever.format_facts_for_prompt(kg_facts)
 
         # Step 3: Retrieve vanilla LLM answers from previous results.csv if valid
         vanilla_row = vanilla_data.get(qid, None)
@@ -133,14 +166,41 @@ def run_kg_benchmark():
             openai_vanilla_reason = pd.NA
             gemini_vanilla_reason = pd.NA
 
-        # Step 4: Get KG-grounded LLM answers with time constraint and verified facts
-        if kg_found:
-            openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
-            gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
+        # Step 4: Get LLM answers
+        # Strategy: Selective KG usage based on question type and fact comprehensiveness
+        # ENTITY_LIST questions are excluded because KG retrieval can't handle category queries
+        # (e.g., "planets" isn't present as entity - needs expansion logic)
+        # Use ask_openai_with_kg for consistency, even with empty_facts for non-KG cases
+        
+        should_use_kg = not (classified_q.primary_type.name == "ENTITY_LIST")
+        
+        if should_use_kg and kg_found:
+            # Check if facts are comprehensive enough
+            relevant_entities_in_facts = set()
+            relevant_subjects_in_facts = set()
+            for f in kg_facts:
+                relevant_subjects_in_facts.add(f.get('subject', '').lower())
+            
+            for entity in entities:
+                if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
+                    relevant_entities_in_facts.add(entity)
+            
+            # Use KG only if retrieval found multiple relevant facts
+            has_comprehensive_facts = (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or \
+                                     (len(kg_facts) >= 3)
+            
+            if has_comprehensive_facts:
+                # We have relevant KG facts
+                openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
+                gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
+            else:
+                # Facts are incomplete or irrelevant - use without KG facts
+                openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", "")
+                gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", "")
         else:
-            # No KG facts: LLM answers without fact constraint
-            openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", time_constraint)
-            gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", time_constraint)
+            # ENTITY_LIST or no facts found - use without KG facts (vanilla prompt)
+            openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", "")
+            gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", "")
 
         # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)
@@ -161,6 +221,11 @@ def run_kg_benchmark():
             "kind": kind,
             "type": question_type,
             "ground_truth": ground_truth,
+            
+            # Question classification
+            "primary_type": primary_type,
+            "time_semantic": time_semantic,
+            "reasoning_strategy": reasoning_strategy,
             
             # KG retrieval info
             "kg_found": kg_found,

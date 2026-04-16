@@ -273,6 +273,20 @@ class QuestionClassifier:
         if result.is_multi_field:
             result.secondary_types.insert(0, result.primary_type)
             result.primary_type = QuestionType.MULTI_FIELD
+        
+        # ENTITY_LIST priority when asking for multiple entities
+        # Detect plural forms and multiple-selection patterns
+        if result.primary_type == QuestionType.ENTITY:
+            # Check for plural indicators
+            if re.search(r"\bplanets\b", question) or re.search(r"\bdwarfs?\b", question):
+                if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
+                    result.secondary_types.insert(0, result.primary_type)
+                    result.primary_type = QuestionType.ENTITY_LIST
+            # Check for "multiple", "all", "which ... have" patterns
+            if re.search(r"(?:multiple|all|any|several)\s+(?:planets?|dwarfs?)", question):
+                if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
+                    result.secondary_types.insert(0, result.primary_type)
+                    result.primary_type = QuestionType.ENTITY_LIST
     
     def _detect_special_attributes(self, question: str, result: ClassifiedQuestion) -> None:
         """Detect ordering, comparison, and filter attributes."""

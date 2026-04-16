@@ -59,12 +59,11 @@ def ask_openai_with_kg(question: str, kg_facts_text: str, time_constraint: str =
         question=question,
         time_constraint=time_constraint if time_constraint else "No specific time constraint"
     )
-    resp = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0  # Deterministic for reproducibility
+    resp = openai_client.responses.create(
+        model="gpt-5-mini",
+        input=prompt
     )
-    return resp.choices[0].message.content.strip()
+    return resp.output_text.strip()
 
 
 def ask_gemini_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
