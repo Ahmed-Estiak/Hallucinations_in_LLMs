@@ -15,7 +15,7 @@ class KGRetriever:
     
     def __init__(self, kg_path: str = "data/astronomy_kg1.json"):
         """Load knowledge graph from JSON file."""
-        with open(kg_path, "r") as f:
+        with open(kg_path, "r", encoding="utf-8") as f:
             self.kg = json.load(f)
     
     def _normalize_entity(self, entity: str) -> str:

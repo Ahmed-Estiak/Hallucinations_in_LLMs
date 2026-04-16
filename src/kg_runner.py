@@ -107,7 +107,7 @@ def run_kg_benchmark():
             entities=entities,
             predicates=predicates,
             time_constraint=time_constraint,
-            limit=5
+            limit=3
         )
         
         kg_found = len(kg_facts) > 0
