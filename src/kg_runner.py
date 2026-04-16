@@ -231,6 +231,7 @@ def run_kg_benchmark():
     
     print("\n--- VANILLA LLM (No KG) ---")
     if vanilla_valid:
+        print("Previous vanilla results.csv was loaded successfully.")
         print(
             f"OpenAI  → Correct: {openai_vanilla_correct}/{total_questions} "
             f"({(openai_vanilla_correct/total_questions)*100:.2f}%)"
@@ -240,8 +241,9 @@ def run_kg_benchmark():
             f"({(gemini_vanilla_correct/total_questions)*100:.2f}%)"
         )
     else:
-        print("OpenAI  → Correct: N/A (previous results.csv invalid or row order mismatch)")
-        print("Gemini  → Correct: N/A (previous results.csv invalid or row order mismatch)")
+        print("Previous vanilla results.csv was invalid or did not match current question order.")
+        print("OpenAI  → Correct: N/A")
+        print("Gemini  → Correct: N/A")
     
     print("\n--- KG-GROUNDED LLM ---")
     print(
