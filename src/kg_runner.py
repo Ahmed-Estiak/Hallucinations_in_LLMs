@@ -11,7 +11,7 @@ import pandas as pd
 
 from src.question_parser import parse_question
 from src.kg_retriever import KGRetriever
-from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg, ask_openai_vanilla, ask_gemini_vanilla
+from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
 from src.evaluator import evaluate_answer
 
 
@@ -26,6 +26,46 @@ def _serialize_ground_truth(answer_spec):
     return ""
 
 
+def _load_vanilla_results(total_questions: int):
+    """Load the latest vanilla results.csv if row order matches the current questions."""
+    path = Path("results/results.csv")
+    if not path.exists():
+        return {}, False
+
+    df = pd.read_csv(path)
+    if len(df) != total_questions:
+        return {}, False
+
+    # Validate that row order matches expected question id order
+    if "id" not in df.columns:
+        return {}, False
+
+    ids_match = True
+    vanilla_data = {}
+    for row_index, row in df.iterrows():
+        expected_qid = row_index + 1
+        try:
+            actual_qid = int(row["id"])
+        except Exception:
+            ids_match = False
+            break
+
+        if actual_qid != expected_qid:
+            ids_match = False
+            break
+
+        vanilla_data[actual_qid] = {
+            "openai_answer": row.get("openai_answer", pd.NA),
+            "gemini_answer": row.get("gemini_answer", pd.NA),
+            "openai_is_correct": row.get("openai_is_correct", pd.NA),
+            "gemini_is_correct": row.get("gemini_is_correct", pd.NA),
+            "openai_reason": row.get("openai_reason", pd.NA),
+            "gemini_reason": row.get("gemini_reason", pd.NA),
+        }
+
+    return (vanilla_data, ids_match)
+
+
 def run_kg_benchmark():
     """Run benchmark with KG integration."""
     
@@ -33,14 +73,18 @@ def run_kg_benchmark():
     with open("data/qa_92.json") as f:
         questions = json.load(f)
 
+    total_questions = len(questions)
+    vanilla_data, vanilla_valid = _load_vanilla_results(total_questions)
+    if not vanilla_valid:
+        print("Warning: results/results.csv row order does not match current questions. Vanilla answer fields will be marked NA.")
+
     kg_retriever = KGRetriever()
     results = []
     Path("results").mkdir(exist_ok=True)
 
     gemini_counter = 0
-    total_questions = len(questions)
     
-    # Counters for vanilla LLM
+    # Counters for vanilla LLM stored values
     openai_vanilla_correct = 0
     gemini_vanilla_correct = 0
     
@@ -83,30 +127,41 @@ def run_kg_benchmark():
 
         kg_facts_text = kg_retriever.format_facts_for_prompt(kg_facts)
 
-        # Step 3: Get vanilla LLM answers (for comparison)
-        openai_vanilla_ans = ask_openai_vanilla(question)
-        gemini_vanilla_ans = ask_gemini_vanilla(question)
+        # Step 3: Retrieve vanilla LLM answers from previous results.csv if valid
+        vanilla_row = vanilla_data.get(qid, None)
+        if vanilla_valid and vanilla_row is not None:
+            openai_vanilla_ans = vanilla_row["openai_answer"]
+            gemini_vanilla_ans = vanilla_row["gemini_answer"]
+            openai_vanilla_is_correct = vanilla_row["openai_is_correct"]
+            gemini_vanilla_is_correct = vanilla_row["gemini_is_correct"]
+            openai_vanilla_reason = vanilla_row["openai_reason"]
+            gemini_vanilla_reason = vanilla_row["gemini_reason"]
+        else:
+            openai_vanilla_ans = pd.NA
+            gemini_vanilla_ans = pd.NA
+            openai_vanilla_is_correct = pd.NA
+            gemini_vanilla_is_correct = pd.NA
+            openai_vanilla_reason = pd.NA
+            gemini_vanilla_reason = pd.NA
 
         # Step 4: Get KG-grounded LLM answers
         if kg_found:
             openai_kg_ans = ask_openai_with_kg(question, kg_facts_text)
             gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text)
         else:
-            # If no KG found, use vanilla answer (same as LLM-only)
-            openai_kg_ans = openai_vanilla_ans
-            gemini_kg_ans = gemini_vanilla_ans
+            openai_kg_ans = ask_openai_with_kg(question, kg_facts_text)
+            gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text)
 
-        # Step 5: Evaluate all answers
-        openai_vanilla_eval = evaluate_answer(q, openai_vanilla_ans)
-        gemini_vanilla_eval = evaluate_answer(q, gemini_vanilla_ans)
+        # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)
         gemini_kg_eval = evaluate_answer(q, gemini_kg_ans)
 
         # Update counters
-        openai_vanilla_correct += int(bool(openai_vanilla_eval["is_correct"]))
-        gemini_vanilla_correct += int(bool(gemini_vanilla_eval["is_correct"]))
         openai_kg_correct += int(bool(openai_kg_eval["is_correct"]))
         gemini_kg_correct += int(bool(gemini_kg_eval["is_correct"]))
+        if vanilla_valid and vanilla_row is not None:
+            openai_vanilla_correct += int(bool(openai_vanilla_is_correct))
+            gemini_vanilla_correct += int(bool(gemini_vanilla_is_correct))
 
         # Build result row
         result_row = {
@@ -123,11 +178,11 @@ def run_kg_benchmark():
             "parsed_predicates": json.dumps(predicates, ensure_ascii=False),
             "time_constraint": time_constraint,
             
-            # Vanilla LLM answers
+            # Vanilla LLM answers from previous results.csv
             "openai_vanilla_answer": openai_vanilla_ans,
             "gemini_vanilla_answer": gemini_vanilla_ans,
-            "openai_vanilla_is_correct": openai_vanilla_eval["is_correct"],
-            "gemini_vanilla_is_correct": gemini_vanilla_eval["is_correct"],
+            "openai_vanilla_is_correct": openai_vanilla_is_correct,
+            "gemini_vanilla_is_correct": gemini_vanilla_is_correct,
             
             # KG-grounded LLM answers
             "openai_kg_answer": openai_kg_ans,
@@ -138,12 +193,18 @@ def run_kg_benchmark():
             # Comparison: did KG help?
             "openai_vanilla_vs_kg": "same" if openai_vanilla_ans == openai_kg_ans else "different",
             "gemini_vanilla_vs_kg": "same" if gemini_vanilla_ans == gemini_kg_ans else "different",
-            "openai_improved": int(openai_kg_eval["is_correct"]) - int(openai_vanilla_eval["is_correct"]),
-            "gemini_improved": int(gemini_kg_eval["is_correct"]) - int(gemini_vanilla_eval["is_correct"]),
+            "openai_improved": (
+                int(openai_kg_eval["is_correct"]) - int(bool(openai_vanilla_is_correct))
+                if not pd.isna(openai_vanilla_is_correct) else pd.NA
+            ),
+            "gemini_improved": (
+                int(gemini_kg_eval["is_correct"]) - int(bool(gemini_vanilla_is_correct))
+                if not pd.isna(gemini_vanilla_is_correct) else pd.NA
+            ),
             
             # Evaluation reasons
-            "openai_vanilla_reason": openai_vanilla_eval["reason"],
-            "gemini_vanilla_reason": gemini_vanilla_eval["reason"],
+            "openai_vanilla_reason": openai_vanilla_reason,
+            "gemini_vanilla_reason": gemini_vanilla_reason,
             "openai_kg_reason": openai_kg_eval["reason"],
             "gemini_kg_reason": gemini_kg_eval["reason"],
         }
@@ -169,14 +230,18 @@ def run_kg_benchmark():
     print(f"KG facts found for: {kg_found_count}/{total_questions} questions ({(kg_found_count/total_questions)*100:.1f}%)")
     
     print("\n--- VANILLA LLM (No KG) ---")
-    print(
-        f"OpenAI  → Correct: {openai_vanilla_correct}/{total_questions} "
-        f"({(openai_vanilla_correct/total_questions)*100:.2f}%)"
-    )
-    print(
-        f"Gemini  → Correct: {gemini_vanilla_correct}/{total_questions} "
-        f"({(gemini_vanilla_correct/total_questions)*100:.2f}%)"
-    )
+    if vanilla_valid:
+        print(
+            f"OpenAI  → Correct: {openai_vanilla_correct}/{total_questions} "
+            f"({(openai_vanilla_correct/total_questions)*100:.2f}%)"
+        )
+        print(
+            f"Gemini  → Correct: {gemini_vanilla_correct}/{total_questions} "
+            f"({(gemini_vanilla_correct/total_questions)*100:.2f}%)"
+        )
+    else:
+        print("OpenAI  → Correct: N/A (previous results.csv invalid or row order mismatch)")
+        print("Gemini  → Correct: N/A (previous results.csv invalid or row order mismatch)")
     
     print("\n--- KG-GROUNDED LLM ---")
     print(
@@ -189,11 +254,14 @@ def run_kg_benchmark():
     )
     
     print("\n--- IMPROVEMENT ANALYSIS ---")
-    openai_improvement = openai_kg_correct - openai_vanilla_correct
-    gemini_improvement = gemini_kg_correct - gemini_vanilla_correct
-    
-    print(f"OpenAI improvement: {openai_improvement:+d} ({(openai_improvement/total_questions)*100:+.2f}%)")
-    print(f"Gemini improvement: {gemini_improvement:+d} ({(gemini_improvement/total_questions)*100:+.2f}%)")
+    if vanilla_valid:
+        openai_improvement = openai_kg_correct - openai_vanilla_correct
+        gemini_improvement = gemini_kg_correct - gemini_vanilla_correct
+        print(f"OpenAI improvement: {openai_improvement:+d} ({(openai_improvement/total_questions)*100:+.2f}%)")
+        print(f"Gemini improvement: {gemini_improvement:+d} ({(gemini_improvement/total_questions)*100:+.2f}%)")
+    else:
+        print("OpenAI improvement: N/A")
+        print("Gemini improvement: N/A")
     
     print("\nResults saved to: results/results_with_kg.csv")
     print("=" * 80)
