@@ -12,61 +12,77 @@ genai.configure(api_key=GEMINI_API_KEY)
 gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
-# KG-grounded prompt template
+# KG-grounded prompt with sophisticated conflict resolution
 PROMPT_TEMPLATE_WITH_KG = """
-Answer the astronomy question using the facts provided below.
+Answer the astronomy question using the facts provided below. These facts are PRIMARY REFERENCE.
 
-IMPORTANT RULES:
-1. Use the provided facts as reference information.
-2. Prioritize accurate scientific knowledge over the facts if they conflict or appear incorrect/outdated.
-3. Fact-check the facts against your training knowledge and provide the most correct answer.
-4. If no relevant facts are provided, answer based on your knowledge.
-5. Output only the final answer in the most appropriate format (e.g., for yes/no questions, answer 'yes' or 'no').
-6. Do not explain, add extra words, or include labels/quotation marks.
+CONFLICT RESOLUTION STRATEGY:
+1. Use provided facts as your PRIMARY answer source.
+2. If a fact conflicts with your knowledge:
+   - Check if BOTH the fact AND your hunch exist in your training data
+   - If both exist: TRUST THE PROVIDED FACT (it's verified)
+   - If only one exists: Use that one
+   - If neither exist clearly: Use the fact but note uncertainty
+3. For TIME CONSTRAINTS:
+   - If the question specifies a date/year/time, ONLY use facts matching that time
+   - If a fact's time doesn't match the question's constraint, IGNORE it
+   - If no specific time in question, use the MOST RECENT fact only
+4. If NO relevant facts are provided, answer based solely on your knowledge.
+5. Output ONLY the final answer in appropriate format (number/yes/no/entity/list).
+6. NO explanations, NO extra words, NO labels or quotes.
 
-Available Facts from Knowledge Graph:
+Available Facts from Knowledge Graph (verified sources):
 {kg_facts}
 
+Time Constraint from Question: {time_constraint}
+
 Question: {question}
+
+Answer (ONLY the final answer, nothing else):
 """
 
 
-def ask_openai_with_kg(question: str, kg_facts_text: str) -> str:
+def ask_openai_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
     """
-    Call OpenAI with KG-grounded prompt.
+    Call OpenAI with KG-grounded prompt and sophisticated conflict resolution.
     
     Args:
         question: The question to answer
         kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
+        time_constraint: Time constraint from parsed question
     
     Returns:
         answer string
     """
     prompt = PROMPT_TEMPLATE_WITH_KG.format(
         kg_facts=kg_facts_text,
-        question=question
+        question=question,
+        time_constraint=time_constraint if time_constraint else "No specific time constraint"
     )
-    resp = openai_client.responses.create(
-        model="gpt-5-mini",
-        input=prompt
+    resp = openai_client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0  # Deterministic for reproducibility
     )
-    return resp.output_text.strip()
+    return resp.choices[0].message.content.strip()
 
 
-def ask_gemini_with_kg(question: str, kg_facts_text: str) -> str:
+def ask_gemini_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
     """
-    Call Gemini with KG-grounded prompt.
+    Call Gemini with KG-grounded prompt and sophisticated conflict resolution.
     
     Args:
         question: The question to answer
         kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
+        time_constraint: Time constraint from parsed question
     
     Returns:
         answer string
     """
     prompt = PROMPT_TEMPLATE_WITH_KG.format(
         kg_facts=kg_facts_text,
-        question=question
+        question=question,
+        time_constraint=time_constraint if time_constraint else "No specific time constraint"
     )
     resp = gemini_model.generate_content(prompt)
     return resp.text.strip()

@@ -133,13 +133,14 @@ def run_kg_benchmark():
             openai_vanilla_reason = pd.NA
             gemini_vanilla_reason = pd.NA
 
-        # Step 4: Get KG-grounded LLM answers
+        # Step 4: Get KG-grounded LLM answers with time constraint and verified facts
         if kg_found:
-            openai_kg_ans = ask_openai_with_kg(question, kg_facts_text)
-            gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text)
+            openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
+            gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
         else:
-            openai_kg_ans = ask_openai_with_kg(question, kg_facts_text)
-            gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text)
+            # No KG facts: LLM answers without fact constraint
+            openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", time_constraint)
+            gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", time_constraint)
 
         # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)

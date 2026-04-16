@@ -5,52 +5,61 @@ import re
 from typing import Dict, List, Tuple, Optional
 
 
-# Predicate synonyms and keyword mappings
+# Predicate synonyms and keyword mappings with COMPLEX question patterns
 PREDICATE_KEYWORDS = {
     "moon_count": {
         "keywords": ["moon", "moons", "satellite", "satellites", "orbital bodies"],
-        "pattern": r"(?:how many|count of|number of)\s+(?:confirmed\s+)?moons"
+        "pattern": r"(?:how many|count of|number of)\s+(?:confirmed\s+)?(?:known\s+)?moons|(?:moons.*did|moons.*have|moons.*does)"
     },
     "discovered_on": {
         "keywords": ["discovered", "discovery", "when discovered"],
-        "pattern": r"(?:when|what year|which year).*(?:discover|discover)"
+        "pattern": r"(?:when|what year|which year|in what year).*(?:discove|was.*discover)|(?:discovered.*when)"
     },
     "discovered_by": {
         "keywords": ["discovered by", "who discovered", "discoverer"],
-        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?discover"
+        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discove|was.*discover)|discovered\s+(?:by|it)"
     },
     "mass": {
-        "keywords": ["mass", "weight", "massive"],
-        "pattern": r"(?:mass|weight)"
+        "keywords": ["mass", "weight", "massive", "heavier", "lighter"],
+        "pattern": r"(?:what.*mass|mass.*is|greater mass|more massive|heaviest|lightest)"
     },
     "distance_from_sun": {
-        "keywords": ["distance", "away from sun", "far from sun"],
-        "pattern": r"(?:distance|far|away).*(?:sun|solar)"
+        "keywords": ["distance", "away from sun", "far from sun", "farther", "closer"],
+        "pattern": r"(?:distance.*sun|far from sun|farther.*sun|closer.*sun|which.*farther|which.*closer)"
     },
     "surface_gravity": {
         "keywords": ["gravity", "gravitational", "surface gravity"],
-        "pattern": r"(?:surface\s+)?gravity"
+        "pattern": r"(?:surface\s+)?gravity|gravitational"
     },
     "classification": {
-        "keywords": ["planet", "dwarf planet", "classification", "classified"],
-        "pattern": r"(?:classify|classification|is\s+.{0,20}planet)"
+        "keywords": ["planet", "dwarf planet", "classification", "classified", "recognize"],
+        "pattern": r"(?:classify|classification|is\s+.{0,30}planet|recognize.*planet|recognized.*as)"
     },
     "planet_type": {
         "keywords": ["type of planet", "terrestrial", "ice giant", "gas giant"],
-        "pattern": r"(?:type|kind).*planet"
+        "pattern": r"(?:terrestrial|gas giant|ice giant|type.*planet)"
     },
     "location": {
-        "keywords": ["location", "located", "belt", "where"],
-        "pattern": r"(?:location|located|where)"
+        "keywords": ["location", "located", "belt", "where", "orbit"],
+        "pattern": r"(?:location|located|where.*found|kuiper belt|asteroid belt|orbit)"
+    },
+    "ordering": {
+        "keywords": ["order", "list", "decreasing", "increasing", "smallest", "largest"],
+        "pattern": r"(?:order.*decreasing|order.*increasing|list.*order|rank|smallest|largest|greater than|less than)"
+    },
+    "comparison": {
+        "keywords": ["between", "compared to", "than", "more", "less"],
+        "pattern": r"(?:between.*which|compared|greater|more|fewer|less)"
     }
 }
 
-# Entity name patterns (planets and dwarf planets)
+# Entity name patterns (planets, dwarf planets, AND other astronomical features)
 KNOWN_ENTITIES = {
     "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",
     "Pluto", "Ceres", "Eris", "Makemake", "Haumea",
     "Moon", "Charon", "Triton", "Europa", "Ganymede", "Callisto", "Io",
-    "Johann Galle", "Clyde Tombaugh", "Johann Gottfried Galle"
+    "Johann Galle", "Clyde Tombaugh", "Johann Gottfried Galle",
+    "Kuiper Belt", "Asteroid Belt", "Solar System", "Oort Cloud"  # Astronomical regions
 }
 
 

@@ -72,19 +72,23 @@ class KGRetriever:
         entities: List[str],
         predicates: List[str],
         time_constraint: Optional[str] = None,
-        limit: int = 10
+        limit: int = 3
     ) -> List[Dict]:
         """
-        Retrieve relevant facts from KG.
+        Retrieve relevant facts from KG with AGGRESSIVE TIME FILTERING.
+        
+        TIME-CRITICAL FILTERING:
+        - If time_constraint specified, ONLY return facts matching that time (reject mismatches)
+        - If no time_constraint, return only the MOST RECENT facts per entity-predicate pair
         
         Args:
             entities: List of entity names to search for
             predicates: List of predicates to search for
-            time_constraint: Optional time constraint (e.g., "2022-08", "2022")
-            limit: Max number of facts to return
+            time_constraint: Optional time constraint (e.g., "2022-08", "2022") - ONLY facts matching this
+            limit: Max number of facts to return (default 3 for conciseness)
         
         Returns:
-            List of relevant facts, ranked by relevance score
+            List of highly filtered relevant facts ranked by relevance
         """
         candidates = []
         
@@ -106,12 +110,13 @@ class KGRetriever:
             
             # Include fact if either entity or predicate matches
             if entity_match or pred_match:
-                # Calculate relevance score
-                entity_score = 1.0 if entity_match else 0.0
-                pred_score = 1.0 if pred_match else 0.0
                 time_score = self._time_relevance_score(fact_time, time_constraint)
                 
-                # Combined score: prioritize exact entity+predicate matches
+                # CRITICAL TIME FILTERING: If time constraint exists and fact doesn't match closely, REJECT it
+                if time_constraint and time_score < 0.85:  # Only very close matches allowed
+                    continue
+                
+                # Combined score: prioritize exact entity+predicate matches with time relevance
                 if entity_match and pred_match:
                     combined_score = 1.0 * time_score  # Exact match
                 elif entity_match:
@@ -127,10 +132,28 @@ class KGRetriever:
                     "time_score": time_score
                 })
         
+        # If no time_constraint specified, filter to LATEST fact per entity-predicate pair
+        if not time_constraint and candidates:
+            candidates = self._filter_to_latest_facts(candidates)
+        
         # Sort by score descending and return top N
         candidates.sort(key=lambda x: x["score"], reverse=True)
         
         return [c["fact"] for c in candidates[:limit]]
+    
+    def _filter_to_latest_facts(self, candidates: List[Dict]) -> List[Dict]:
+        """Keep only the most recent fact for each unique entity-predicate pair."""
+        grouped = {}
+        
+        for candidate in candidates:
+            fact = candidate["fact"]
+            key = (fact.get("subject"), fact.get("predicate"))
+            
+            # Keep fact with highest time score (most recent)
+            if key not in grouped or candidate["time_score"] > grouped[key]["time_score"]:
+                grouped[key] = candidate
+        
+        return list(grouped.values())
     
     def format_facts_for_prompt(self, facts: List[Dict]) -> str:
         """
