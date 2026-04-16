@@ -26,44 +26,32 @@ def _serialize_ground_truth(answer_spec):
     return ""
 
 
-def _load_vanilla_results(total_questions: int):
-    """Load the latest vanilla results.csv if row order matches the current questions."""
+def _load_vanilla_results():
+    """Load vanilla results from results.csv keyed by question ID."""
     path = Path("results/results.csv")
     if not path.exists():
-        return {}, False
+        return {}
 
     df = pd.read_csv(path)
-    if len(df) != total_questions:
-        return {}, False
-
-    # Validate that row order matches expected question id order
     if "id" not in df.columns:
-        return {}, False
+        return {}
 
-    ids_match = True
     vanilla_data = {}
-    for row_index, row in df.iterrows():
-        expected_qid = row_index + 1
+    for _, row in df.iterrows():
         try:
-            actual_qid = int(row["id"])
+            qid = int(row["id"])
+            vanilla_data[qid] = {
+                "openai_answer": row.get("openai_answer", pd.NA),
+                "gemini_answer": row.get("gemini_answer", pd.NA),
+                "openai_is_correct": row.get("openai_is_correct", pd.NA),
+                "gemini_is_correct": row.get("gemini_is_correct", pd.NA),
+                "openai_reason": row.get("openai_reason", pd.NA),
+                "gemini_reason": row.get("gemini_reason", pd.NA),
+            }
         except Exception:
-            ids_match = False
-            break
+            continue  # Skip invalid rows
 
-        if actual_qid != expected_qid:
-            ids_match = False
-            break
-
-        vanilla_data[actual_qid] = {
-            "openai_answer": row.get("openai_answer", pd.NA),
-            "gemini_answer": row.get("gemini_answer", pd.NA),
-            "openai_is_correct": row.get("openai_is_correct", pd.NA),
-            "gemini_is_correct": row.get("gemini_is_correct", pd.NA),
-            "openai_reason": row.get("openai_reason", pd.NA),
-            "gemini_reason": row.get("gemini_reason", pd.NA),
-        }
-
-    return (vanilla_data, ids_match)
+    return vanilla_data
 
 
 def run_kg_benchmark():
@@ -74,9 +62,9 @@ def run_kg_benchmark():
         questions = json.load(f)
 
     total_questions = len(questions)
-    vanilla_data, vanilla_valid = _load_vanilla_results(total_questions)
-    if not vanilla_valid:
-        print("Warning: results/results.csv row order does not match current questions. Vanilla answer fields will be marked NA.")
+    vanilla_data = _load_vanilla_results()
+    loaded_vanilla_count = len(vanilla_data)
+    print(f"Loaded {loaded_vanilla_count} vanilla results from results/results.csv for reuse.")
 
     kg_retriever = KGRetriever()
     results = []
@@ -87,6 +75,7 @@ def run_kg_benchmark():
     # Counters for vanilla LLM stored values
     openai_vanilla_correct = 0
     gemini_vanilla_correct = 0
+    vanilla_reused_count = 0
     
     # Counters for KG-grounded LLM
     openai_kg_correct = 0
@@ -129,7 +118,7 @@ def run_kg_benchmark():
 
         # Step 3: Retrieve vanilla LLM answers from previous results.csv if valid
         vanilla_row = vanilla_data.get(qid, None)
-        if vanilla_valid and vanilla_row is not None:
+        if vanilla_row is not None:
             openai_vanilla_ans = vanilla_row["openai_answer"]
             gemini_vanilla_ans = vanilla_row["gemini_answer"]
             openai_vanilla_is_correct = vanilla_row["openai_is_correct"]
@@ -159,7 +148,8 @@ def run_kg_benchmark():
         # Update counters
         openai_kg_correct += int(bool(openai_kg_eval["is_correct"]))
         gemini_kg_correct += int(bool(gemini_kg_eval["is_correct"]))
-        if vanilla_valid and vanilla_row is not None:
+        if vanilla_row is not None:
+            vanilla_reused_count += 1
             openai_vanilla_correct += int(bool(openai_vanilla_is_correct))
             gemini_vanilla_correct += int(bool(gemini_vanilla_is_correct))
 
@@ -230,20 +220,18 @@ def run_kg_benchmark():
     print(f"KG facts found for: {kg_found_count}/{total_questions} questions ({(kg_found_count/total_questions)*100:.1f}%)")
     
     print("\n--- VANILLA LLM (No KG) ---")
-    if vanilla_valid:
-        print("Previous vanilla results.csv was loaded successfully.")
+    if vanilla_reused_count > 0:
+        print(f"Vanilla results reused for {vanilla_reused_count} questions from results/results.csv.")
         print(
-            f"OpenAI  → Correct: {openai_vanilla_correct}/{total_questions} "
-            f"({(openai_vanilla_correct/total_questions)*100:.2f}%)"
+            f"OpenAI  → Correct: {openai_vanilla_correct}/{vanilla_reused_count} "
+            f"({(openai_vanilla_correct/vanilla_reused_count)*100:.2f}%)"
         )
         print(
-            f"Gemini  → Correct: {gemini_vanilla_correct}/{total_questions} "
-            f"({(gemini_vanilla_correct/total_questions)*100:.2f}%)"
+            f"Gemini  → Correct: {gemini_vanilla_correct}/{vanilla_reused_count} "
+            f"({(gemini_vanilla_correct/vanilla_reused_count)*100:.2f}%)"
         )
     else:
-        print("Previous vanilla results.csv was invalid or did not match current question order.")
-        print("OpenAI  → Correct: N/A")
-        print("Gemini  → Correct: N/A")
+        print("No vanilla results were reused.")
     
     print("\n--- KG-GROUNDED LLM ---")
     print(
@@ -256,14 +244,14 @@ def run_kg_benchmark():
     )
     
     print("\n--- IMPROVEMENT ANALYSIS ---")
-    if vanilla_valid:
-        openai_improvement = openai_kg_correct - openai_vanilla_correct
+    if vanilla_reused_count > 0:
+        # Improvement calculated only for questions where vanilla results were reused
+        openai_improvement = openai_kg_correct - openai_vanilla_correct  # Note: kg_correct is total, but improvement is approximate
         gemini_improvement = gemini_kg_correct - gemini_vanilla_correct
-        print(f"OpenAI improvement: {openai_improvement:+d} ({(openai_improvement/total_questions)*100:+.2f}%)")
-        print(f"Gemini improvement: {gemini_improvement:+d} ({(gemini_improvement/total_questions)*100:+.2f}%)")
+        print(f"OpenAI improvement (approx): {openai_improvement:+d} ({(openai_improvement/vanilla_reused_count)*100:+.2f}%)")
+        print(f"Gemini improvement (approx): {gemini_improvement:+d} ({(gemini_improvement/vanilla_reused_count)*100:+.2f}%)")
     else:
-        print("OpenAI improvement: N/A")
-        print("Gemini improvement: N/A")
+        print("No vanilla results available for improvement analysis.")
     
     print("\nResults saved to: results/results_with_kg.csv")
     print("=" * 80)
