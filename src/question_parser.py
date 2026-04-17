@@ -50,8 +50,8 @@ PREDICATE_KEYWORDS = {
         "pattern": r"(?:surface\s+gravity|gravity\s+of|gravitational\s+pull|stronger\s+(?:surface\s+)?gravity|weaker\s+(?:surface\s+)?gravity|higher\s+(?:surface\s+)?gravity|lower\s+(?:surface\s+)?gravity)"
     },
     "classification": {
-        "keywords": ["planet", "dwarf planet", "classification", "classified", "recognize"],
-        "pattern": r"(?:classify|classification|is\s+.{0,30}planet|recognize.*planet|recognized.*as)"
+        "keywords": ["classification", "classified", "recognized as", "classify as"],
+        "pattern": r"(?:classification\s+of|how\s+is\s+.*classified|classif(?:y|ied)\s+as|is\s+.*(?:a|an)\s+(?:dwarf\s+)?planet|recogniz(?:e|ed)\s+.*(?:as\s+)?(?:a\s+)?(?:dwarf\s+)?planet|recognized\s+as)"
     },
     "planet_type": {
         "keywords": ["type of planet", "terrestrial", "ice giant", "gas giant"],
