@@ -27,7 +27,7 @@ MOON_LIKE_BODY_PATTERN = r"(?:moons|satellites|orbital bodies)"
 PREDICATE_KEYWORDS = {
     "moon_count": {
         "keywords": [],
-        "pattern": rf"(?:how many|count of|number of)\s+(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|(?:{MOON_LIKE_BODY_PATTERN}.*did|{MOON_LIKE_BODY_PATTERN}.*have|{MOON_LIKE_BODY_PATTERN}.*does)"
+        "pattern": rf"(?:how many|count of|number of|total number of)\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|how many\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}\s+.*(?:did|does)\s+.*have"
     },
     "discovered_on": {
         "keywords": ["discovered", "discovery", "when discovered"],
@@ -35,7 +35,7 @@ PREDICATE_KEYWORDS = {
     },
     "discovered_by": {
         "keywords": ["discovered by", "who discovered", "discoverer"],
-        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discover|was.*discover)|discovered\s+(?:by|it)"
+        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?discovered|discovered\s+by|who\s+was\s+.*discovered\s+by|name\s+the\s+(?:astronomer|discoverer)"
     },
     "mass": {
         "keywords": ["mass", "weight", "massive", "heavier", "lighter"],
