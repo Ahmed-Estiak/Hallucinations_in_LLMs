@@ -38,16 +38,16 @@ PREDICATE_KEYWORDS = {
         "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discovered|found)|(?:discovered|found)\s+by|who\s+was\s+.*(?:discovered|found)\s+by|name\s+the\s+(?:astronomer|discoverer|finder)"
     },
     "mass": {
-        "keywords": ["mass", "weight", "massive", "heavier", "lighter"],
-        "pattern": r"(?:what.*mass|mass.*is|greater mass|more massive|heaviest|lightest)"
+        "keywords": ["mass", "weight", "massive", "heavier", "lighter", "heaviest", "lightest"],
+        "pattern": r"(?:what\s+is\s+the\s+mass|mass\s+of|greater\s+mass|more\s+massive|less\s+massive|heaviest|lightest|heavier|lighter)"
     },
     "distance_from_sun": {
-        "keywords": ["distance", "away from sun", "far from sun", "farther", "closer"],
-        "pattern": r"(?:distance.*sun|far from sun|farther.*sun|closer.*sun|which.*farther|which.*closer)"
+        "keywords": ["distance from sun", "distance to sun", "away from sun", "far from sun", "farther from sun", "closer to sun"],
+        "pattern": r"(?:distance\s+(?:from|to)\s+the?\s*sun|distance\s+from\s+sun|far(?:ther)?\s+from\s+the?\s*sun|closer\s+to\s+the?\s*sun|which\s+.*(?:farther\s+from|closer\s+to)\s+the?\s*sun)"
     },
     "surface_gravity": {
-        "keywords": ["gravity", "gravitational", "surface gravity"],
-        "pattern": r"(?:surface\s+)?gravity|gravitational"
+        "keywords": ["surface gravity", "gravitational pull", "gravity of", "stronger gravity", "weaker gravity", "higher gravity", "lower gravity", "stronger surface gravity", "weaker surface gravity", "higher surface gravity", "lower surface gravity"],
+        "pattern": r"(?:surface\s+gravity|gravity\s+of|gravitational\s+pull|stronger\s+(?:surface\s+)?gravity|weaker\s+(?:surface\s+)?gravity|higher\s+(?:surface\s+)?gravity|lower\s+(?:surface\s+)?gravity)"
     },
     "classification": {
         "keywords": ["planet", "dwarf planet", "classification", "classified", "recognize"],
