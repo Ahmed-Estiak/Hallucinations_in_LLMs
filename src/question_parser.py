@@ -54,12 +54,12 @@ PREDICATE_KEYWORDS = {
         "pattern": r"(?:classification\s+of|how\s+is\s+.*classified|classif(?:y|ied)\s+as|is\s+.*(?:a|an)\s+(?:dwarf\s+)?planet|recogniz(?:e|ed)\s+.*(?:as\s+)?(?:a\s+)?(?:dwarf\s+)?planet|recognized\s+as)"
     },
     "planet_type": {
-        "keywords": ["type of planet", "terrestrial", "ice giant", "gas giant"],
-        "pattern": r"(?:terrestrial|gas giant|ice giant|type.*planet)"
+        "keywords": ["type of planet", "planet type", "terrestrial", "ice giant", "gas giant"],
+        "pattern": r"(?:type\s+of\s+planet|planet\s+type|what\s+type\s+of\s+planet|terrestrial|gas\s+giant|ice\s+giant)"
     },
     "location": {
-        "keywords": ["location", "located", "belt", "where", "orbit"],
-        "pattern": r"(?:location|located|where.*found|kuiper belt|asteroid belt|orbit)"
+        "keywords": ["location", "located in", "found in", "in the kuiper belt", "in the asteroid belt"],
+        "pattern": r"(?:location\s+of|located\s+in|where\s+is\s+.*(?:located|found)|found\s+in|in\s+the\s+kuiper\s+belt|in\s+the\s+asteroid\s+belt)"
     },
     "ordering": {
         "keywords": ["order", "list", "decreasing", "increasing", "smallest", "largest"],
