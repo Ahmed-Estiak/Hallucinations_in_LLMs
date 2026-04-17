@@ -35,7 +35,7 @@ PREDICATE_KEYWORDS = {
     },
     "discovered_by": {
         "keywords": ["discovered by", "who discovered", "discoverer"],
-        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discove|was.*discover)|discovered\s+(?:by|it)"
+        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discover|was.*discover)|discovered\s+(?:by|it)"
     },
     "mass": {
         "keywords": ["mass", "weight", "massive", "heavier", "lighter"],
