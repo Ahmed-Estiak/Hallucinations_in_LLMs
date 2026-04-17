@@ -30,12 +30,12 @@ PREDICATE_KEYWORDS = {
         "pattern": rf"(?:how many|count of|number of|total number of)\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|how many\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}\s+.*(?:did|does)\s+.*have"
     },
     "discovered_on": {
-        "keywords": ["discovered", "discovery", "when discovered"],
-        "pattern": r"(?:when|what year|which year|in what year).*(?:discove|was.*discover)|(?:discovered.*when)"
+        "keywords": ["discovered", "discovery", "when discovered", "found", "when found", "discovery year", "found in"],
+        "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?(?:discovered|found)|\b(?:discovered|found)\b\s+.*\bwhen\b|\bdiscovery year\b"
     },
     "discovered_by": {
-        "keywords": ["discovered by", "who discovered", "discoverer"],
-        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?discovered|discovered\s+by|who\s+was\s+.*discovered\s+by|name\s+the\s+(?:astronomer|discoverer)"
+        "keywords": ["discovered by", "who discovered", "discoverer", "found by", "who found", "finder"],
+        "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discovered|found)|(?:discovered|found)\s+by|who\s+was\s+.*(?:discovered|found)\s+by|name\s+the\s+(?:astronomer|discoverer|finder)"
     },
     "mass": {
         "keywords": ["mass", "weight", "massive", "heavier", "lighter"],
