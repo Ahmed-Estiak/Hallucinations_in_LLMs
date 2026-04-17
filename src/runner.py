@@ -98,3 +98,7 @@ def run_benchmark():
         f"manual_check: {gemini_manual_check_count}"
     )
     print("Benchmark finished")
+
+
+if __name__ == "__main__":
+    run_benchmark()

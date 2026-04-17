@@ -2,14 +2,30 @@
 KG Models: LLM calls with KG grounding
 """
 from openai import OpenAI
-import google.generativeai as genai
+import warnings
 
-from src.config import OPENAI_API_KEY, GEMINI_API_KEY
+try:
+    from google import genai as google_genai
+    _GEMINI_SDK = "google-genai"
+except ImportError:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        import google.generativeai as legacy_genai
+    google_genai = None
+    _GEMINI_SDK = "google-generativeai"
+
+try:
+    from src.config import OPENAI_API_KEY, GEMINI_API_KEY
+except ModuleNotFoundError:
+    from config import OPENAI_API_KEY, GEMINI_API_KEY
 
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+if _GEMINI_SDK == "google-genai":
+    gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
+else:
+    legacy_genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = legacy_genai.GenerativeModel("gemini-2.5-flash")
 
 
 # KG-grounded prompt with sophisticated conflict resolution
@@ -83,5 +99,11 @@ def ask_gemini_with_kg(question: str, kg_facts_text: str, time_constraint: str =
         question=question,
         time_constraint=time_constraint if time_constraint else "No specific time constraint"
     )
-    resp = gemini_model.generate_content(prompt)
+    if _GEMINI_SDK == "google-genai":
+        resp = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+    else:
+        resp = gemini_model.generate_content(prompt)
     return resp.text.strip()
