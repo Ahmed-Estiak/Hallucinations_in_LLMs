@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
 
+from src.models import ask_openai, ask_gemini
 from src.question_parser import parse_question
 from src.kg_retriever import KGRetriever
 from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
@@ -136,6 +137,7 @@ def run_kg_benchmark():
             entities=entities,
             predicates=predicates,
             time_constraint=time_constraint,
+            time_semantic=time_semantic,
             limit=3
         )
         
@@ -194,13 +196,13 @@ def run_kg_benchmark():
                 openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
                 gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
             else:
-                # Facts are incomplete or irrelevant - use without KG facts
-                openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", "")
-                gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", "")
+                # Facts are incomplete or irrelevant - use true vanilla fallback
+                openai_kg_ans = ask_openai(question)
+                gemini_kg_ans = ask_gemini(question)
         else:
-            # ENTITY_LIST or no facts found - use without KG facts (vanilla prompt)
-            openai_kg_ans = ask_openai_with_kg(question, "No relevant KG facts available.", "")
-            gemini_kg_ans = ask_gemini_with_kg(question, "No relevant KG facts available.", "")
+            # ENTITY_LIST or no facts found - use true vanilla fallback
+            openai_kg_ans = ask_openai(question)
+            gemini_kg_ans = ask_gemini(question)
 
         # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)

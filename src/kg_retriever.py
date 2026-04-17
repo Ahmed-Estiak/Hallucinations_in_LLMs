@@ -2,6 +2,7 @@
 KG Retriever: Fetch relevant facts from knowledge graph based on parsed question
 """
 import json
+import re
 from typing import List, Dict, Optional
 from pathlib import Path
 from datetime import datetime
@@ -42,18 +43,23 @@ class KGRetriever:
             return 0.5
         
         try:
-            # Try to parse times
-            if len(str(constraint_time)) == 4 and str(constraint_time).isdigit():
-                constraint_year = int(constraint_time)
-            else:
-                # Try parsing "2022-08" format
-                constraint_year = int(str(constraint_time).split("-")[0])
+            constraint_year, constraint_month = self._parse_time_parts(constraint_time)
+            fact_year, fact_month = self._parse_time_parts(fact_time)
             
-            if len(str(fact_time)) == 4 and str(fact_time).isdigit():
-                fact_year = int(fact_time)
-            else:
-                fact_year = int(str(fact_time).split("-")[0])
-            
+            if constraint_year is None or fact_year is None:
+                return 0.5
+
+            if constraint_month is not None and fact_month is not None:
+                if constraint_year == fact_year and constraint_month == fact_month:
+                    return 1.0
+                month_diff = abs((constraint_year - fact_year) * 12 + (constraint_month - fact_month))
+                if month_diff == 1:
+                    return 0.95
+                if month_diff <= 12:
+                    return 0.8
+                diff = abs(constraint_year - fact_year)
+                return max(0.5, 1.0 - (diff * 0.02))
+
             diff = abs(constraint_year - fact_year)
             
             if diff == 0:
@@ -66,12 +72,32 @@ class KGRetriever:
                 return max(0.5, 1.0 - (diff * 0.02))  # Decay with distance
         except:
             return 0.5
+
+    def _parse_time_parts(self, value: Optional[str]) -> tuple[Optional[int], Optional[int]]:
+        """Parse YYYY or YYYY-MM into integer parts."""
+        if value is None:
+            return None, None
+
+        text = str(value).strip()
+        if len(text) == 4 and text.isdigit():
+            return int(text), None
+
+        if re.match(r"^\d{4}-\d{2}$", text):
+            year, month = text.split("-")
+            return int(year), int(month)
+
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", text):
+            year, month, _day = text.split("-")
+            return int(year), int(month)
+
+        return None, None
     
     def retrieve(
         self,
         entities: List[str],
         predicates: List[str],
         time_constraint: Optional[str] = None,
+        time_semantic: Optional[str] = None,
         limit: int = 3
     ) -> List[Dict]:
         """
@@ -108,8 +134,20 @@ class KGRetriever:
             # Check if predicate matches
             pred_match = predicate in predicates_norm
             
-            # Include fact if either entity or predicate matches
-            if entity_match or pred_match:
+            # Prefer precise matches. If both sides exist in the query, require both.
+            if entities_norm and predicates_norm:
+                is_candidate = entity_match and pred_match
+            elif entities_norm:
+                is_candidate = entity_match
+            elif predicates_norm:
+                is_candidate = pred_match
+            else:
+                is_candidate = False
+
+            if is_candidate:
+                if time_constraint and not self._time_matches_semantic(fact_time, time_constraint, time_semantic):
+                    continue
+
                 time_score = self._time_relevance_score(fact_time, time_constraint)
                 
                 # CRITICAL TIME FILTERING: If time constraint exists and fact doesn't match closely, REJECT it
@@ -140,6 +178,35 @@ class KGRetriever:
         candidates.sort(key=lambda x: x["score"], reverse=True)
         
         return [c["fact"] for c in candidates[:limit]]
+
+    def _time_matches_semantic(
+        self,
+        fact_time: Optional[str],
+        constraint_time: Optional[str],
+        time_semantic: Optional[str],
+    ) -> bool:
+        """Apply exact/before/after filtering when time semantics are known."""
+        if not constraint_time or not fact_time:
+            return True
+
+        fact_year, fact_month = self._parse_time_parts(fact_time)
+        constraint_year, constraint_month = self._parse_time_parts(constraint_time)
+        if fact_year is None or constraint_year is None:
+            return True
+
+        semantic = (time_semantic or "EXACT").upper()
+        fact_key = (fact_year, fact_month or 0)
+        constraint_key = (constraint_year, constraint_month or 0)
+
+        if semantic == "BEFORE":
+            return fact_key <= constraint_key
+        if semantic == "AFTER":
+            return fact_key >= constraint_key
+        if semantic == "BETWEEN":
+            return fact_year == constraint_year
+        if constraint_month is not None:
+            return fact_year == constraint_year and fact_month == constraint_month
+        return fact_year == constraint_year
     
     def _filter_to_latest_facts(self, candidates: List[Dict]) -> List[Dict]:
         """Keep only the most recent fact for each unique entity-predicate pair."""

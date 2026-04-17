@@ -259,8 +259,18 @@ class QuestionClassifier:
     
     def _set_priority_and_operators(self, question: str, result: ClassifiedQuestion) -> None:
         """Adjust type priority based on priority rules."""
-        # Boolean has highest priority
-        if result.type_scores.get(QuestionType.BOOLEAN, 0) > 0.3:
+        # Force numeric/count interpretation for "how many"/count-style questions.
+        if re.search(r"\bhow\s+many\b", question) or re.search(r"\b(?:count|number|total)\b", question):
+            if result.primary_type != QuestionType.COUNT:
+                result.secondary_types.insert(0, result.primary_type)
+                result.primary_type = QuestionType.COUNT
+
+        # Boolean has highest priority only for explicit yes/no style questions
+        if (
+            result.type_scores.get(QuestionType.BOOLEAN, 0) > 0.3 and
+            not re.search(r"\bhow\s+many\b", question) and
+            not re.search(r"\b(?:count|number|total)\b", question)
+        ):
             result.primary_type = QuestionType.BOOLEAN
         
         # Time-sensitive gets high priority if time present

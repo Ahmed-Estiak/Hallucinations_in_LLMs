@@ -5,6 +5,22 @@ import re
 from typing import Dict, List, Tuple, Optional
 
 
+MONTH_MAP = {
+    "january": "01",
+    "february": "02",
+    "march": "03",
+    "april": "04",
+    "may": "05",
+    "june": "06",
+    "july": "07",
+    "august": "08",
+    "september": "09",
+    "october": "10",
+    "november": "11",
+    "december": "12",
+}
+
+
 # Predicate synonyms and keyword mappings with COMPLEX question patterns
 PREDICATE_KEYWORDS = {
     "moon_count": {
@@ -85,11 +101,11 @@ def extract_time_constraint(question: str) -> Optional[str]:
     """
     # Pattern: "As of [month year]" or "By [month year]" or "Before [year]"
     patterns = [
-        r"(?:as of|by)\s+([a-z]+\s+\d{4})",  # "As of January 2022"
-        r"(?:as of|by)\s+(\d{4})",             # "As of 2022"
-        r"in\s+(\d{4})",                       # "In 1981"
+        r"(?:as of|by)\s+([a-z]+\s+\d{4})",   # "As of January 2022"
+        r"(?:as of|by)\s+(\d{4})",            # "As of 2022"
+        r"in\s+(\d{4})",                      # "In 1981"
         r"(?:before|prior to)\s+(\d{4})",     # "Before 1980"
-        r"as\s+of\s+([a-z]+\s+\d{4})"          # "as of February 2025"
+        r"as\s+of\s+([a-z]+\s+\d{4})"         # "as of February 2025"
     ]
     
     question_lower = question.lower()
@@ -97,7 +113,13 @@ def extract_time_constraint(question: str) -> Optional[str]:
         match = re.search(pattern, question_lower)
         if match:
             time_str = match.group(1)
-            # Normalize to YYYY-MM format if possible
+            month_year_match = re.fullmatch(r"([a-z]+)\s+(\d{4})", time_str)
+            if month_year_match:
+                month_name, year = month_year_match.groups()
+                month = MONTH_MAP.get(month_name)
+                if month:
+                    return f"{year}-{month}"
+
             if len(time_str) == 4 and time_str.isdigit():
                 return time_str  # Just year
             return time_str
