@@ -20,12 +20,14 @@ MONTH_MAP = {
     "december": "12",
 }
 
+MOON_LIKE_BODY_PATTERN = r"(?:moons|satellites|orbital bodies)"
+
 
 # Predicate synonyms and keyword mappings with COMPLEX question patterns
 PREDICATE_KEYWORDS = {
     "moon_count": {
         "keywords": ["moon", "moons", "satellite", "satellites", "orbital bodies"],
-        "pattern": r"(?:how many|count of|number of)\s+(?:confirmed\s+)?(?:known\s+)?moons|(?:moons.*did|moons.*have|moons.*does)"
+        "pattern": rf"(?:how many|count of|number of)\s+(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|(?:{MOON_LIKE_BODY_PATTERN}.*did|{MOON_LIKE_BODY_PATTERN}.*have|{MOON_LIKE_BODY_PATTERN}.*does)"
     },
     "discovered_on": {
         "keywords": ["discovered", "discovery", "when discovered"],
