@@ -62,12 +62,12 @@ PREDICATE_KEYWORDS = {
         "pattern": r"(?:location\s+of|located\s+in|where\s+is\s+.*(?:located|found)|found\s+in|in\s+the\s+kuiper\s+belt|in\s+the\s+asteroid\s+belt)"
     },
     "ordering": {
-        "keywords": ["order", "list", "decreasing", "increasing", "smallest", "largest"],
-        "pattern": r"(?:order.*decreasing|order.*increasing|list.*order|rank|smallest|largest|greater than|less than)"
+        "keywords": ["order", "rank", "decreasing", "increasing", "smallest to largest", "largest to smallest"],
+        "pattern": r"(?:order\s+of|in\s+order|rank(?:ed)?|decreasing\s+order|increasing\s+order|smallest\s+to\s+largest|largest\s+to\s+smallest)"
     },
     "comparison": {
-        "keywords": ["between", "compared to", "than", "more", "less"],
-        "pattern": r"(?:between.*which|compared|greater|more|fewer|less)"
+        "keywords": ["between", "compared to", "greater than", "less than", "more than", "fewer than"],
+        "pattern": r"(?:between\s+.*\s+which|compared\s+to|greater\s+than|less\s+than|more\s+than|fewer\s+than|which\s+is\s+(?:greater|larger|smaller|farther|closer))"
     }
 }
 
