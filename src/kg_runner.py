@@ -19,7 +19,7 @@ from src.question_parser import parse_question
 from src.kg_retriever import KGRetriever
 from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
 from src.evaluator import evaluate_answer
-from src.question_classifier import QuestionClassifier
+from src.question_classifier import QuestionClassifier, QuestionType, LogicalModifier
 from src.kg_reasoning_engine import KGReasoningEngine, format_reasoned_facts
 
 
@@ -116,10 +116,16 @@ def run_kg_benchmark():
         classified_q = question_classifier.classify(question)
         primary_type = classified_q.primary_type.name if classified_q.primary_type else "UNKNOWN"
         time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
+        logical_modifiers = [modifier.name for modifier in classified_q.logical_modifiers]
         
         # Step 2: Retrieve KG facts via advanced reasoning engine
         # Apply reasoning only for question types where it's proven to help
-        use_kg_reasoning = classified_q.primary_type.name in ["MULTI_FIELD"]
+        use_kg_reasoning = (
+            classified_q.primary_type == QuestionType.MULTI_FIELD or
+            LogicalModifier.FILTER in classified_q.logical_modifiers or
+            LogicalModifier.ORDERING in classified_q.logical_modifiers or
+            LogicalModifier.COMPARISON in classified_q.logical_modifiers
+        )
         
         if use_kg_reasoning:
             reasoned_facts, reasoning_strategy = kg_reasoning_engine.reason(
@@ -141,7 +147,8 @@ def run_kg_benchmark():
             limit=3
         )
         
-        kg_found = len(kg_facts) > 0
+        derived_result_available = bool(reasoned_facts and reasoned_facts[0].get("_derived_result"))
+        kg_found = len(kg_facts) > 0 or derived_result_available
         if kg_found:
             kg_found_count += 1
 
@@ -174,22 +181,26 @@ def run_kg_benchmark():
         # (e.g., "planets" isn't present as entity - needs expansion logic)
         # Use ask_openai_with_kg for consistency, even with empty_facts for non-KG cases
         
-        should_use_kg = not (classified_q.primary_type.name == "ENTITY_LIST")
+        should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
         
         if should_use_kg and kg_found:
+            if derived_result_available:
+                derived_entities = reasoned_facts[0].get("entities", [])
+                has_comprehensive_facts = len(derived_entities) > 0
+            else:
             # Check if facts are comprehensive enough
-            relevant_entities_in_facts = set()
-            relevant_subjects_in_facts = set()
-            for f in kg_facts:
-                relevant_subjects_in_facts.add(f.get('subject', '').lower())
-            
-            for entity in entities:
-                if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
-                    relevant_entities_in_facts.add(entity)
-            
-            # Use KG only if retrieval found multiple relevant facts
-            has_comprehensive_facts = (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or \
-                                     (len(kg_facts) >= 3)
+                relevant_entities_in_facts = set()
+                relevant_subjects_in_facts = set()
+                for f in kg_facts:
+                    relevant_subjects_in_facts.add(f.get('subject', '').lower())
+                
+                for entity in entities:
+                    if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
+                        relevant_entities_in_facts.add(entity)
+                
+                # Use KG only if retrieval found multiple relevant facts
+                has_comprehensive_facts = (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or \
+                                         (len(kg_facts) >= 3)
             
             if has_comprehensive_facts:
                 # We have relevant KG facts
@@ -227,6 +238,7 @@ def run_kg_benchmark():
             # Question classification
             "primary_type": primary_type,
             "time_semantic": time_semantic,
+            "logical_modifiers": json.dumps(logical_modifiers, ensure_ascii=False),
             "reasoning_strategy": reasoning_strategy,
             
             # KG retrieval info

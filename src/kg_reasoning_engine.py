@@ -6,8 +6,9 @@ import json
 from typing import List, Dict, Optional, Any, Tuple
 from pathlib import Path
 from src.question_classifier import (
-    ClassifiedQuestion, QuestionType, TimeSemantic, LogicOperator
+    ClassifiedQuestion, QuestionType, TimeSemantic, LogicOperator, LogicalModifier
 )
+from src.question_parser import TIME_RANGE_SEPARATOR
 
 
 class KGReasoningEngine:
@@ -31,6 +32,98 @@ class KGReasoningEngine:
                 indexed[subject] = []
             indexed[subject].append(fact)
         return indexed
+
+    def _latest_fact_for(self, subject: str, predicate: str, cq: ClassifiedQuestion) -> Optional[Dict]:
+        """Get the most relevant fact for one subject/predicate pair."""
+        subject_norm = subject.lower()
+        predicate_norm = predicate.lower()
+        candidates = []
+        for fact in self.kg_indexed.get(subject_norm, []):
+            if fact.get("predicate", "").lower() != predicate_norm:
+                continue
+            if cq.has_time_constraint and not self._time_matches(fact.get("time"), cq):
+                continue
+            candidates.append(fact)
+
+        if not candidates:
+            return None
+
+        if cq.has_time_constraint:
+            candidates.sort(key=lambda fact: str(fact.get("time", "")), reverse=True)
+            return candidates[0]
+
+        best = candidates[0]
+        for fact in candidates[1:]:
+            if self._is_more_recent(fact, best):
+                best = fact
+        return best
+
+    def _get_candidate_entities(self, cq: ClassifiedQuestion) -> List[str]:
+        """Resolve candidate pool for list questions."""
+        if cq.list_target == "planets":
+            planet_facts = {}
+            for fact in self.kg:
+                if fact.get("predicate", "").lower() != "distance_from_sun":
+                    continue
+                subject = fact.get("subject")
+                if not subject:
+                    continue
+                current = planet_facts.get(subject)
+                if current is None or self._extract_numeric_value(fact.get("object")) < self._extract_numeric_value(current.get("object")):
+                    planet_facts[subject] = fact
+            return [
+                subject
+                for subject, _fact in sorted(
+                    planet_facts.items(),
+                    key=lambda item: self._extract_numeric_value(item[1].get("object"))
+                )
+            ]
+        if cq.list_target == "dwarf_planets":
+            return sorted({
+                fact.get("subject")
+                for fact in self.kg
+                if fact.get("predicate", "").lower() == "classification" and str(fact.get("object", "")).lower() == "dwarf planet"
+            })
+        if cq.list_target == "moons":
+            return sorted({
+                fact.get("subject")
+                for fact in self.kg
+                if fact.get("predicate", "").lower() in {"moon_count", "latest_known_moon"}
+            })
+        return []
+
+    def _normalize_attribute_predicate(self, attribute: Optional[str]) -> Optional[str]:
+        mapping = {
+            "moons": "moon_count",
+            "distance": "distance_from_sun",
+            "discovered": "discovered_on",
+            "size": "diameter",
+            "mass": "mass",
+        }
+        if attribute is None:
+            return None
+        return mapping.get(attribute, attribute)
+
+    def _build_derived_result_fact(self, title: str, derived_entities: List[str], supporting_facts: List[Dict], strategy: str) -> List[Dict]:
+        return [{
+            "_derived_result": True,
+            "title": title,
+            "entities": derived_entities,
+            "supporting_facts": supporting_facts,
+            "strategy": strategy,
+        }]
+
+    def _describe_list_target(self, cq: ClassifiedQuestion) -> str:
+        if cq.list_target == "planets":
+            for condition in cq.entity_filter_conditions:
+                if condition.get("attribute") == "planet_type" and condition.get("operator") == "==":
+                    return f"{str(condition.get('value')).capitalize()} planets"
+            return "Planets"
+        if cq.list_target == "dwarf_planets":
+            return "Dwarf planets"
+        if cq.list_target == "moons":
+            return "Moons"
+        return "Entities"
     
     def reason(self, classified_question: ClassifiedQuestion, 
                entities: List[str], 
@@ -46,17 +139,17 @@ class KGReasoningEngine:
         if primary_type == QuestionType.BOOLEAN:
             return self._reasoning_boolean(classified_question, entities, predicates)
         elif primary_type == QuestionType.ENTITY:
+            if LogicalModifier.COMPARISON in classified_question.logical_modifiers:
+                return self._reasoning_comparison(classified_question, entities, predicates)
             return self._reasoning_entity(classified_question, entities, predicates)
-        elif primary_type == QuestionType.ENTITY_LIST:
+        elif primary_type == QuestionType.LIST:
+            if LogicalModifier.ORDERING in classified_question.logical_modifiers and LogicalModifier.FILTER in classified_question.logical_modifiers:
+                return self._reasoning_list_filter_and_order(classified_question, entities, predicates)
+            if LogicalModifier.ORDERING in classified_question.logical_modifiers:
+                return self._reasoning_ordered_list(classified_question, entities, predicates)
             return self._reasoning_entity_list(classified_question, entities, predicates)
-        elif primary_type == QuestionType.ORDERED_LIST:
-            return self._reasoning_ordered_list(classified_question, entities, predicates)
-        elif primary_type == QuestionType.COMPARISON:
-            return self._reasoning_comparison(classified_question, entities, predicates)
         elif primary_type == QuestionType.COUNT:
             return self._reasoning_count(classified_question, entities, predicates)
-        elif primary_type == QuestionType.TIME_LOOKUP:
-            return self._reasoning_time_lookup(classified_question, entities, predicates)
         elif primary_type == QuestionType.MULTI_FIELD:
             return self._reasoning_multi_field(classified_question, entities, predicates)
         else:
@@ -106,69 +199,124 @@ class KGReasoningEngine:
     
     def _reasoning_entity_list(self, cq: ClassifiedQuestion,
                               entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
-        """Entity list reasoning: find multiple entities with filtering."""
-        facts = []
-        predicates_norm = [p.lower() for p in predicates]
-        
-        # Group facts by predicate
-        predicate_facts = {}
-        for fact in self.kg:
-            predicate = fact.get("predicate", "").lower()
-            if predicate in predicates_norm:
-                if predicate not in predicate_facts:
-                    predicate_facts[predicate] = []
-                
-                # Apply time filtering
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        predicate_facts[predicate].append(fact)
-                else:
-                    predicate_facts[predicate].append(fact)
-        
-        # Combine facts (keep latest per entity)
-        combined = {}
-        for pred, pred_facts in predicate_facts.items():
-            for fact in pred_facts:
-                subject = fact.get("subject", "").lower()
-                if subject not in combined:
-                    combined[subject] = fact
-                elif self._is_more_recent(fact, combined[subject]):
-                    combined[subject] = fact
-        
-        facts = list(combined.values())
-        return facts, "entity_list_filtering"
+        """Entity list reasoning: compute filtered list from KG where possible."""
+        candidates = self._get_candidate_entities(cq)
+        if not candidates:
+            return self._reasoning_generic(cq, entities, predicates)
+
+        derived_entities = candidates[:]
+        supporting_facts: List[Dict] = []
+
+        for condition in cq.entity_filter_conditions:
+            attribute = condition.get("attribute")
+            operator = condition.get("operator")
+            predicate = self._normalize_attribute_predicate(attribute)
+
+            if operator == "==" and predicate:
+                next_entities = []
+                for entity in derived_entities:
+                    fact = self._latest_fact_for(entity, predicate, cq)
+                    if fact and str(fact.get("object", "")).lower() == str(condition.get("value", "")).lower():
+                        next_entities.append(entity)
+                        supporting_facts.append(fact)
+                derived_entities = next_entities
+
+            elif operator in {"<", ">", "=="} and predicate:
+                reference_entity = condition.get("reference_entity")
+                reference_value = condition.get("value")
+                if reference_entity is None and entities:
+                    reference_entity = entities[-1]
+                if reference_entity:
+                    reference_fact = self._latest_fact_for(reference_entity, predicate, cq)
+                    if reference_fact:
+                        reference_value = reference_fact.get("object")
+                        supporting_facts.append(reference_fact)
+                if reference_value is None:
+                    continue
+
+                reference_numeric = self._extract_numeric_value(reference_value)
+                next_entities = []
+                for entity in derived_entities:
+                    if reference_entity and entity.lower() == str(reference_entity).lower():
+                        continue
+                    fact = self._latest_fact_for(entity, predicate, cq)
+                    if not fact:
+                        continue
+                    numeric_value = self._extract_numeric_value(fact.get("object"))
+                    passed = (
+                        operator == "<" and numeric_value < reference_numeric or
+                        operator == ">" and numeric_value > reference_numeric or
+                        operator == "==" and numeric_value == reference_numeric
+                    )
+                    if passed:
+                        next_entities.append(entity)
+                        supporting_facts.append(fact)
+                derived_entities = next_entities
+
+        title = f"Filtered {self._describe_list_target(cq).lower()} matching all conditions"
+        return self._build_derived_result_fact(title, derived_entities, supporting_facts, "list_filtering"), "list_filtering"
     
     def _reasoning_ordered_list(self, cq: ClassifiedQuestion,
                                entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Ordered list reasoning: sort by attribute (computational)."""
-        facts = []
-        predicates_norm = [p.lower() for p in predicates]
-        ordering_attr = cq.ordering_attribute or "mass"
-        
-        # Get all facts with the ordering attribute
-        attr_facts = {}
-        for fact in self.kg:
-            if fact.get("predicate", "").lower() == ordering_attr.lower():
-                subject = fact.get("subject", "")
-                
-                if cq.has_time_constraint:
-                    if not self._time_matches(fact.get("time"), cq):
-                        continue
-                
-                if subject not in attr_facts:
-                    attr_facts[subject] = fact
-                elif self._is_more_recent(fact, attr_facts[subject]):
-                    attr_facts[subject] = fact
-        
-        # Sort by object value
-        sorted_facts = sorted(
-            attr_facts.values(),
-            key=lambda x: self._extract_numeric_value(x.get("object")),
+        ordering_attr = self._normalize_attribute_predicate(cq.ordering_attribute) or "mass"
+        candidates = self._get_candidate_entities(cq)
+        if not candidates:
+            candidates = sorted({fact.get("subject") for fact in self.kg if fact.get("predicate", "").lower() == ordering_attr})
+
+        filtered_candidates = candidates[:]
+        supporting_facts: List[Dict] = []
+
+        for condition in cq.entity_filter_conditions:
+            if condition.get("operator") == "==" and condition.get("attribute") == "planet_type":
+                next_entities = []
+                for entity in filtered_candidates:
+                    fact = self._latest_fact_for(entity, "planet_type", cq)
+                    if fact and str(fact.get("object", "")).lower() == str(condition.get("value", "")).lower():
+                        next_entities.append(entity)
+                        supporting_facts.append(fact)
+                filtered_candidates = next_entities
+
+        sortable_rows = []
+        for entity in filtered_candidates:
+            fact = self._latest_fact_for(entity, ordering_attr, cq)
+            if fact:
+                supporting_facts.append(fact)
+                sortable_rows.append((entity, fact))
+
+        sortable_rows.sort(
+            key=lambda item: self._extract_numeric_value(item[1].get("object")),
             reverse=(cq.order_direction == "descending")
         )
-        
-        facts = sorted_facts
-        return facts, f"ordered_list_by_{ordering_attr}_{cq.order_direction}"
+        derived_entities = [entity for entity, _ in sortable_rows]
+        order_text = "decreasing" if cq.order_direction == "descending" else "increasing"
+        title = f"{self._describe_list_target(cq)} ordered by {order_text} {ordering_attr}"
+        return self._build_derived_result_fact(title, derived_entities, supporting_facts, f"ordered_list_by_{ordering_attr}_{cq.order_direction}"), f"ordered_list_by_{ordering_attr}_{cq.order_direction}"
+
+    def _reasoning_list_filter_and_order(self, cq: ClassifiedQuestion,
+                                         entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
+        """Filter candidates first, then order them."""
+        filtered_result, _strategy = self._reasoning_entity_list(cq, entities, predicates)
+        if not filtered_result or not filtered_result[0].get("_derived_result"):
+            return self._reasoning_ordered_list(cq, entities, predicates)
+
+        ordering_attr = self._normalize_attribute_predicate(cq.ordering_attribute) or "mass"
+        derived_entities = filtered_result[0].get("entities", [])
+        supporting_facts = list(filtered_result[0].get("supporting_facts", []))
+        sortable_rows = []
+        for entity in derived_entities:
+            fact = self._latest_fact_for(entity, ordering_attr, cq)
+            if fact:
+                supporting_facts.append(fact)
+                sortable_rows.append((entity, fact))
+        sortable_rows.sort(
+            key=lambda item: self._extract_numeric_value(item[1].get("object")),
+            reverse=(cq.order_direction == "descending")
+        )
+        ordered_entities = [entity for entity, _ in sortable_rows]
+        order_text = "decreasing" if cq.order_direction == "descending" else "increasing"
+        title = f"Filtered {self._describe_list_target(cq).lower()} ordered by {order_text} {ordering_attr}"
+        return self._build_derived_result_fact(title, ordered_entities, supporting_facts, f"list_filter_and_order_by_{ordering_attr}"), f"list_filter_and_order_by_{ordering_attr}"
     
     def _reasoning_comparison(self, cq: ClassifiedQuestion,
                              entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
@@ -304,8 +452,8 @@ class KGReasoningEngine:
             elif cq.time_semantic == TimeSemantic.AFTER:
                 return fact_year >= constraint_year
             elif cq.time_semantic == TimeSemantic.BETWEEN:
-                start, end = cq.time_value.split("-")
-                return int(start) <= fact_year <= int(end)
+                start, end = cq.time_value.split(TIME_RANGE_SEPARATOR, 1)
+                return int(str(start).split("-")[0]) <= fact_year <= int(str(end).split("-")[0])
         except (ValueError, TypeError, AttributeError):
             return False
         
@@ -339,6 +487,15 @@ def format_reasoned_facts(facts: List[Dict], reasoning_strategy: str) -> str:
     """Format reasoned facts for prompt."""
     if not facts:
         return f"No facts found using strategy: {reasoning_strategy}"
+
+    if facts and facts[0].get("_derived_result"):
+        result = facts[0]
+        entities = result.get("entities", [])
+        title = result.get("title", "Derived KG Result")
+        formatted = "Derived KG Result:\n"
+        formatted += f"{title}:\n"
+        formatted += ", ".join(entities) if entities else "No matching entities found."
+        return formatted
     
     formatted = f"Knowledge Graph Facts (Strategy: {reasoning_strategy}):\n"
     for i, fact in enumerate(facts, 1):

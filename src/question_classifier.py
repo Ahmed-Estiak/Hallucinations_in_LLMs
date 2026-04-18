@@ -1,33 +1,38 @@
 """
-Advanced Question Classifier and Type Analyzer
-Categorizes questions with semantic understanding of time, logic operators, and multi-field requirements
+Question classifier focused on answer shape plus logical modifiers.
 """
 import re
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Dict, List, Optional
 
-from src.question_parser import TIME_TOKEN_PATTERN, TIME_RANGE_SEPARATOR, _normalize_time_token
+from src.question_parser import TIME_RANGE_SEPARATOR, TIME_TOKEN_PATTERN, _normalize_time_token
 
 
 class QuestionType(Enum):
-    """Primary question types ordered by reasoning priority."""
-    BOOLEAN = "boolean"           # Highest priority: Yes/No questions
-    ENTITY = "entity"             # Direct entity lookup
-    ENTITY_LIST = "entity_list"   # Multiple entities with filtering
-    ORDERED_LIST = "ordered_list" # Sorted list by attribute
-    COMPARISON = "comparison"      # Comparative (greater, less, etc)
-    COUNT = "count"                # Numerical aggregation
-    TIME_LOOKUP = "time_lookup"    # Historical fact lookup
-    MULTI_FIELD = "multi_field"   # Multiple predicates combined
+    """Primary answer-shape categories."""
+    BOOLEAN = "boolean"
+    ENTITY = "entity"
+    COUNT = "count"
+    LIST = "list"
+    MULTI_FIELD = "multi_field"
+
+
+class LogicalModifier(Enum):
+    """Additional reasoning requirements layered on top of answer shape."""
+    TIME_LOOKUP = "time_lookup"
+    FILTER = "filter"
+    ORDERING = "ordering"
+    COMPARISON = "comparison"
 
 
 class TimeSemantic(Enum):
     """How to interpret time constraint."""
-    EXACT = "exact"               # "As of 2022" - exact time snapshot
-    BEFORE = "before"             # "Before 1980" - any time <= constraint
-    AFTER = "after"               # "After 2000" - any time >= constraint
-    BETWEEN = "between"           # Range
-    NONE = "none"                 # No time constraint
+    EXACT = "exact"
+    BEFORE = "before"
+    AFTER = "after"
+    BETWEEN = "between"
+    NONE = "none"
 
 
 class LogicOperator(Enum):
@@ -37,103 +42,82 @@ class LogicOperator(Enum):
     NONE = "none"
 
 
+@dataclass
+class ClassifiedField:
+    """Schema for one field inside a multi-field question."""
+    name: str
+    answer_type: QuestionType
+    predicate: Optional[str]
+    time_aware: bool
+    logical_modifiers: List[LogicalModifier] = field(default_factory=list)
+
+
+@dataclass
 class ClassifiedQuestion:
     """Result of question classification."""
-    
-    def __init__(self):
-        self.primary_type: QuestionType = QuestionType.ENTITY
-        self.secondary_types: List[QuestionType] = []
-        self.has_time_constraint: bool = False
-        self.time_semantic: TimeSemantic = TimeSemantic.NONE
-        self.time_value: Optional[str] = None
-        self.is_multi_field: bool = False
-        self.multi_field_predicates: List[str] = []
-        self.logic_operator: LogicOperator = LogicOperator.NONE
-        self.ordering_attribute: Optional[str] = None  # For ordered_list
-        self.order_direction: str = "ascending"  # ascending or descending
-        self.comparison_operator: Optional[str] = None  # >, <, ==, etc
-        self.entity_filter_conditions: List[Dict] = []  # For entity_list
-        self.boolean_keyword: Optional[str] = None  # yes/no/true/false etc
-        self.confidence: float = 1.0
-        self.type_scores: Dict[QuestionType, float] = {}
+    original_question: str = ""
+    primary_type: QuestionType = QuestionType.ENTITY
+    secondary_types: List[QuestionType] = field(default_factory=list)
+    logical_modifiers: List[LogicalModifier] = field(default_factory=list)
+    has_time_constraint: bool = False
+    time_semantic: TimeSemantic = TimeSemantic.NONE
+    time_value: Optional[str] = None
+    is_multi_field: bool = False
+    fields: List[ClassifiedField] = field(default_factory=list)
+    multi_field_predicates: List[str] = field(default_factory=list)
+    logic_operator: LogicOperator = LogicOperator.NONE
+    ordering_attribute: Optional[str] = None
+    order_direction: str = "ascending"
+    comparison_operator: Optional[str] = None
+    list_target: Optional[str] = None
+    entity_filter_conditions: List[Dict] = field(default_factory=list)
+    boolean_keyword: Optional[str] = None
+    confidence: float = 1.0
+    type_scores: Dict[QuestionType, float] = field(default_factory=dict)
 
 
 class QuestionClassifier:
-    """
-    Classifies questions into types with advanced semantic understanding.
-    Handles time semantics, multi-field, logic operators, and priorities.
-    """
-    
-    # Question type indicators (keyword patterns)
+    """Classify answer shape and logical modifiers for a question."""
+
     TYPE_PATTERNS = {
         QuestionType.BOOLEAN: {
             "patterns": [
-                r"^(?:is|are|was|were)\b",
-                r"^(?:does|did)\b",
+                r"^(?:is|are|was|were|does|did)\b",
                 r"\b(?:does|did)\s+.*\b(?:have|orbit|orbits|recognize|recognized|discover|discovered|contain)\b",
                 r"\b(?:is|are|was|were)\s+.*\b(?:a|an|the)\b",
-                r"^(is|are|was|were|does|did)",
             ],
-            "keywords": ["recognize", "recognized"]
-        },
-        QuestionType.ENTITY: {
-            "patterns": [
-                r"which\s+(?:dwarf\s+)?planet",
-                r"who\s+(?:discovered|found)",
-                r"what\s+(?:planet|dwarf planet|object|body)",
-                r"name\s+(?:the|a)\s+(?:planet|dwarf planet|object|body)",
-            ],
-            "keywords": ["what planet", "what dwarf", "who discovered", "who found"]
-        },
-        QuestionType.ENTITY_LIST: {
-            "patterns": [
-                r"which\s+planets?",
-                r"list.*planets?",
-                r"names?\s+.*planets?",
-                r"(?:all|multiple)\s+(?:planets?|dwarfs?|moons?|satellites?)",
-            ],
-            "keywords": ["which planets", "all planets", "which moons", "which satellites"]
-        },
-        QuestionType.ORDERED_LIST: {
-            "patterns": [
-                r"(?:in\s+)?order\s+(?:of|by)",
-                r"(?:decreasing|increasing)\s+",
-                r"(?:smallest\s+to\s+largest|largest\s+to\s+smallest)",
-                r"list\s+.*\s+(?:in\s+order|ranked)",
-                r"(?:rank|sequence)\s+.*by",
-            ],
-            "keywords": ["order", "decreasing", "increasing", "ranked", "smallest to largest", "largest to smallest"]
-        },
-        QuestionType.COMPARISON: {
-            "patterns": [
-                r"which\s+(?:is\s+)?(?:greater|more|larger|heavier|farther|closer)",
-                r"(?:between|of)\s+.*which\s+(?:is|has)",
-                r"(?:greater|less|more|fewer)\s+than",
-                r"compare(?:d)?\s+(?:to|with)?",
-            ],
-            "keywords": ["between", "compared to", "greater than", "less than", "more than", "fewer than"]
+            "keywords": ["recognize", "recognized"],
         },
         QuestionType.COUNT: {
             "patterns": [
-                r"how\s+many",
-                r"(?:count|number)\s+(?:of|to)",
-                r"total\s+(?:number\s+)?(?:of)?",
+                r"\bhow\s+many\b",
+                r"\b(?:count|number)\s+of\b",
+                r"\btotal\s+(?:number\s+)?of\b",
+                r"\bwhat\s+was\s+the\s+number\b",
             ],
-            "keywords": ["how many", "count", "number", "total"]
+            "keywords": ["how many", "count of", "number of", "total number"],
         },
-        QuestionType.TIME_LOOKUP: {
+        QuestionType.LIST: {
             "patterns": [
-                r"when\s+(?:was|were|is|are|did)",
-                r"what\s+year",
-                r"in\s+what\s+year",
-                r"what\s+date",
-                r"what\s+month",
+                r"\bwhich\s+(?:planets|dwarfs|moons|satellites)\b",
+                r"\blist\b",
+                r"\bnames?\b.*\b(?:planets|dwarfs|moons|satellites)\b",
+                r"\ball\s+(?:planets|dwarfs|moons|satellites)\b",
             ],
-            "keywords": ["when", "what year", "in what year", "what date", "what month"]
-        }
+            "keywords": ["which planets", "which moons", "all planets", "list the"],
+        },
+        QuestionType.ENTITY: {
+            "patterns": [
+                r"\bwhich\s+(?:planet|dwarf planet|object|body)\b",
+                r"\bwho\s+(?:discovered|found)\b",
+                r"\bwhat\s+type\s+of\s+planet\b",
+                r"\bwhat\s+(?:planet|dwarf planet|object|body)\b",
+                r"\bname\s+(?:the|a)\s+(?:planet|dwarf planet|object|body)\b",
+            ],
+            "keywords": ["who discovered", "who found", "what type of planet"],
+        },
     }
-    
-    # Time semantic patterns
+
     TIME_PATTERNS = {
         TimeSemantic.EXACT: [
             rf"(?:as\s+of|by|on|during|in)\s+({TIME_TOKEN_PATTERN})",
@@ -146,10 +130,38 @@ class QuestionClassifier:
         ],
         TimeSemantic.BETWEEN: [
             rf"(?:between|from)\s+({TIME_TOKEN_PATTERN})\s+(?:and|to)\s+({TIME_TOKEN_PATTERN})",
-        ]
+        ],
     }
-    
-    # Ordering keywords
+
+    ORDERING_PATTERNS = [
+        r"\bin\s+order\b",
+        r"\border\s+of\b",
+        r"\brank(?:ed)?\b",
+        r"\bdecreasing\b",
+        r"\bincreasing\b",
+        r"\bsmallest\s+to\s+largest\b",
+        r"\blargest\s+to\s+smallest\b",
+    ]
+
+    COMPARISON_PATTERNS = [
+        r"\bbetween\b.*\bwhich\b",
+        r"\bcompared\s+to\b",
+        r"\b(?:greater|less|more|fewer)\s+than\b",
+        r"\bwhich\s+is\s+(?:greater|larger|smaller|farther|closer)\b",
+    ]
+
+    FILTER_PATTERNS = [
+        r"\bfewer\s+than\b",
+        r"\bmore\s+than\b",
+        r"\bless\s+than\b",
+        r"\bgreater\s+than\b",
+        r"\blocated\s+in\b",
+        r"\bfound\s+in\b",
+        r"\bin\s+the\s+kuiper\s+belt\b",
+        r"\bin\s+the\s+asteroid\s+belt\b",
+        r"\borbit(?:s|ing)?\s+beyond\b",
+    ]
+
     ORDERING_KEYWORDS = {
         "mass": r"(?:mass|massive|heaviest|lightest|weight)",
         "distance": r"(?:distance|farther|closer|away)",
@@ -157,50 +169,31 @@ class QuestionClassifier:
         "discovered": r"(?:discovered|discovery)",
         "moons": r"(?:moon|moons|satellite)",
     }
-    
-    # Comparison operators
+
     COMPARISON_KEYWORDS = {
         ">": ["greater", "more", "larger", "heavier", "farther"],
         "<": ["less", "fewer", "smaller", "lighter", "closer"],
         "==": ["same", "equal", "equal to", "same as"],
     }
-    
-    # Boolean value keywords
-    BOOLEAN_VALUES = ["yes", "no", "true", "false", "is", "was"]
-    
-    def classify(self, question: str) -> ClassifiedQuestion:
-        """
-        Classify a question into types with detailed semantic analysis.
-        Returns ClassifiedQuestion with all metadata.
-        """
-        result = ClassifiedQuestion()
-        question_lower = question.lower()
-        
-        # Step 1: Detect time constraint and semantics
-        self._detect_time_constraint(question_lower, result)
-        
-        # Step 2: Detect logic operators (AND, OR)
-        self._detect_logic_operators(question_lower, result)
-        
-        # Step 3: Detect multi-field nature
-        self._detect_multi_field(question_lower, result)
-        
-        # Step 4: Classify primary and secondary types
-        self._classify_types(question_lower, result)
-        
-        # Step 5: Set priority based on rules
-        self._set_priority_and_operators(question_lower, result)
-        
-        # Step 6: Detect special attributes (ordering, comparison, filter)
-        self._detect_special_attributes(question_lower, result)
 
-        # Step 7: Normalize secondary types after promotions/overrides
-        self._finalize_secondary_types(result)
-        
+    BOOLEAN_VALUES = ["yes", "no", "true", "false", "is", "was"]
+
+    def classify(self, question: str) -> ClassifiedQuestion:
+        result = ClassifiedQuestion()
+        result.original_question = question
+        question_lower = question.lower()
+
+        self._detect_time_constraint(question_lower, result)
+        self._detect_logic_operators(question_lower, result)
+        self._detect_multi_field(question_lower, result)
+        self._classify_primary_type(question_lower, result)
+        self._detect_logical_modifiers(question_lower, result)
+        self._detect_special_attributes(question_lower, result)
+        self._finalize(result)
+
         return result
-    
+
     def _detect_time_constraint(self, question: str, result: ClassifiedQuestion) -> None:
-        """Extract time constraint and semantic meaning."""
         for semantic, patterns in self.TIME_PATTERNS.items():
             for pattern in patterns:
                 match = re.search(pattern, question)
@@ -217,101 +210,83 @@ class QuestionClassifier:
                     else:
                         result.time_value = _normalize_time_token(match.group(1)) or match.group(1)
                     return
-    
+
     def _detect_logic_operators(self, question: str, result: ClassifiedQuestion) -> None:
-        """Detect AND/OR logic operators."""
         if re.search(r"\band\b", question):
             result.logic_operator = LogicOperator.AND
         elif re.search(r"\bor\b", question):
             result.logic_operator = LogicOperator.OR
-    
+
     def _detect_multi_field(self, question: str, result: ClassifiedQuestion) -> None:
-        """Detect if question has multiple fields (e.g., year AND discoverer)."""
-        # Look for patterns like "year ... and ... discoverer"
-        if re.search(r"(year|when).*\band\b.*(discoverer|who|by)", question):
+        year_like = r"(?:what\s+(?:year|date|month)|in\s+what\s+year|when)"
+        discoverer_like = r"(?:who|discoverer|found\s+by|discovered\s+by)"
+
+        first_time = re.search(year_like, question)
+        first_discoverer = re.search(discoverer_like, question)
+        if first_time and first_discoverer and re.search(r"\band\b", question):
             result.is_multi_field = True
-            result.multi_field_predicates = ["discovered_on", "discovered_by"]
-        elif re.search(r"(discoverer|who).*\band\b.*(year|when)", question):
-            result.is_multi_field = True
-            result.multi_field_predicates = ["discovered_by", "discovered_on"]
-        elif re.search(r"\bwhat\s+(?:year|date|month)\b.*\band\b.*\bwho\b", question):
-            result.is_multi_field = True
-    
-    def _classify_types(self, question: str, result: ClassifiedQuestion) -> None:
-        """Classify into question types with confidence scores."""
+            if first_time.start() < first_discoverer.start():
+                result.fields = [
+                    ClassifiedField("field1", QuestionType.COUNT, "discovered_on", False, []),
+                    ClassifiedField("field2", QuestionType.ENTITY, "discovered_by", False, []),
+                ]
+                result.multi_field_predicates = ["discovered_on", "discovered_by"]
+            else:
+                result.fields = [
+                    ClassifiedField("field1", QuestionType.ENTITY, "discovered_by", False, []),
+                    ClassifiedField("field2", QuestionType.COUNT, "discovered_on", False, []),
+                ]
+                result.multi_field_predicates = ["discovered_by", "discovered_on"]
+
+    def _classify_primary_type(self, question: str, result: ClassifiedQuestion) -> None:
+        if result.is_multi_field:
+            result.primary_type = QuestionType.MULTI_FIELD
+            result.type_scores = {QuestionType.MULTI_FIELD: 1.0}
+            result.confidence = 1.0
+            return
+
         type_scores: Dict[QuestionType, float] = {}
-        
         for qtype, patterns_dict in self.TYPE_PATTERNS.items():
             score = 0.0
-            
-            # Pattern matching
             for pattern in patterns_dict["patterns"]:
                 if re.search(pattern, question):
-                    score += 0.6
+                    score += 0.7
                     break
-            
-            # Keyword matching
             for keyword in patterns_dict["keywords"]:
                 if keyword in question:
                     score += 0.2
                     break
-            
             type_scores[qtype] = score
-        
+
+        if re.search(r"\bhow\s+many\b", question) or re.search(r"\b(?:count|number|total)\b", question):
+            type_scores[QuestionType.COUNT] = max(type_scores.get(QuestionType.COUNT, 0.0), 0.9)
+
+        if re.search(r"\b(?:which|list|all)\s+(?:planets|dwarfs|moons|satellites)\b", question):
+            type_scores[QuestionType.LIST] = max(type_scores.get(QuestionType.LIST, 0.0), 0.8)
+
+        sorted_types = sorted(type_scores.items(), key=lambda item: item[1], reverse=True)
         result.type_scores = type_scores
-        
-        # Sort by confidence, set primary and secondary
-        sorted_types = sorted(type_scores.items(), key=lambda x: x[1], reverse=True)
         if sorted_types and sorted_types[0][1] > 0:
             result.primary_type = sorted_types[0][0]
             result.confidence = sorted_types[0][1]
-            if len(sorted_types) > 1 and sorted_types[1][1] > 0.2:
-                result.secondary_types = [t[0] for t in sorted_types[1:3] if t[1] > 0.2]
-    
-    def _set_priority_and_operators(self, question: str, result: ClassifiedQuestion) -> None:
-        """Adjust type priority based on priority rules."""
-        # Force numeric/count interpretation for "how many"/count-style questions.
-        if re.search(r"\bhow\s+many\b", question) or re.search(r"\b(?:count|number|total)\b", question):
-            if result.primary_type != QuestionType.COUNT:
-                result.secondary_types.insert(0, result.primary_type)
-                result.primary_type = QuestionType.COUNT
+            result.secondary_types = [t[0] for t in sorted_types[1:3] if t[1] > 0.2]
 
-        # Boolean has highest priority only for explicit yes/no style questions
-        if (
-            result.type_scores.get(QuestionType.BOOLEAN, 0) > 0.5 and
-            not re.search(r"\bhow\s+many\b", question) and
-            not re.search(r"\b(?:count|number|total)\b", question)
-        ):
-            result.primary_type = QuestionType.BOOLEAN
-        
-        # Time-sensitive gets high priority if time present
+    def _detect_logical_modifiers(self, question: str, result: ClassifiedQuestion) -> None:
         if result.has_time_constraint:
-            if result.primary_type in [QuestionType.COUNT, QuestionType.ENTITY]:
-                result.secondary_types.insert(0, result.primary_type)
-                result.primary_type = QuestionType.TIME_LOOKUP
-        
-        # Multi-field overrides simple types
-        if result.is_multi_field:
-            result.secondary_types.insert(0, result.primary_type)
-            result.primary_type = QuestionType.MULTI_FIELD
-        
-        # ENTITY_LIST priority when asking for multiple entities
-        # Detect plural forms and multiple-selection patterns
-        if result.primary_type == QuestionType.ENTITY:
-            # Check for plural indicators
-            if re.search(r"\b(?:planets|dwarfs?|moons|satellites)\b", question):
-                if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
-                    result.secondary_types.insert(0, result.primary_type)
-                    result.primary_type = QuestionType.ENTITY_LIST
-            # Check for "multiple", "all", "which ... have" patterns
-            if re.search(r"(?:multiple|all|any|several)\s+(?:planets?|dwarfs?|moons?|satellites?)", question):
-                if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
-                    result.secondary_types.insert(0, result.primary_type)
-                    result.primary_type = QuestionType.ENTITY_LIST
-    
+            result.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
+
+        if result.primary_type != QuestionType.BOOLEAN:
+            if any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS):
+                result.logical_modifiers.append(LogicalModifier.ORDERING)
+            if any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS):
+                result.logical_modifiers.append(LogicalModifier.COMPARISON)
+            if result.primary_type == QuestionType.LIST and (
+                any(re.search(pattern, question) for pattern in self.FILTER_PATTERNS) or
+                result.logic_operator == LogicOperator.AND
+            ):
+                result.logical_modifiers.append(LogicalModifier.FILTER)
+
     def _detect_special_attributes(self, question: str, result: ClassifiedQuestion) -> None:
-        """Detect ordering, comparison, and filter attributes."""
-        # Ordering attribute
         for attr, pattern in self.ORDERING_KEYWORDS.items():
             if re.search(pattern, question):
                 result.ordering_attribute = attr
@@ -320,8 +295,7 @@ class QuestionClassifier:
                 else:
                     result.order_direction = "ascending"
                 break
-        
-        # Comparison operator
+
         for op, keywords in self.COMPARISON_KEYWORDS.items():
             for keyword in keywords:
                 if keyword in question:
@@ -329,19 +303,56 @@ class QuestionClassifier:
                     break
             if result.comparison_operator:
                 break
-        
-        # Boolean value
+
         for value in self.BOOLEAN_VALUES:
             if re.search(rf"\b{re.escape(value)}\b", question):
                 result.boolean_keyword = value
                 break
 
-    def _finalize_secondary_types(self, result: ClassifiedQuestion) -> None:
-        """Remove duplicates, drop primary from secondary list, and keep top two."""
-        deduped: List[QuestionType] = []
+        if result.primary_type == QuestionType.LIST and LogicalModifier.FILTER in result.logical_modifiers:
+            if re.search(r"\bfewer\b.*\bthan\b", question) or re.search(r"\bless\b.*\bthan\b", question):
+                result.entity_filter_conditions.append({"operator": "<", "attribute": result.ordering_attribute or "unknown"})
+            elif re.search(r"\bmore\b.*\bthan\b", question) or re.search(r"\bgreater\b.*\bthan\b", question):
+                result.entity_filter_conditions.append({"operator": ">", "attribute": result.ordering_attribute or "unknown"})
+
+        if result.primary_type == QuestionType.LIST:
+            if re.search(r"\bplanets\b", question):
+                result.list_target = "planets"
+            elif re.search(r"\bdwarfs?\b", question):
+                result.list_target = "dwarf_planets"
+            elif re.search(r"\b(?:moons|satellites)\b", question):
+                result.list_target = "moons"
+
+            if re.search(r"\bterrestrial\b", question):
+                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "terrestrial"})
+            if re.search(r"\bgas\s+giant\b", question):
+                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "gas giant"})
+            if re.search(r"\bice\s+giant\b", question):
+                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "ice giant"})
+            if re.search(r"\bin\s+the\s+kuiper\s+belt\b", question):
+                result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Kuiper Belt"})
+            if re.search(r"\bin\s+the\s+asteroid\s+belt\b", question):
+                result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Asteroid Belt"})
+            if re.search(r"\bbeyond\s+earth\b", question):
+                result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"})
+
+    def _finalize(self, result: ClassifiedQuestion) -> None:
+        deduped_secondaries: List[QuestionType] = []
         for qtype in result.secondary_types:
             if qtype == result.primary_type:
                 continue
-            if qtype not in deduped:
-                deduped.append(qtype)
-        result.secondary_types = deduped[:2]
+            if qtype not in deduped_secondaries:
+                deduped_secondaries.append(qtype)
+        result.secondary_types = deduped_secondaries[:2]
+
+        deduped_modifiers: List[LogicalModifier] = []
+        for modifier in result.logical_modifiers:
+            if modifier not in deduped_modifiers:
+                deduped_modifiers.append(modifier)
+        result.logical_modifiers = deduped_modifiers
+
+        if result.primary_type == QuestionType.MULTI_FIELD:
+            for field_spec in result.fields:
+                field_spec.time_aware = result.has_time_constraint
+                if result.has_time_constraint and LogicalModifier.TIME_LOOKUP not in field_spec.logical_modifiers:
+                    field_spec.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
