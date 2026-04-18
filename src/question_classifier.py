@@ -6,7 +6,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from src.question_parser import TIME_RANGE_SEPARATOR, TIME_TOKEN_PATTERN, _normalize_time_token
+from src.question_parser import (
+    TIME_RANGE_SEPARATOR,
+    TIME_TOKEN_PATTERN,
+    _normalize_time_token,
+    extract_entities,
+    locate_predicate_mentions,
+)
 
 
 class QuestionType(Enum):
@@ -49,6 +55,7 @@ class ClassifiedField:
     answer_type: QuestionType
     predicate: Optional[str]
     time_aware: bool
+    sub_question: str = ""
     logical_modifiers: List[LogicalModifier] = field(default_factory=list)
 
 
@@ -177,6 +184,18 @@ class QuestionClassifier:
     }
 
     BOOLEAN_VALUES = ["yes", "no", "true", "false", "is", "was"]
+    MULTI_FIELD_EXCLUDED_PREDICATES = {"ordering", "comparison"}
+    PREDICATE_QUESTION_TEMPLATES = {
+        "moon_count": "How many moons does {entity} have?",
+        "discovered_on": "In what year was {entity} discovered?",
+        "discovered_by": "Who discovered {entity}?",
+        "mass": "What is the mass of {entity}?",
+        "distance_from_sun": "What is the distance of {entity} from the Sun?",
+        "surface_gravity": "What is the surface gravity of {entity}?",
+        "classification": "How is {entity} classified?",
+        "planet_type": "What type of planet is {entity}?",
+        "location": "Where is {entity} located?",
+    }
 
     def classify(self, question: str) -> ClassifiedQuestion:
         result = ClassifiedQuestion()
@@ -218,25 +237,90 @@ class QuestionClassifier:
             result.logic_operator = LogicOperator.OR
 
     def _detect_multi_field(self, question: str, result: ClassifiedQuestion) -> None:
-        year_like = r"(?:what\s+(?:year|date|month)|in\s+what\s+year|when)"
-        discoverer_like = r"(?:who|discoverer|found\s+by|discovered\s+by)"
+        if not re.search(r"\band\b", question):
+            return
 
-        first_time = re.search(year_like, question)
-        first_discoverer = re.search(discoverer_like, question)
-        if first_time and first_discoverer and re.search(r"\band\b", question):
-            result.is_multi_field = True
-            if first_time.start() < first_discoverer.start():
-                result.fields = [
-                    ClassifiedField("field1", QuestionType.COUNT, "discovered_on", False, []),
-                    ClassifiedField("field2", QuestionType.ENTITY, "discovered_by", False, []),
-                ]
-                result.multi_field_predicates = ["discovered_on", "discovered_by"]
-            else:
-                result.fields = [
-                    ClassifiedField("field1", QuestionType.ENTITY, "discovered_by", False, []),
-                    ClassifiedField("field2", QuestionType.COUNT, "discovered_on", False, []),
-                ]
-                result.multi_field_predicates = ["discovered_by", "discovered_on"]
+        if self._looks_like_compound_filter_or_list(question):
+            return
+
+        predicate_mentions = [
+            (start, predicate)
+            for start, predicate in locate_predicate_mentions(question)
+            if predicate not in self.MULTI_FIELD_EXCLUDED_PREDICATES
+        ]
+        ordered_predicates: List[str] = []
+        for _start, predicate in predicate_mentions:
+            if predicate not in ordered_predicates:
+                ordered_predicates.append(predicate)
+
+        if len(ordered_predicates) < 2:
+            return
+
+        field_predicates = ordered_predicates[:2]
+        if not self._has_true_multi_answer_structure(question, field_predicates):
+            return
+
+        entities = extract_entities(question)
+        subject_entity = entities[0] if entities else None
+        if not subject_entity:
+            return
+
+        fields: List[ClassifiedField] = []
+        for index, predicate in enumerate(field_predicates, start=1):
+            sub_question = self._build_sub_question(predicate, subject_entity)
+            if not sub_question:
+                return
+            fields.append(
+                ClassifiedField(
+                    name=f"field{index}",
+                    answer_type=self._predicate_answer_type(predicate),
+                    predicate=predicate,
+                    time_aware=False,
+                    sub_question=sub_question,
+                    logical_modifiers=[],
+                )
+            )
+
+        result.is_multi_field = True
+        result.fields = fields
+        result.multi_field_predicates = field_predicates
+
+    def _looks_like_compound_filter_or_list(self, question: str) -> bool:
+        if re.search(r"^(?:which|list|name|all)\s+(?:planets|dwarfs|moons|satellites)\b", question):
+            return True
+        if re.search(r"\b(?:yet|that|which)\s+(?:have|has|orbit|orbits|are|were)\b", question):
+            return True
+        if re.search(r"\band\s+(?:have|has|orbit|orbits|are|were|located|found|with)\b", question):
+            return True
+        return False
+
+    def _has_true_multi_answer_structure(self, question: str, predicates: List[str]) -> bool:
+        if len(predicates) != 2:
+            return False
+
+        interrogative_starts = r"(?:who|what|which|when|where|how\s+many|in\s+what\s+year|what\s+year|which\s+year)"
+        if re.search(rf",\s*and\s+{interrogative_starts}\b", question):
+            return True
+        if re.search(rf"^\s*{interrogative_starts}\b.*\band\s+{interrogative_starts}\b", question):
+            return True
+
+        # Shared-scaffold form, e.g. "what is Saturn's mass and surface gravity?"
+        if re.search(r"^(?:what|which)\s+(?:is|are|was|were)\b", question):
+            return True
+
+        # Predicate-driven fallback for two distinct answer predicates on one entity.
+        return True
+
+    def _predicate_answer_type(self, predicate: str) -> QuestionType:
+        if predicate in {"moon_count", "discovered_on"}:
+            return QuestionType.COUNT
+        return QuestionType.ENTITY
+
+    def _build_sub_question(self, predicate: str, entity: str) -> str:
+        template = self.PREDICATE_QUESTION_TEMPLATES.get(predicate)
+        if not template:
+            return ""
+        return template.format(entity=entity)
 
     def _classify_primary_type(self, question: str, result: ClassifiedQuestion) -> None:
         if result.is_multi_field:

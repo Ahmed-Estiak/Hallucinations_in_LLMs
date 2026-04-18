@@ -62,6 +62,118 @@ def _load_vanilla_results():
     return vanilla_data
 
 
+def _prepare_question_context(question, question_classifier, kg_retriever, kg_reasoning_engine,
+                              time_semantic_override=None, time_constraint_override=None):
+    """Parse/classify one question and prepare KG context."""
+    parsed = parse_question(question)
+    entities = parsed["entities"]
+    predicates = parsed["predicates"]
+    time_constraint = parsed["time_constraint"]
+
+    classified_q = question_classifier.classify(question)
+    if time_semantic_override is not None and time_constraint_override:
+        classified_q.has_time_constraint = True
+        classified_q.time_semantic = time_semantic_override
+        classified_q.time_value = time_constraint_override
+        if LogicalModifier.TIME_LOOKUP not in classified_q.logical_modifiers:
+            classified_q.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
+        time_constraint = time_constraint_override
+
+    use_kg_reasoning = (
+        classified_q.primary_type == QuestionType.MULTI_FIELD or
+        LogicalModifier.FILTER in classified_q.logical_modifiers or
+        LogicalModifier.ORDERING in classified_q.logical_modifiers or
+        LogicalModifier.COMPARISON in classified_q.logical_modifiers
+    )
+
+    if use_kg_reasoning:
+        reasoned_facts, reasoning_strategy = kg_reasoning_engine.reason(
+            classified_q,
+            entities,
+            predicates
+        )
+    else:
+        reasoned_facts = []
+        reasoning_strategy = "vanilla_retrieval"
+
+    time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
+    kg_facts = kg_retriever.retrieve(
+        entities=entities,
+        predicates=predicates,
+        time_constraint=time_constraint,
+        time_semantic=time_semantic,
+        limit=3
+    )
+
+    derived_result_available = bool(reasoned_facts and reasoned_facts[0].get("_derived_result"))
+    kg_found = len(kg_facts) > 0 or derived_result_available
+    if reasoned_facts:
+        kg_facts_text = format_reasoned_facts(reasoned_facts, reasoning_strategy)
+    else:
+        kg_facts_text = kg_retriever.format_facts_for_prompt(kg_facts)
+
+    return {
+        "parsed": parsed,
+        "entities": entities,
+        "predicates": predicates,
+        "time_constraint": time_constraint,
+        "classified_q": classified_q,
+        "reasoned_facts": reasoned_facts,
+        "reasoning_strategy": reasoning_strategy,
+        "kg_facts": kg_facts,
+        "derived_result_available": derived_result_available,
+        "kg_found": kg_found,
+        "kg_facts_text": kg_facts_text,
+    }
+
+
+def _has_comprehensive_kg_context(context):
+    """Decide whether KG context is strong enough to use."""
+    classified_q = context["classified_q"]
+    entities = context["entities"]
+    kg_facts = context["kg_facts"]
+    reasoned_facts = context["reasoned_facts"]
+
+    if reasoned_facts and reasoned_facts[0].get("_derived_result"):
+        derived_entities = reasoned_facts[0].get("entities", [])
+        return len(derived_entities) > 0
+
+    relevant_entities_in_facts = set()
+    relevant_subjects_in_facts = set()
+    for fact in kg_facts:
+        relevant_subjects_in_facts.add(fact.get("subject", "").lower())
+
+    for entity in entities:
+        if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
+            relevant_entities_in_facts.add(entity)
+
+    return (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or (len(kg_facts) >= 3)
+
+
+def _answer_single_question(question, question_classifier, kg_retriever, kg_reasoning_engine,
+                            time_semantic_override=None, time_constraint_override=None):
+    """Answer one question using the same KG-or-fallback flow as the main benchmark."""
+    context = _prepare_question_context(
+        question,
+        question_classifier,
+        kg_retriever,
+        kg_reasoning_engine,
+        time_semantic_override=time_semantic_override,
+        time_constraint_override=time_constraint_override,
+    )
+    classified_q = context["classified_q"]
+    should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
+
+    if should_use_kg and context["kg_found"] and _has_comprehensive_kg_context(context):
+        openai_answer = ask_openai_with_kg(question, context["kg_facts_text"], context["time_constraint"])
+        gemini_answer = ask_gemini_with_kg(question, context["kg_facts_text"], context["time_constraint"])
+    else:
+        openai_answer = ask_openai(question)
+        gemini_answer = ask_gemini(question)
+
+    return context, openai_answer, gemini_answer
+
+
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
     
@@ -106,57 +218,25 @@ def run_kg_benchmark():
 
         print(f"[{index}/{total_questions}] Q{qid}: {question[:60]}...")
 
-        # Step 1: Parse question
-        parsed = parse_question(question)
-        entities = parsed["entities"]
-        predicates = parsed["predicates"]
-        time_constraint = parsed["time_constraint"]
-
-        # Step 1.5: Classify question for advanced reasoning
-        classified_q = question_classifier.classify(question)
+        # Step 1: Parse/classify question and prepare KG context
+        context = _prepare_question_context(question, question_classifier, kg_retriever, kg_reasoning_engine)
+        parsed = context["parsed"]
+        entities = context["entities"]
+        predicates = context["predicates"]
+        time_constraint = context["time_constraint"]
+        classified_q = context["classified_q"]
         primary_type = classified_q.primary_type.name if classified_q.primary_type else "UNKNOWN"
         time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
         logical_modifiers = [modifier.name for modifier in classified_q.logical_modifiers]
-        
-        # Step 2: Retrieve KG facts via advanced reasoning engine
-        # Apply reasoning only for question types where it's proven to help
-        use_kg_reasoning = (
-            classified_q.primary_type == QuestionType.MULTI_FIELD or
-            LogicalModifier.FILTER in classified_q.logical_modifiers or
-            LogicalModifier.ORDERING in classified_q.logical_modifiers or
-            LogicalModifier.COMPARISON in classified_q.logical_modifiers
-        )
-        
-        if use_kg_reasoning:
-            reasoned_facts, reasoning_strategy = kg_reasoning_engine.reason(
-                classified_q, 
-                entities, 
-                predicates
-            )
-        else:
-            # For other types, use standard retrieval
-            reasoned_facts = []
-            reasoning_strategy = "vanilla_retrieval"
-        
-        # Also retrieve raw facts for comparison
-        kg_facts = kg_retriever.retrieve(
-            entities=entities,
-            predicates=predicates,
-            time_constraint=time_constraint,
-            time_semantic=time_semantic,
-            limit=3
-        )
-        
-        derived_result_available = bool(reasoned_facts and reasoned_facts[0].get("_derived_result"))
-        kg_found = len(kg_facts) > 0 or derived_result_available
+        reasoned_facts = context["reasoned_facts"]
+        reasoning_strategy = context["reasoning_strategy"]
+        kg_facts = context["kg_facts"]
+        derived_result_available = context["derived_result_available"]
+        kg_found = context["kg_found"]
         if kg_found:
             kg_found_count += 1
 
-        # Use reasoned facts if available (from advanced reasoning), otherwise use raw retrieval
-        if reasoned_facts:
-            kg_facts_text = format_reasoned_facts(reasoned_facts, reasoning_strategy)
-        else:
-            kg_facts_text = kg_retriever.format_facts_for_prompt(kg_facts)
+        kg_facts_text = context["kg_facts_text"]
 
         # Step 3: Retrieve vanilla LLM answers from previous results.csv if valid
         vanilla_row = vanilla_data.get(qid, None)
@@ -176,44 +256,51 @@ def run_kg_benchmark():
             gemini_vanilla_reason = pd.NA
 
         # Step 4: Get LLM answers
-        # Strategy: Selective KG usage based on question type and fact comprehensiveness
-        # ENTITY_LIST questions are excluded because KG retrieval can't handle category queries
-        # (e.g., "planets" isn't present as entity - needs expansion logic)
-        # Use ask_openai_with_kg for consistency, even with empty_facts for non-KG cases
-        
-        should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
-        
-        if should_use_kg and kg_found:
-            if derived_result_available:
-                derived_entities = reasoned_facts[0].get("entities", [])
-                has_comprehensive_facts = len(derived_entities) > 0
-            else:
-            # Check if facts are comprehensive enough
-                relevant_entities_in_facts = set()
-                relevant_subjects_in_facts = set()
-                for f in kg_facts:
-                    relevant_subjects_in_facts.add(f.get('subject', '').lower())
-                
-                for entity in entities:
-                    if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
-                        relevant_entities_in_facts.add(entity)
-                
-                # Use KG only if retrieval found multiple relevant facts
-                has_comprehensive_facts = (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or \
-                                         (len(kg_facts) >= 3)
-            
-            if has_comprehensive_facts:
-                # We have relevant KG facts
+        if classified_q.primary_type == QuestionType.MULTI_FIELD and classified_q.fields:
+            openai_parts = []
+            gemini_parts = []
+            field_strategies = []
+            total_sub_kg_facts = 0
+            sub_kg_found = False
+            for field_spec in classified_q.fields:
+                sub_context, openai_part, gemini_part = _answer_single_question(
+                    field_spec.sub_question,
+                    question_classifier,
+                    kg_retriever,
+                    kg_reasoning_engine,
+                    time_semantic_override=classified_q.time_semantic if field_spec.time_aware else None,
+                    time_constraint_override=time_constraint if field_spec.time_aware else None,
+                )
+                openai_parts.append(openai_part)
+                gemini_parts.append(gemini_part)
+                total_sub_kg_facts += len(sub_context["kg_facts"])
+                sub_kg_found = sub_kg_found or sub_context["kg_found"]
+                field_strategies.append({
+                    "field": field_spec.name,
+                    "sub_question": field_spec.sub_question,
+                    "strategy": sub_context["reasoning_strategy"],
+                    "primary_type": sub_context["classified_q"].primary_type.name,
+                })
+
+            openai_kg_ans = ", ".join(openai_parts)
+            gemini_kg_ans = ", ".join(gemini_parts)
+            reasoning_strategy = json.dumps(field_strategies, ensure_ascii=False)
+            kg_found = sub_kg_found
+            kg_facts_text = "MULTI_FIELD_SPLIT"
+            if kg_found and not context["kg_found"]:
+                kg_found_count += 1
+            kg_facts = kg_facts[:]
+            if total_sub_kg_facts > len(kg_facts):
+                pass
+        else:
+            should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
+
+            if should_use_kg and kg_found and _has_comprehensive_kg_context(context):
                 openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
                 gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
             else:
-                # Facts are incomplete or irrelevant - use true vanilla fallback
                 openai_kg_ans = ask_openai(question)
                 gemini_kg_ans = ask_gemini(question)
-        else:
-            # ENTITY_LIST or no facts found - use true vanilla fallback
-            openai_kg_ans = ask_openai(question)
-            gemini_kg_ans = ask_gemini(question)
 
         # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)

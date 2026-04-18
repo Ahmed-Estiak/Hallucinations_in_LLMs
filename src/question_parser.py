@@ -1,5 +1,5 @@
 """
-Question Parser: Extract entities, predicates, and time constraints from questions
+Question Parser: Extract entities, predicates, and time constraints from questions.
 """
 import re
 from typing import Dict, List, Tuple, Optional
@@ -223,6 +223,35 @@ def infer_predicates(question: str) -> List[str]:
                     break
     
     return list(set(predicates))  # Remove duplicates
+
+
+def locate_predicate_mentions(question: str) -> List[Tuple[int, str]]:
+    """
+    Locate the first textual mention of each predicate in question order.
+
+    Returns:
+        List of (start_index, predicate_name)
+    """
+    question_lower = question.lower()
+    mentions: List[Tuple[int, str]] = []
+
+    for predicate, info in PREDICATE_KEYWORDS.items():
+        pattern_match = re.search(info["pattern"], question_lower)
+        if pattern_match:
+            mentions.append((pattern_match.start(), predicate))
+            continue
+
+        keyword_positions = []
+        for keyword in info["keywords"]:
+            match = re.search(re.escape(keyword.lower()), question_lower)
+            if match:
+                keyword_positions.append(match.start())
+
+        if keyword_positions:
+            mentions.append((min(keyword_positions), predicate))
+
+    mentions.sort(key=lambda item: item[0])
+    return mentions
 
 
 def parse_question(question: str) -> Dict[str, any]:
