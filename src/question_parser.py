@@ -72,15 +72,14 @@ PREDICATE_KEYWORDS = {
 }
 
 # Entity name patterns (planets, dwarf planets, AND other astronomical features)
-KNOWN_ENTITIES = {
+PRIMARY_KNOWN_ENTITIES = {
     "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",
     "Pluto", "Ceres", "Eris", "Makemake", "Haumea",
-    "Moon", "Charon", "Triton", "Europa", "Ganymede", "Callisto", "Io",
+    "Charon", "Triton", "Europa", "Ganymede", "Callisto", "Io",
     "Johann Galle", "Clyde Tombaugh", "Johann Gottfried Galle",
     "Kuiper Belt", "Asteroid Belt", "Solar System", "Oort Cloud"  # Astronomical regions
 }
 
-PRIMARY_KNOWN_ENTITIES = KNOWN_ENTITIES - {"Moon"}
 MOON_ENTITY_PATTERN = re.compile(r"\bmoon\b")
 MOONS_ENTITY_PATTERN = re.compile(r"\bmoons\b")
 
