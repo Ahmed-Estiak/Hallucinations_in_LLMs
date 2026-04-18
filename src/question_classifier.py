@@ -6,24 +6,7 @@ import re
 from typing import Dict, List, Tuple, Optional
 from enum import Enum
 
-
-MONTH_MAP = {
-    "jan": "01", "january": "01",
-    "feb": "02", "february": "02",
-    "mar": "03", "march": "03",
-    "apr": "04", "april": "04",
-    "may": "05",
-    "jun": "06", "june": "06",
-    "jul": "07", "july": "07",
-    "aug": "08", "august": "08",
-    "sep": "09", "sept": "09", "september": "09",
-    "oct": "10", "october": "10",
-    "nov": "11", "november": "11",
-    "dec": "12", "december": "12",
-}
-MONTH_NAME_PATTERN = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
-TIME_RANGE_SEPARATOR = ".."
-TIME_TOKEN_PATTERN = rf"(?:{MONTH_NAME_PATTERN}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,)?\s+\d{{4}}|{MONTH_NAME_PATTERN}\s+\d{{4}}|\d{{4}}[-/]\d{{1,2}}(?:[-/]\d{{1,2}})?|\d{{1,2}}[-/]\d{{4}}|\d{{4}})"
+from src.question_parser import TIME_TOKEN_PATTERN, TIME_RANGE_SEPARATOR, _normalize_time_token
 
 
 class QuestionType(Enum):
@@ -85,50 +68,50 @@ class QuestionClassifier:
     TYPE_PATTERNS = {
         QuestionType.BOOLEAN: {
             "patterns": [
-                r"is\s+the",
-                r"does\s+.*\s+(?:have|orbits?|does)",
-                r"did\s+.*\s+(?:discover|recognize)",
-                r"(?:is|was|are|were)\s+.*\s+(?:the|a)",
+                r"^(?:is|are|was|were)\b",
+                r"^(?:does|did)\b",
+                r"\b(?:does|did)\s+.*\b(?:have|orbit|orbits|recognize|recognized|discover|discovered|contain)\b",
+                r"\b(?:is|are|was|were)\s+.*\b(?:a|an|the)\b",
                 r"^(is|are|was|were|does|did)",
             ],
-            "keywords": ["is", "does", "did", "was", "were", "recognize", "recognized"]
+            "keywords": ["recognize", "recognized"]
         },
         QuestionType.ENTITY: {
             "patterns": [
                 r"which\s+(?:dwarf\s+)?planet",
                 r"who\s+(?:discovered|found)",
-                r"what\s+(?:is|are)",
-                r"name\s+(?:the|a)",
+                r"what\s+(?:planet|dwarf planet|object|body)",
+                r"name\s+(?:the|a)\s+(?:planet|dwarf planet|object|body)",
             ],
-            "keywords": ["which", "who", "what planet", "what dwarf"]
+            "keywords": ["what planet", "what dwarf", "who discovered", "who found"]
         },
         QuestionType.ENTITY_LIST: {
             "patterns": [
                 r"which\s+planets?",
                 r"list.*planets?",
                 r"names?\s+.*planets?",
-                r"(?:all|multiple)\s+(?:planets?|dwarf)",
+                r"(?:all|multiple)\s+(?:planets?|dwarfs?|moons?|satellites?)",
             ],
-            "keywords": ["list", "which planets", "multiple", "all planets"]
+            "keywords": ["which planets", "all planets", "which moons", "which satellites"]
         },
         QuestionType.ORDERED_LIST: {
             "patterns": [
                 r"(?:in\s+)?order\s+(?:of|by)",
                 r"(?:decreasing|increasing)\s+",
-                r"(?:largest|smallest|heaviest|lightest)",
+                r"(?:smallest\s+to\s+largest|largest\s+to\s+smallest)",
                 r"list\s+.*\s+(?:in\s+order|ranked)",
                 r"(?:rank|sequence)\s+.*by",
             ],
-            "keywords": ["order", "decreasing", "increasing", "ranked", "largest", "smallest"]
+            "keywords": ["order", "decreasing", "increasing", "ranked", "smallest to largest", "largest to smallest"]
         },
         QuestionType.COMPARISON: {
             "patterns": [
                 r"which\s+(?:is\s+)?(?:greater|more|larger|heavier|farther|closer)",
                 r"(?:between|of)\s+.*which\s+(?:is|has)",
-                r"(?:more|fewer|greater|less)\s+",
-                r"compare\s+",
+                r"(?:greater|less|more|fewer)\s+than",
+                r"compare(?:d)?\s+(?:to|with)?",
             ],
-            "keywords": ["greater", "more", "less", "fewer", "larger", "smaller", "between"]
+            "keywords": ["between", "compared to", "greater than", "less than", "more than", "fewer than"]
         },
         QuestionType.COUNT: {
             "patterns": [
@@ -143,8 +126,10 @@ class QuestionClassifier:
                 r"when\s+(?:was|were|is|are|did)",
                 r"what\s+year",
                 r"in\s+what\s+year",
+                r"what\s+date",
+                r"what\s+month",
             ],
-            "keywords": ["when", "what year", "in what year"]
+            "keywords": ["when", "what year", "in what year", "what date", "what month"]
         }
     }
     
@@ -208,6 +193,9 @@ class QuestionClassifier:
         
         # Step 6: Detect special attributes (ordering, comparison, filter)
         self._detect_special_attributes(question_lower, result)
+
+        # Step 7: Normalize secondary types after promotions/overrides
+        self._finalize_secondary_types(result)
         
         return result
     
@@ -246,8 +234,7 @@ class QuestionClassifier:
         elif re.search(r"(discoverer|who).*\band\b.*(year|when)", question):
             result.is_multi_field = True
             result.multi_field_predicates = ["discovered_by", "discovered_on"]
-        elif re.search(r",.*\band\b", question):
-            # Generic AND with comma separator
+        elif re.search(r"\bwhat\s+(?:year|date|month)\b.*\band\b.*\bwho\b", question):
             result.is_multi_field = True
     
     def _classify_types(self, question: str, result: ClassifiedQuestion) -> None:
@@ -260,13 +247,13 @@ class QuestionClassifier:
             # Pattern matching
             for pattern in patterns_dict["patterns"]:
                 if re.search(pattern, question):
-                    score += 0.4
+                    score += 0.6
                     break
             
             # Keyword matching
             for keyword in patterns_dict["keywords"]:
                 if keyword in question:
-                    score += 0.3
+                    score += 0.2
                     break
             
             type_scores[qtype] = score
@@ -291,7 +278,7 @@ class QuestionClassifier:
 
         # Boolean has highest priority only for explicit yes/no style questions
         if (
-            result.type_scores.get(QuestionType.BOOLEAN, 0) > 0.3 and
+            result.type_scores.get(QuestionType.BOOLEAN, 0) > 0.5 and
             not re.search(r"\bhow\s+many\b", question) and
             not re.search(r"\b(?:count|number|total)\b", question)
         ):
@@ -312,12 +299,12 @@ class QuestionClassifier:
         # Detect plural forms and multiple-selection patterns
         if result.primary_type == QuestionType.ENTITY:
             # Check for plural indicators
-            if re.search(r"\bplanets\b", question) or re.search(r"\bdwarfs?\b", question):
+            if re.search(r"\b(?:planets|dwarfs?|moons|satellites)\b", question):
                 if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
                     result.secondary_types.insert(0, result.primary_type)
                     result.primary_type = QuestionType.ENTITY_LIST
             # Check for "multiple", "all", "which ... have" patterns
-            if re.search(r"(?:multiple|all|any|several)\s+(?:planets?|dwarfs?)", question):
+            if re.search(r"(?:multiple|all|any|several)\s+(?:planets?|dwarfs?|moons?|satellites?)", question):
                 if result.type_scores.get(QuestionType.ENTITY_LIST, 0) > 0.2:
                     result.secondary_types.insert(0, result.primary_type)
                     result.primary_type = QuestionType.ENTITY_LIST
@@ -345,43 +332,16 @@ class QuestionClassifier:
         
         # Boolean value
         for value in self.BOOLEAN_VALUES:
-            if value in question:
+            if re.search(rf"\b{re.escape(value)}\b", question):
                 result.boolean_keyword = value
                 break
 
-
-def _normalize_time_token(token: str) -> Optional[str]:
-    """Normalize varied date expressions to YYYY, YYYY-MM, or YYYY-MM-DD."""
-    text = re.sub(r"\s+", " ", token.strip().lower().replace(",", ""))
-    text = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", text)
-
-    month_day_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{1,2}})\s+(\d{{4}})", text)
-    if month_day_year:
-        month_name, day, year = month_day_year.groups()
-        month = MONTH_MAP.get(month_name)
-        if month:
-            return f"{year}-{month}-{int(day):02d}"
-
-    month_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{4}})", text)
-    if month_year:
-        month_name, year = month_year.groups()
-        month = MONTH_MAP.get(month_name)
-        if month:
-            return f"{year}-{month}"
-
-    iso_like = re.fullmatch(r"(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?", text)
-    if iso_like:
-        year, month, day = iso_like.groups()
-        if day:
-            return f"{year}-{int(month):02d}-{int(day):02d}"
-        return f"{year}-{int(month):02d}"
-
-    month_slash_year = re.fullmatch(r"(\d{1,2})[-/](\d{4})", text)
-    if month_slash_year:
-        month, year = month_slash_year.groups()
-        return f"{year}-{int(month):02d}"
-
-    if re.fullmatch(r"\d{4}", text):
-        return text
-
-    return None
+    def _finalize_secondary_types(self, result: ClassifiedQuestion) -> None:
+        """Remove duplicates, drop primary from secondary list, and keep top two."""
+        deduped: List[QuestionType] = []
+        for qtype in result.secondary_types:
+            if qtype == result.primary_type:
+                continue
+            if qtype not in deduped:
+                deduped.append(qtype)
+        result.secondary_types = deduped[:2]
