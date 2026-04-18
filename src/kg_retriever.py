@@ -7,6 +7,8 @@ from typing import List, Dict, Optional
 from pathlib import Path
 from datetime import datetime
 
+TIME_RANGE_SEPARATOR = ".."
+
 
 class KGRetriever:
     """
@@ -43,14 +45,21 @@ class KGRetriever:
             return 0.5
         
         try:
-            constraint_year, constraint_month = self._parse_time_parts(constraint_time)
-            fact_year, fact_month = self._parse_time_parts(fact_time)
+            constraint_key = self._parse_time_key(constraint_time)
+            fact_key = self._parse_time_key(fact_time)
             
-            if constraint_year is None or fact_year is None:
+            if constraint_key is None or fact_key is None:
                 return 0.5
 
+            constraint_year, constraint_month, constraint_day = constraint_key
+            fact_year, fact_month, fact_day = fact_key
+
             if constraint_month is not None and fact_month is not None:
-                if constraint_year == fact_year and constraint_month == fact_month:
+                if (
+                    constraint_year == fact_year and
+                    constraint_month == fact_month and
+                    (constraint_day is None or fact_day == constraint_day)
+                ):
                     return 1.0
                 month_diff = abs((constraint_year - fact_year) * 12 + (constraint_month - fact_month))
                 if month_diff == 1:
@@ -73,24 +82,24 @@ class KGRetriever:
         except:
             return 0.5
 
-    def _parse_time_parts(self, value: Optional[str]) -> tuple[Optional[int], Optional[int]]:
-        """Parse YYYY or YYYY-MM into integer parts."""
+    def _parse_time_key(self, value: Optional[str]) -> tuple[Optional[int], Optional[int], Optional[int]] | None:
+        """Parse YYYY / YYYY-MM / YYYY-MM-DD into comparable parts."""
         if value is None:
-            return None, None
+            return None
 
         text = str(value).strip()
         if len(text) == 4 and text.isdigit():
-            return int(text), None
+            return int(text), None, None
 
         if re.match(r"^\d{4}-\d{2}$", text):
             year, month = text.split("-")
-            return int(year), int(month)
+            return int(year), int(month), None
 
         if re.match(r"^\d{4}-\d{2}-\d{2}$", text):
-            year, month, _day = text.split("-")
-            return int(year), int(month)
+            year, month, day = text.split("-")
+            return int(year), int(month), int(day)
 
-        return None, None
+        return None
     
     def retrieve(
         self,
@@ -145,10 +154,16 @@ class KGRetriever:
                 is_candidate = False
 
             if is_candidate:
-                if time_constraint and not self._time_matches_semantic(fact_time, time_constraint, time_semantic):
+                semantic_match = True
+                if time_constraint:
+                    semantic_match = self._time_matches_semantic(fact_time, time_constraint, time_semantic)
+                if time_constraint and not semantic_match:
                     continue
 
-                time_score = self._time_relevance_score(fact_time, time_constraint)
+                if time_constraint and (time_semantic or "").upper() in {"BEFORE", "AFTER", "BETWEEN"}:
+                    time_score = 1.0
+                else:
+                    time_score = self._time_relevance_score(fact_time, time_constraint)
                 
                 # CRITICAL TIME FILTERING: If time constraint exists and fact doesn't match closely, REJECT it
                 if time_constraint and time_score < 0.85:  # Only very close matches allowed
@@ -189,22 +204,35 @@ class KGRetriever:
         if not constraint_time or not fact_time:
             return True
 
-        fact_year, fact_month = self._parse_time_parts(fact_time)
-        constraint_year, constraint_month = self._parse_time_parts(constraint_time)
-        if fact_year is None or constraint_year is None:
+        if TIME_RANGE_SEPARATOR in constraint_time:
+            start_text, end_text = constraint_time.split(TIME_RANGE_SEPARATOR, 1)
+            start_key = self._parse_time_key(start_text)
+            end_key = self._parse_time_key(end_text)
+            fact_key = self._parse_time_key(fact_time)
+            if start_key is None or end_key is None or fact_key is None:
+                return True
+            return start_key <= fact_key <= end_key
+
+        fact_key = self._parse_time_key(fact_time)
+        constraint_key = self._parse_time_key(constraint_time)
+        if fact_key is None or constraint_key is None:
             return True
 
         semantic = (time_semantic or "EXACT").upper()
-        fact_key = (fact_year, fact_month or 0)
-        constraint_key = (constraint_year, constraint_month or 0)
+        fact_year, fact_month, fact_day = fact_key
+        constraint_year, constraint_month, constraint_day = constraint_key
+        fact_cmp = (fact_year, fact_month or 0, fact_day or 0)
+        constraint_cmp = (constraint_year, constraint_month or 0, constraint_day or 0)
 
         if semantic == "BEFORE":
-            return fact_key <= constraint_key
+            return fact_cmp < constraint_cmp
         if semantic == "AFTER":
-            return fact_key >= constraint_key
+            return fact_cmp >= constraint_cmp
         if semantic == "BETWEEN":
-            return fact_year == constraint_year
+            return fact_cmp == constraint_cmp
         if constraint_month is not None:
+            if constraint_day is not None:
+                return fact_cmp == constraint_cmp
             return fact_year == constraint_year and fact_month == constraint_month
         return fact_year == constraint_year
     

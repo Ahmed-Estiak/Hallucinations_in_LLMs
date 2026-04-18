@@ -6,21 +6,36 @@ from typing import Dict, List, Tuple, Optional
 
 
 MONTH_MAP = {
+    "jan": "01",
     "january": "01",
+    "feb": "02",
     "february": "02",
+    "mar": "03",
     "march": "03",
+    "apr": "04",
     "april": "04",
     "may": "05",
+    "jun": "06",
     "june": "06",
+    "jul": "07",
     "july": "07",
+    "aug": "08",
     "august": "08",
+    "sep": "09",
+    "sept": "09",
     "september": "09",
+    "oct": "10",
     "october": "10",
+    "nov": "11",
     "november": "11",
+    "dec": "12",
     "december": "12",
 }
 
 MOON_LIKE_BODY_PATTERN = r"(?:moons|satellites|orbital bodies)"
+MONTH_NAME_PATTERN = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+TIME_RANGE_SEPARATOR = ".."
+TIME_TOKEN_PATTERN = rf"(?:{MONTH_NAME_PATTERN}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,)?\s+\d{{4}}|{MONTH_NAME_PATTERN}\s+\d{{4}}|\d{{4}}[-/]\d{{1,2}}(?:[-/]\d{{1,2}})?|\d{{1,2}}[-/]\d{{4}}|\d{{4}})"
 
 
 # Predicate synonyms and keyword mappings with COMPLEX question patterns
@@ -123,31 +138,68 @@ def extract_time_constraint(question: str) -> Optional[str]:
     Extract time constraint from question.
     Returns time string (e.g., "2022-08", "2024-01", year like "1981") or None.
     """
-    # Pattern: "As of [month year]" or "By [month year]" or "Before [year]"
-    patterns = [
-        r"(?:as of|by)\s+([a-z]+\s+\d{4})",   # "As of January 2022"
-        r"(?:as of|by)\s+(\d{4})",            # "As of 2022"
-        r"in\s+(\d{4})",                      # "In 1981"
-        r"(?:before|prior to)\s+(\d{4})",     # "Before 1980"
-        r"as\s+of\s+([a-z]+\s+\d{4})"         # "as of February 2025"
-    ]
-    
     question_lower = question.lower()
-    for pattern in patterns:
+
+    between_match = re.search(
+        rf"(?:between|from)\s+({TIME_TOKEN_PATTERN})\s+(?:and|to)\s+({TIME_TOKEN_PATTERN})",
+        question_lower
+    )
+    if between_match:
+        start = _normalize_time_token(between_match.group(1))
+        end = _normalize_time_token(between_match.group(2))
+        if start and end:
+            return f"{start}{TIME_RANGE_SEPARATOR}{end}"
+
+    single_patterns = [
+        rf"(?:as of|by|on|during|in)\s+({TIME_TOKEN_PATTERN})",
+        rf"(?:before|prior to|until|up to)\s+({TIME_TOKEN_PATTERN})",
+        rf"(?:after|since)\s+({TIME_TOKEN_PATTERN})",
+    ]
+
+    for pattern in single_patterns:
         match = re.search(pattern, question_lower)
         if match:
-            time_str = match.group(1)
-            month_year_match = re.fullmatch(r"([a-z]+)\s+(\d{4})", time_str)
-            if month_year_match:
-                month_name, year = month_year_match.groups()
-                month = MONTH_MAP.get(month_name)
-                if month:
-                    return f"{year}-{month}"
-
-            if len(time_str) == 4 and time_str.isdigit():
-                return time_str  # Just year
-            return time_str
+            normalized = _normalize_time_token(match.group(1))
+            if normalized:
+                return normalized
     
+    return None
+
+
+def _normalize_time_token(token: str) -> Optional[str]:
+    """Normalize varied date expressions to YYYY, YYYY-MM, or YYYY-MM-DD."""
+    text = re.sub(r"\s+", " ", token.strip().lower().replace(",", ""))
+    text = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", text)
+
+    month_day_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{1,2}})\s+(\d{{4}})", text)
+    if month_day_year:
+        month_name, day, year = month_day_year.groups()
+        month = MONTH_MAP.get(month_name)
+        if month:
+            return f"{year}-{month}-{int(day):02d}"
+
+    month_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{4}})", text)
+    if month_year:
+        month_name, year = month_year.groups()
+        month = MONTH_MAP.get(month_name)
+        if month:
+            return f"{year}-{month}"
+
+    iso_like = re.fullmatch(r"(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?", text)
+    if iso_like:
+        year, month, day = iso_like.groups()
+        if day:
+            return f"{year}-{int(month):02d}-{int(day):02d}"
+        return f"{year}-{int(month):02d}"
+
+    month_slash_year = re.fullmatch(r"(\d{1,2})[-/](\d{4})", text)
+    if month_slash_year:
+        month, year = month_slash_year.groups()
+        return f"{year}-{int(month):02d}"
+
+    if re.fullmatch(r"\d{4}", text):
+        return text
+
     return None
 
 

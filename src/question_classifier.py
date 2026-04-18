@@ -7,6 +7,25 @@ from typing import Dict, List, Tuple, Optional
 from enum import Enum
 
 
+MONTH_MAP = {
+    "jan": "01", "january": "01",
+    "feb": "02", "february": "02",
+    "mar": "03", "march": "03",
+    "apr": "04", "april": "04",
+    "may": "05",
+    "jun": "06", "june": "06",
+    "jul": "07", "july": "07",
+    "aug": "08", "august": "08",
+    "sep": "09", "sept": "09", "september": "09",
+    "oct": "10", "october": "10",
+    "nov": "11", "november": "11",
+    "dec": "12", "december": "12",
+}
+MONTH_NAME_PATTERN = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+TIME_RANGE_SEPARATOR = ".."
+TIME_TOKEN_PATTERN = rf"(?:{MONTH_NAME_PATTERN}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,)?\s+\d{{4}}|{MONTH_NAME_PATTERN}\s+\d{{4}}|\d{{4}}[-/]\d{{1,2}}(?:[-/]\d{{1,2}})?|\d{{1,2}}[-/]\d{{4}}|\d{{4}})"
+
+
 class QuestionType(Enum):
     """Primary question types ordered by reasoning priority."""
     BOOLEAN = "boolean"           # Highest priority: Yes/No questions
@@ -132,17 +151,16 @@ class QuestionClassifier:
     # Time semantic patterns
     TIME_PATTERNS = {
         TimeSemantic.EXACT: [
-            r"as\s+of\s+([a-z]+\s+\d{4}|\d{4})",
-            r"in\s+([a-z]+\s+\d{4}|\d{4})",
+            rf"(?:as\s+of|by|on|during|in)\s+({TIME_TOKEN_PATTERN})",
         ],
         TimeSemantic.BEFORE: [
-            r"(?:before|prior\s+to|until)\s+(\d{4})",
+            rf"(?:before|prior\s+to|until|up\s+to)\s+({TIME_TOKEN_PATTERN})",
         ],
         TimeSemantic.AFTER: [
-            r"(?:after|since)\s+(\d{4})",
+            rf"(?:after|since)\s+({TIME_TOKEN_PATTERN})",
         ],
         TimeSemantic.BETWEEN: [
-            r"(?:between|from)\s+(\d{4})\s+(?:and|to)\s+(\d{4})",
+            rf"(?:between|from)\s+({TIME_TOKEN_PATTERN})\s+(?:and|to)\s+({TIME_TOKEN_PATTERN})",
         ]
     }
     
@@ -201,9 +219,15 @@ class QuestionClassifier:
                 if match:
                     result.has_time_constraint = True
                     result.time_semantic = semantic
-                    result.time_value = match.group(1)
                     if semantic == TimeSemantic.BETWEEN:
-                        result.time_value = f"{match.group(1)}-{match.group(2)}"
+                        start = _normalize_time_token(match.group(1))
+                        end = _normalize_time_token(match.group(2))
+                        if start and end:
+                            result.time_value = f"{start}{TIME_RANGE_SEPARATOR}{end}"
+                        else:
+                            result.time_value = f"{match.group(1)}{TIME_RANGE_SEPARATOR}{match.group(2)}"
+                    else:
+                        result.time_value = _normalize_time_token(match.group(1)) or match.group(1)
                     return
     
     def _detect_logic_operators(self, question: str, result: ClassifiedQuestion) -> None:
@@ -324,3 +348,40 @@ class QuestionClassifier:
             if value in question:
                 result.boolean_keyword = value
                 break
+
+
+def _normalize_time_token(token: str) -> Optional[str]:
+    """Normalize varied date expressions to YYYY, YYYY-MM, or YYYY-MM-DD."""
+    text = re.sub(r"\s+", " ", token.strip().lower().replace(",", ""))
+    text = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", text)
+
+    month_day_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{1,2}})\s+(\d{{4}})", text)
+    if month_day_year:
+        month_name, day, year = month_day_year.groups()
+        month = MONTH_MAP.get(month_name)
+        if month:
+            return f"{year}-{month}-{int(day):02d}"
+
+    month_year = re.fullmatch(rf"({MONTH_NAME_PATTERN})\s+(\d{{4}})", text)
+    if month_year:
+        month_name, year = month_year.groups()
+        month = MONTH_MAP.get(month_name)
+        if month:
+            return f"{year}-{month}"
+
+    iso_like = re.fullmatch(r"(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?", text)
+    if iso_like:
+        year, month, day = iso_like.groups()
+        if day:
+            return f"{year}-{int(month):02d}-{int(day):02d}"
+        return f"{year}-{int(month):02d}"
+
+    month_slash_year = re.fullmatch(r"(\d{1,2})[-/](\d{4})", text)
+    if month_slash_year:
+        month, year = month_slash_year.groups()
+        return f"{year}-{int(month):02d}"
+
+    if re.fullmatch(r"\d{4}", text):
+        return text
+
+    return None
