@@ -80,20 +80,43 @@ KNOWN_ENTITIES = {
     "Kuiper Belt", "Asteroid Belt", "Solar System", "Oort Cloud"  # Astronomical regions
 }
 
+PRIMARY_KNOWN_ENTITIES = KNOWN_ENTITIES - {"Moon"}
+MOON_ENTITY_PATTERN = re.compile(r"\bmoon\b")
+MOONS_ENTITY_PATTERN = re.compile(r"\bmoons\b")
+
+
+def _find_entity_spans(question: str, entities: set[str]) -> List[tuple[int, str]]:
+    """Find known entity mentions with word-boundary-aware matching."""
+    question_lower = question.lower()
+    matches: List[tuple[int, str]] = []
+
+    for entity in sorted(entities, key=len, reverse=True):
+        pattern = re.compile(rf"\b{re.escape(entity.lower())}\b")
+        match = pattern.search(question_lower)
+        if match:
+            matches.append((match.start(), entity))
+
+    matches.sort(key=lambda item: item[0])
+    return matches
+
 
 def extract_entities(question: str) -> List[str]:
     """
     Extract entity names from question using keyword matching.
     Returns list of entity names found.
     """
-    entities = []
-    question_lower = question.lower()
-    
-    for entity in KNOWN_ENTITIES:
-        if entity.lower() in question_lower:
-            entities.append(entity)
-    
-    return list(set(entities))  # Remove duplicates
+    entity_matches = _find_entity_spans(question, PRIMARY_KNOWN_ENTITIES)
+    entities = [entity for _, entity in entity_matches]
+
+    # Treat singular/plural moon mentions as fallback entities only when
+    # no higher-priority named entities were detected.
+    if not entities:
+        if MOON_ENTITY_PATTERN.search(question.lower()):
+            entities.append("Moon")
+        if MOONS_ENTITY_PATTERN.search(question.lower()):
+            entities.append("Moons")
+
+    return entities
 
 
 def extract_time_constraint(question: str) -> Optional[str]:
