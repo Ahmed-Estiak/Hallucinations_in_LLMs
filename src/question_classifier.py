@@ -196,12 +196,12 @@ class QuestionClassifier:
     }
 
     COMPARISON_KEYWORDS = {
-        ">": ["greater", "more", "larger", "heavier", "farther"],
-        "<": ["less", "fewer", "smaller", "lighter", "closer"],
+        ">": ["greater", "larger", "heavier", "farther"],
+        "<": ["fewer", "smaller", "lighter", "closer"],
         "==": ["same", "equal", "equal to", "same as"],
     }
 
-    BOOLEAN_VALUES = ["yes", "no", "true", "false", "is", "was"]
+    BOOLEAN_VALUES = ["yes", "no", "true", "false"]
     MULTI_FIELD_EXCLUDED_PREDICATES = {"ordering", "comparison"}
     FACTUAL_PREDICATES = {
         "moon_count",
