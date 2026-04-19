@@ -100,7 +100,7 @@ class QuestionClassifier:
                 r"^(?:is|are|was|were)\s+.*\b(?:a|an|the)\b",
                 r"^(?:is|are|was|were)\s+.*\b(?:located\s+in|found\s+in|recognized\s+as)\b",
             ],
-            "keywords": ["recognized as", "located in", "found in"],
+            "keywords": [],
         },
         QuestionType.COUNT: {
             "patterns": [
