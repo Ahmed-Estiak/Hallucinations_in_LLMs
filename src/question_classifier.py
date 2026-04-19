@@ -106,19 +106,19 @@ class QuestionClassifier:
             "patterns": [
                 r"\bhow\s+many\b",
                 r"\b(?:count|number)\s+of\b",
-                r"\btotal\s+(?:number\s+)?of\b",
-                r"\bwhat\s+was\s+the\s+number\b",
+                r"\btotal\s+(?:number|count)\s+of\b",
+                r"\bwhat\s+(?:is|was)\s+the\s+number\s+of\b",
             ],
-            "keywords": ["how many", "count of", "number of", "total number"],
+            "keywords": ["how many", "count of", "number of", "total number of", "total count of"],
         },
         QuestionType.LIST: {
             "patterns": [
-                r"\bwhich\s+(?:planets|dwarfs|moons|satellites)\b",
-                r"\blist\b",
-                r"\bnames?\b.*\b(?:planets|dwarfs|moons|satellites)\b",
-                r"\ball\s+(?:planets|dwarfs|moons|satellites)\b",
+                r"\bwhich\s+(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
+                r"\b(?:list|name)\s+(?:the\s+)?(?:(?:terrestrial|gas\s+giant|ice\s+giant|confirmed|known)\s+){0,2}(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
+                r"\ball\s+(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
+                r"\bwhat\s+are\s+the\s+(?:planets|dwarf\s+planets|moons|satellites|objects|bodies)\b",
             ],
-            "keywords": ["which planets", "which moons", "all planets", "list the"],
+            "keywords": ["which planets", "which dwarf planets", "which moons", "all planets", "all dwarf planets"],
         },
         QuestionType.ENTITY: {
             "patterns": [
