@@ -175,11 +175,14 @@ class QuestionClassifier:
         r"\bmore\s+than\b",
         r"\bless\s+than\b",
         r"\bgreater\s+than\b",
+        r"\bcloser\s+than\b",
+        r"\bfarther\s+than\b",
         r"\blocated\s+in\b",
         r"\bfound\s+in\b",
         r"\bin\s+the\s+kuiper\s+belt\b",
         r"\bin\s+the\s+asteroid\s+belt\b",
         r"\borbit(?:s|ing)?\s+beyond\b",
+        r"\bbeyond\s+earth\b",
     ]
 
     ORDERING_KEYWORDS = {
