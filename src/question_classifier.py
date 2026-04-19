@@ -155,6 +155,8 @@ class QuestionClassifier:
         r"\brank(?:ed)?\b",
         r"\b(?:in|of)\s+decreasing\s+order\b",
         r"\b(?:in|of)\s+increasing\s+order\b",
+        r"\bby\s+decreasing\b",
+        r"\bby\s+increasing\b",
         r"\border(?:ed)?\s+by\b",
         r"\bsort(?:ed)?\s+by\b",
         r"\bsmallest\s+to\s+largest\b",
@@ -186,11 +188,11 @@ class QuestionClassifier:
     ]
 
     ORDERING_KEYWORDS = {
-        "mass": r"(?:mass|massive|heaviest|lightest|weight)",
-        "distance": r"(?:distance|farther|closer|away)",
-        "size": r"(?:size|diameter|largest|smallest|big)",
-        "discovered": r"(?:discovered|discovery)",
-        "moons": r"(?:moon|moons|satellite)",
+        "mass": r"(?:mass|heaviest|lightest|heavier|lighter|weight)",
+        "distance": r"(?:distance|farther|closer|distance\s+from\s+the?\s*sun)",
+        "size": r"(?:size|diameter|largest|smallest)",
+        "discovered": r"(?:discovery\s+date|discovery\s+year|when\s+discovered)",
+        "moons": r"(?:moons|moon\s+count|satellites)",
     }
 
     COMPARISON_KEYWORDS = {
