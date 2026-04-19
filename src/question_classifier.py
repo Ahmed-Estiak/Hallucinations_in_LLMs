@@ -115,6 +115,7 @@ class QuestionClassifier:
             "patterns": [
                 r"\bwhich\s+(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
                 r"\b(?:list|name)\s+(?:the\s+)?(?:(?:terrestrial|gas\s+giant|ice\s+giant|confirmed|known)\s+){0,2}(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
+                r"\border\s+(?:the\s+)?(?:(?:terrestrial|gas\s+giant|ice\s+giant|confirmed|known)\s+){0,2}(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
                 r"\ball\s+(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
                 r"\bwhat\s+are\s+the\s+(?:planets|dwarf\s+planets|moons|satellites|objects|bodies)\b",
             ],
@@ -152,10 +153,14 @@ class QuestionClassifier:
         r"\bin\s+order\b",
         r"\border\s+of\b",
         r"\brank(?:ed)?\b",
-        r"\bdecreasing\b",
-        r"\bincreasing\b",
+        r"\b(?:in|of)\s+decreasing\s+order\b",
+        r"\b(?:in|of)\s+increasing\s+order\b",
+        r"\border(?:ed)?\s+by\b",
+        r"\bsort(?:ed)?\s+by\b",
         r"\bsmallest\s+to\s+largest\b",
         r"\blargest\s+to\s+smallest\b",
+        r"\bfrom\s+smallest\s+to\s+largest\b",
+        r"\bfrom\s+largest\s+to\s+smallest\b",
     ]
 
     COMPARISON_PATTERNS = [
