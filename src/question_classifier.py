@@ -122,19 +122,20 @@ class QuestionClassifier:
         },
         QuestionType.ENTITY: {
             "patterns": [
-                r"\bwhich\s+(?:planet|dwarf planet|object|body)\b",
+                r"\bwhich\s+(?:(?:dwarf\s+)?planet|object|body)\b",
                 r"\bwho\s+(?:discovered|found)\b",
                 r"\bwhat\s+type\s+of\s+planet\b",
-                r"\bwhat\s+(?:planet|dwarf planet|object|body)\b",
-                r"\bname\s+(?:the|a)\s+(?:planet|dwarf planet|object|body)\b",
+                r"\bwhat\s+(?:(?:dwarf\s+)?planet|object|body)\b",
+                r"\bname\s+(?:the|a)\s+(?:(?:dwarf\s+)?planet|object|body)\b",
+                r"\bwhich\s+(?:astronomer|discoverer)\b",
             ],
-            "keywords": ["who discovered", "who found", "what type of planet"],
+            "keywords": ["who discovered", "who found", "what type of planet", "which discoverer"],
         },
     }
 
     TIME_PATTERNS = {
         TimeSemantic.EXACT: [
-            rf"(?:as\s+of|by|on|during|in)\s+({TIME_TOKEN_PATTERN})",
+            rf"(?:as\s+of(?:\s+the\s+(?:start|end)\s+of)?|by|on|at|during|in)\s+({TIME_TOKEN_PATTERN})",
         ],
         TimeSemantic.BEFORE: [
             rf"(?:before|prior\s+to|until|up\s+to)\s+({TIME_TOKEN_PATTERN})",
@@ -143,7 +144,7 @@ class QuestionClassifier:
             rf"(?:after|since)\s+({TIME_TOKEN_PATTERN})",
         ],
         TimeSemantic.BETWEEN: [
-            rf"(?:between|from)\s+({TIME_TOKEN_PATTERN})\s+(?:and|to)\s+({TIME_TOKEN_PATTERN})",
+            rf"(?:between|from)\s+({TIME_TOKEN_PATTERN})\s+(?:and|to|through)\s+({TIME_TOKEN_PATTERN})",
         ],
     }
 
