@@ -166,8 +166,8 @@ class QuestionClassifier:
     COMPARISON_PATTERNS = [
         r"\bbetween\b.*\bwhich\b",
         r"\bcompared\s+to\b",
-        r"\b(?:greater|less|more|fewer)\s+than\b",
-        r"\bwhich\s+is\s+(?:greater|larger|smaller|farther|closer)\b",
+        r"\b(?:greater|less|more|fewer|larger|smaller|heavier|lighter|farther|closer)\s+than\b",
+        r"\bwhich\s+(?:is|planet\s+is|one\s+is)\s+(?:greater|larger|smaller|heavier|lighter|farther|closer)\b",
     ]
 
     FILTER_PATTERNS = [
