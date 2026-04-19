@@ -95,11 +95,12 @@ class QuestionClassifier:
     TYPE_PATTERNS = {
         QuestionType.BOOLEAN: {
             "patterns": [
-                r"^(?:is|are|was|were|does|did)\b",
-                r"\b(?:does|did)\s+.*\b(?:have|orbit|orbits|recognize|recognized|discover|discovered|contain)\b",
-                r"\b(?:is|are|was|were)\s+.*\b(?:a|an|the)\b",
+                r"^(?:is|are|was|were|does|did)\b(?!.*\bhow\s+many\b)",
+                r"^(?:does|did)\s+.*\b(?:have|orbit|orbits|contain)\b(?!.*\bhow\s+many\b)",
+                r"^(?:is|are|was|were)\s+.*\b(?:a|an|the)\b",
+                r"^(?:is|are|was|were)\s+.*\b(?:located\s+in|found\s+in|recognized\s+as)\b",
             ],
-            "keywords": ["recognize", "recognized"],
+            "keywords": ["recognized as", "located in", "found in"],
         },
         QuestionType.COUNT: {
             "patterns": [
@@ -428,6 +429,13 @@ class QuestionClassifier:
 
         if re.search(r"\b(?:which|list|all)\s+(?:planets|dwarfs|moons|satellites)\b", question):
             type_scores[QuestionType.LIST] = max(type_scores.get(QuestionType.LIST, 0.0), 0.8)
+
+        if re.search(r"\bhow\s+many\b", question):
+            type_scores[QuestionType.BOOLEAN] = 0.0
+        elif self._looks_like_list_target(question):
+            type_scores[QuestionType.BOOLEAN] = min(type_scores.get(QuestionType.BOOLEAN, 0.0), 0.1)
+        elif self._looks_like_comparison(question) or any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS):
+            type_scores[QuestionType.BOOLEAN] = min(type_scores.get(QuestionType.BOOLEAN, 0.0), 0.1)
 
         sorted_types = sorted(type_scores.items(), key=lambda item: item[1], reverse=True)
         result.type_scores = type_scores
