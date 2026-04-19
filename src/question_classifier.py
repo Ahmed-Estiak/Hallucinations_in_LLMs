@@ -220,9 +220,9 @@ class QuestionClassifier:
         "discovered_on": "In what year was {entity} discovered?",
         "discovered_by": "Who discovered {entity}?",
         "mass": "What is the mass of {entity}?",
-        "distance_from_sun": "What is the distance of {entity} from the Sun?",
+        "distance_from_sun": "What is {entity}'s distance from the Sun?",
         "surface_gravity": "What is the surface gravity of {entity}?",
-        "classification": "How is {entity} classified?",
+        "classification": "What is the classification of {entity}?",
         "planet_type": "What type of planet is {entity}?",
         "location": "Where is {entity} located?",
     }
