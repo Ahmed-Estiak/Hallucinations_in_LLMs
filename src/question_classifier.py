@@ -52,6 +52,7 @@ class LogicOperator(Enum):
 class ClassifiedField:
     """Schema for one field inside a multi-field question."""
     name: str
+    entity: Optional[str]
     answer_type: QuestionType
     predicate: Optional[str]
     time_aware: bool
@@ -72,6 +73,11 @@ class ClassifiedQuestion:
     is_multi_field: bool = False
     fields: List[ClassifiedField] = field(default_factory=list)
     multi_field_predicates: List[str] = field(default_factory=list)
+    multi_field_mode: Optional[str] = None
+    major_entities: List[str] = field(default_factory=list)
+    helper_entities: List[str] = field(default_factory=list)
+    major_predicates: List[str] = field(default_factory=list)
+    helper_predicates: List[str] = field(default_factory=list)
     logic_operator: LogicOperator = LogicOperator.NONE
     ordering_attribute: Optional[str] = None
     order_direction: str = "ascending"
@@ -185,6 +191,18 @@ class QuestionClassifier:
 
     BOOLEAN_VALUES = ["yes", "no", "true", "false", "is", "was"]
     MULTI_FIELD_EXCLUDED_PREDICATES = {"ordering", "comparison"}
+    FACTUAL_PREDICATES = {
+        "moon_count",
+        "discovered_on",
+        "discovered_by",
+        "mass",
+        "distance_from_sun",
+        "surface_gravity",
+        "classification",
+        "planet_type",
+        "location",
+    }
+    HELPER_PREDICATES = {"comparison", "ordering"}
     PREDICATE_QUESTION_TEMPLATES = {
         "moon_count": "How many moons does {entity} have?",
         "discovered_on": "In what year was {entity} discovered?",
@@ -204,6 +222,7 @@ class QuestionClassifier:
 
         self._detect_time_constraint(question_lower, result)
         self._detect_logic_operators(question_lower, result)
+        self._derive_major_helper_signals(question, question_lower, result)
         self._detect_multi_field(question_lower, result)
         self._classify_primary_type(question_lower, result)
         self._detect_logical_modifiers(question_lower, result)
@@ -236,65 +255,127 @@ class QuestionClassifier:
         elif re.search(r"\bor\b", question):
             result.logic_operator = LogicOperator.OR
 
+    def _derive_major_helper_signals(self, original_question: str, question: str, result: ClassifiedQuestion) -> None:
+        """Derive major/helper entity and predicate signals for downstream logic."""
+        entities = extract_entities(original_question)
+        predicate_mentions = locate_predicate_mentions(original_question)
+
+        for _start, predicate in predicate_mentions:
+            if predicate in self.FACTUAL_PREDICATES and predicate not in result.major_predicates:
+                result.major_predicates.append(predicate)
+            elif predicate in self.HELPER_PREDICATES and predicate not in result.helper_predicates:
+                result.helper_predicates.append(predicate)
+
+        if not entities:
+            return
+
+        if self._looks_like_list_target(question):
+            result.helper_entities = entities[:]
+            return
+
+        if self._looks_like_comparison(question) and len(entities) >= 2:
+            result.major_entities = entities[:2]
+            result.helper_entities = entities[2:]
+            return
+
+        if re.search(r"^(?:is|are|was|were|does|did)\b", question) and len(entities) >= 2:
+            result.major_entities = [entities[0]]
+            result.helper_entities = entities[1:]
+            return
+
+        if len(entities) >= 2 and len(result.major_predicates) == 1 and re.search(r"\band\b", question):
+            result.major_entities = entities[:]
+            return
+
+        if len(entities) == 1 and result.major_predicates:
+            result.major_entities = entities[:]
+            return
+
+        result.major_entities = entities[:1]
+        result.helper_entities = entities[1:]
+
     def _detect_multi_field(self, question: str, result: ClassifiedQuestion) -> None:
         if not re.search(r"\band\b", question):
             return
 
         if self._looks_like_compound_filter_or_list(question):
             return
-
-        predicate_mentions = [
-            (start, predicate)
-            for start, predicate in locate_predicate_mentions(question)
-            if predicate not in self.MULTI_FIELD_EXCLUDED_PREDICATES
-        ]
-        ordered_predicates: List[str] = []
-        for _start, predicate in predicate_mentions:
-            if predicate not in ordered_predicates:
-                ordered_predicates.append(predicate)
-
-        if len(ordered_predicates) < 2:
-            return
-
-        field_predicates = ordered_predicates[:2]
-        if not self._has_true_multi_answer_structure(question, field_predicates):
-            return
-
-        entities = extract_entities(question)
-        subject_entity = entities[0] if entities else None
-        if not subject_entity:
-            return
-
-        fields: List[ClassifiedField] = []
-        for index, predicate in enumerate(field_predicates, start=1):
-            sub_question = self._build_sub_question(predicate, subject_entity)
-            if not sub_question:
+        if len(result.major_entities) == 1 and len(result.major_predicates) >= 2:
+            field_predicates = result.major_predicates[:2]
+            if not self._has_true_multi_answer_structure(question, field_predicates):
                 return
-            fields.append(
-                ClassifiedField(
-                    name=f"field{index}",
-                    answer_type=self._predicate_answer_type(predicate),
-                    predicate=predicate,
-                    time_aware=False,
-                    sub_question=sub_question,
-                    logical_modifiers=[],
-                )
-            )
 
-        result.is_multi_field = True
-        result.fields = fields
-        result.multi_field_predicates = field_predicates
+            subject_entity = result.major_entities[0]
+            fields: List[ClassifiedField] = []
+            for index, predicate in enumerate(field_predicates, start=1):
+                sub_question = self._build_sub_question(predicate, subject_entity)
+                if not sub_question:
+                    return
+                fields.append(
+                    ClassifiedField(
+                        name=f"field{index}",
+                        entity=subject_entity,
+                        answer_type=self._predicate_answer_type(predicate),
+                        predicate=predicate,
+                        time_aware=False,
+                        sub_question=sub_question,
+                        logical_modifiers=[],
+                    )
+                )
+
+            result.is_multi_field = True
+            result.multi_field_mode = "single_entity_multi_predicate"
+            result.fields = fields
+            result.multi_field_predicates = field_predicates
+            return
+
+        if len(result.major_entities) >= 2 and len(result.major_predicates) == 1:
+            shared_predicate = result.major_predicates[0]
+            if not self._has_true_multi_answer_structure(question, [shared_predicate]):
+                return
+
+            fields: List[ClassifiedField] = []
+            for index, entity in enumerate(result.major_entities[:2], start=1):
+                sub_question = self._build_sub_question(shared_predicate, entity)
+                if not sub_question:
+                    return
+                fields.append(
+                    ClassifiedField(
+                        name=f"field{index}",
+                        entity=entity,
+                        answer_type=self._predicate_answer_type(shared_predicate),
+                        predicate=shared_predicate,
+                        time_aware=False,
+                        sub_question=sub_question,
+                        logical_modifiers=[],
+                    )
+                )
+
+            result.is_multi_field = True
+            result.multi_field_mode = "multi_entity_single_predicate"
+            result.fields = fields
+            result.multi_field_predicates = [shared_predicate]
 
     def _looks_like_compound_filter_or_list(self, question: str) -> bool:
-        if re.search(r"^(?:which|list|name|all)\s+(?:planets|dwarfs|moons|satellites)\b", question):
+        if self._looks_like_list_target(question):
             return True
         if re.search(r"\b(?:yet|that|which)\s+(?:have|has|orbit|orbits|are|were)\b", question):
             return True
         if re.search(r"\band\s+(?:have|has|orbit|orbits|are|were|located|found|with)\b", question):
             return True
+        if self._looks_like_comparison(question):
+            return True
         return False
 
+    def _looks_like_list_target(self, question: str) -> bool:
+        return bool(re.search(r"^(?:which|list|name|all)\s+(?:planets|dwarfs|moons|satellites)\b", question))
+
+    def _looks_like_comparison(self, question: str) -> bool:
+        return any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS)
+
     def _has_true_multi_answer_structure(self, question: str, predicates: List[str]) -> bool:
+        if len(predicates) == 1:
+            return True
         if len(predicates) != 2:
             return False
 
