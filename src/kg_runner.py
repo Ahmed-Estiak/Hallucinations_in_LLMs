@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
 
-from src.models import ask_openai, ask_gemini
+from src.models import ask_openai, ask_gemini, split_multifield_question
 from src.question_parser import parse_question
 from src.kg_retriever import KGRetriever
 from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
@@ -174,6 +174,22 @@ def _answer_single_question(question, question_classifier, kg_retriever, kg_reas
     return context, openai_answer, gemini_answer
 
 
+def _resolve_multifield_subquestions(question, classified_q):
+    """Prefer LLM-generated split questions, but fall back to deterministic field templates."""
+    fallback_questions = [field.sub_question for field in classified_q.fields if field.sub_question]
+    if not fallback_questions:
+        return []
+
+    try:
+        split_questions = split_multifield_question(question, expected_parts=len(fallback_questions))
+    except Exception:
+        split_questions = []
+
+    if len(split_questions) == len(fallback_questions):
+        return split_questions
+    return fallback_questions
+
+
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
     
@@ -262,9 +278,11 @@ def run_kg_benchmark():
             field_strategies = []
             total_sub_kg_facts = 0
             sub_kg_found = False
-            for field_spec in classified_q.fields:
+            resolved_sub_questions = _resolve_multifield_subquestions(question, classified_q)
+            for field_index, field_spec in enumerate(classified_q.fields):
+                sub_question = resolved_sub_questions[field_index] if field_index < len(resolved_sub_questions) else field_spec.sub_question
                 sub_context, openai_part, gemini_part = _answer_single_question(
-                    field_spec.sub_question,
+                    sub_question,
                     question_classifier,
                     kg_retriever,
                     kg_reasoning_engine,
@@ -277,7 +295,7 @@ def run_kg_benchmark():
                 sub_kg_found = sub_kg_found or sub_context["kg_found"]
                 field_strategies.append({
                     "field": field_spec.name,
-                    "sub_question": field_spec.sub_question,
+                    "sub_question": sub_question,
                     "strategy": sub_context["reasoning_strategy"],
                     "primary_type": sub_context["classified_q"].primary_type.name,
                 })

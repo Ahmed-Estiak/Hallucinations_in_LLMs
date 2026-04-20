@@ -1,3 +1,5 @@
+import re
+
 from openai import OpenAI
 import warnings
 
@@ -53,6 +55,42 @@ Answer:
 """
 
 
+MULTI_FIELD_SPLIT_PROMPT = """
+You are splitting one astronomy question into exactly {expected_parts} standalone sub-questions.
+
+Rules:
+- Preserve the original meaning exactly.
+- Resolve pronouns and shared context explicitly.
+- Keep the original entity names.
+- Keep any time constraint in every sub-question where it applies.
+- Do not answer the question.
+- Do not add explanations.
+- Output exactly this format:
+Question 1: ...
+Question 2: ...
+
+Original question:
+{question}
+"""
+
+
+def _parse_split_questions(text: str, expected_parts: int) -> list[str]:
+    """Parse strict Question 1 / Question 2 splitter output."""
+    matches = re.findall(r"Question\s+(\d+):\s*(.+?)(?=(?:\nQuestion\s+\d+:)|\Z)", text, flags=re.IGNORECASE | re.DOTALL)
+    parsed = {}
+    for number, content in matches:
+        try:
+            index = int(number)
+        except ValueError:
+            continue
+        parsed[index] = " ".join(content.strip().split())
+
+    questions = [parsed[i] for i in range(1, expected_parts + 1) if i in parsed]
+    if len(questions) == expected_parts:
+        return questions
+    return []
+
+
 def ask_openai(question):
     """Ask OpenAI with vanilla prompt (no KG facts)."""
     prompt = PROMPT_TEMPLATE.format(question=question)
@@ -76,6 +114,20 @@ def ask_gemini(question):
     else:
         resp = gemini_model.generate_content(prompt)
     return resp.text.strip()
+
+
+def split_multifield_question(question: str, expected_parts: int = 2) -> list[str]:
+    """Ask OpenAI to split one multi-field question into standalone sub-questions."""
+    prompt = MULTI_FIELD_SPLIT_PROMPT.format(
+        question=question,
+        expected_parts=expected_parts,
+    )
+    resp = openai_client.responses.create(
+        model="gpt-5-mini",
+        input=prompt
+    )
+    text = resp.output_text.strip()
+    return _parse_split_questions(text, expected_parts)
 
 
 if __name__ == "__main__":
