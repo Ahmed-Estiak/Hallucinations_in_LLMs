@@ -9,6 +9,7 @@ from src.question_classifier import (
     ClassifiedQuestion, QuestionType, TimeSemantic, LogicOperator, LogicalModifier
 )
 from src.question_parser import TIME_RANGE_SEPARATOR
+from src.time_utils import fact_matches_time, select_best_temporal_fact, latest_fact
 
 
 class KGReasoningEngine:
@@ -41,22 +42,16 @@ class KGReasoningEngine:
         for fact in self.kg_indexed.get(subject_norm, []):
             if fact.get("predicate", "").lower() != predicate_norm:
                 continue
-            if cq.has_time_constraint and not self._time_matches(fact.get("time"), cq):
-                continue
             candidates.append(fact)
 
         if not candidates:
             return None
 
-        if cq.has_time_constraint:
-            candidates.sort(key=lambda fact: str(fact.get("time", "")), reverse=True)
-            return candidates[0]
-
-        best = candidates[0]
-        for fact in candidates[1:]:
-            if self._is_more_recent(fact, best):
-                best = fact
-        return best
+        return select_best_temporal_fact(
+            candidates,
+            cq.time_value if cq.has_time_constraint else None,
+            cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
+        )
 
     def _get_candidate_entities(self, cq: ClassifiedQuestion) -> List[str]:
         """Resolve candidate pool for list questions."""
@@ -169,14 +164,15 @@ class KGReasoningEngine:
             predicate = fact.get("predicate", "").lower()
             
             if subject in entities_norm and predicate in predicates_norm:
-                # Apply time filtering if needed
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        facts.append(fact)
-                else:
-                    facts.append(fact)
-        
-        return facts, "boolean_direct_lookup"
+                facts.append(fact)
+
+        selected = []
+        for entity in entities_norm:
+            for predicate in predicates_norm:
+                fact = self._latest_fact_for(entity, predicate, cq)
+                if fact:
+                    selected.append(fact)
+        return selected or facts, "boolean_direct_lookup"
     
     def _reasoning_entity(self, cq: ClassifiedQuestion,
                          entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
@@ -187,15 +183,18 @@ class KGReasoningEngine:
         for fact in self.kg:
             subject = fact.get("subject", "").lower()
             if subject in entities_norm:
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        facts.append(fact)
-                else:
-                    # Take most recent if no time constraint
-                    if not facts or self._is_more_recent(fact, facts[0]):
-                        facts = [fact]
-        
-        return facts, "entity_lookup"
+                facts.append(fact)
+
+        if cq.has_time_constraint:
+            best = select_best_temporal_fact(
+                facts,
+                cq.time_value,
+                cq.time_semantic.name if cq.time_semantic else None,
+            )
+            return ([best] if best else []), "entity_lookup"
+
+        best = latest_fact(facts)
+        return ([best] if best else facts[:1]), "entity_lookup"
     
     def _reasoning_entity_list(self, cq: ClassifiedQuestion,
                               entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
@@ -332,7 +331,7 @@ class KGReasoningEngine:
                 subject = fact.get("subject", "").lower()
                 if subject in entities_norm:
                     if cq.has_time_constraint:
-                        if not self._time_matches(fact.get("time"), cq):
+                        if not fact_matches_time(fact.get("time"), cq.time_value, cq.time_semantic.name if cq.time_semantic else None):
                             continue
                     
                     if subject not in entity_values:
@@ -355,14 +354,15 @@ class KGReasoningEngine:
             predicate = fact.get("predicate", "").lower()
             
             if subject in entities_norm and predicate in predicates_norm:
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        facts.append(fact)
-                else:
-                    # Take most recent for count
-                    if not facts or self._is_more_recent(fact, facts[0]):
-                        facts = [fact]
-        
+                facts.append(fact)
+
+        if facts:
+            best = select_best_temporal_fact(
+                facts,
+                cq.time_value if cq.has_time_constraint else None,
+                cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
+            )
+            return ([best] if best else []), "count_aggregation"
         return facts, "count_aggregation"
     
     def _reasoning_time_lookup(self, cq: ClassifiedQuestion,
@@ -378,10 +378,15 @@ class KGReasoningEngine:
             
             if (not entities_norm or subject in entities_norm) and \
                (not predicates_norm or predicate in predicates_norm):
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        facts.append(fact)
-        
+                facts.append(fact)
+
+        if facts:
+            best = select_best_temporal_fact(
+                facts,
+                cq.time_value if cq.has_time_constraint else None,
+                cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
+            )
+            return ([best] if best else []), f"time_lookup_{cq.time_semantic.value}_{cq.time_value}"
         return facts, f"time_lookup_{cq.time_semantic.value}_{cq.time_value}"
     
     def _reasoning_multi_field(self, cq: ClassifiedQuestion,
@@ -396,18 +401,19 @@ class KGReasoningEngine:
             for fact in self.kg:
                 if fact.get("subject", "").lower() == entity:
                     predicate = fact.get("predicate", "").lower()
-                    
+
                     # Match any multi-field predicate
                     if predicate in [p.lower() for p in cq.multi_field_predicates]:
-                        if cq.has_time_constraint:
-                            if self._time_matches(fact.get("time"), cq):
-                                entity_facts[predicate] = fact
-                        else:
-                            if predicate not in entity_facts or \
-                               self._is_more_recent(fact, entity_facts[predicate]):
-                                entity_facts[predicate] = fact
-            
-            all_facts.extend(entity_facts.values())
+                        entity_facts.setdefault(predicate, []).append(fact)
+
+            for predicate_facts in entity_facts.values():
+                best = select_best_temporal_fact(
+                    predicate_facts,
+                    cq.time_value if cq.has_time_constraint else None,
+                    cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
+                )
+                if best:
+                    all_facts.append(best)
         
         return all_facts, "multi_field_combination"
     
@@ -426,38 +432,26 @@ class KGReasoningEngine:
             predicate_match = not predicates_norm or predicate in predicates_norm
             
             if entity_match and predicate_match:
-                if cq.has_time_constraint:
-                    if self._time_matches(fact.get("time"), cq):
-                        facts.append(fact)
-                else:
-                    facts.append(fact)
-        
-        return facts[:3], "generic_fallback"
+                facts.append(fact)
+
+        if cq.has_time_constraint and facts:
+            best = select_best_temporal_fact(
+                facts,
+                cq.time_value,
+                cq.time_semantic.name if cq.time_semantic else None,
+            )
+            return ([best] if best else []), "generic_fallback"
+
+        latest = latest_fact(facts)
+        return ([latest] if latest else facts[:1]), "generic_fallback"
     
     # Helper methods
     
     def _time_matches(self, fact_time: Optional[str], cq: ClassifiedQuestion) -> bool:
         """Check if fact time matches the question's time constraint."""
-        if not fact_time or not cq.has_time_constraint:
+        if not cq.has_time_constraint:
             return True
-        
-        try:
-            fact_year = int(str(fact_time).split("-")[0])
-            constraint_year = int(cq.time_value.split("-")[0])
-            
-            if cq.time_semantic == TimeSemantic.EXACT:
-                return fact_year == constraint_year
-            elif cq.time_semantic == TimeSemantic.BEFORE:
-                return fact_year <= constraint_year
-            elif cq.time_semantic == TimeSemantic.AFTER:
-                return fact_year >= constraint_year
-            elif cq.time_semantic == TimeSemantic.BETWEEN:
-                start, end = cq.time_value.split(TIME_RANGE_SEPARATOR, 1)
-                return int(str(start).split("-")[0]) <= fact_year <= int(str(end).split("-")[0])
-        except (ValueError, TypeError, AttributeError):
-            return False
-        
-        return True
+        return fact_matches_time(fact_time, cq.time_value, cq.time_semantic.name if cq.time_semantic else None)
     
     def _is_more_recent(self, fact1: Dict, fact2: Dict) -> bool:
         """Compare two facts by time recency."""
