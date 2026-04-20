@@ -178,7 +178,7 @@ def _resolve_multifield_subquestions(question, classified_q):
     """Prefer LLM-generated split questions, but fall back to deterministic field templates."""
     fallback_questions = [field.sub_question for field in classified_q.fields if field.sub_question]
     if not fallback_questions:
-        return []
+        return [], "none"
 
     try:
         split_questions = split_multifield_question(question, expected_parts=len(fallback_questions))
@@ -186,8 +186,8 @@ def _resolve_multifield_subquestions(question, classified_q):
         split_questions = []
 
     if len(split_questions) == len(fallback_questions):
-        return split_questions
-    return fallback_questions
+        return split_questions, "llm_splitter"
+    return fallback_questions, "template_fallback"
 
 
 def run_kg_benchmark():
@@ -278,7 +278,7 @@ def run_kg_benchmark():
             field_strategies = []
             total_sub_kg_facts = 0
             sub_kg_found = False
-            resolved_sub_questions = _resolve_multifield_subquestions(question, classified_q)
+            resolved_sub_questions, multifield_split_source = _resolve_multifield_subquestions(question, classified_q)
             for field_index, field_spec in enumerate(classified_q.fields):
                 sub_question = resolved_sub_questions[field_index] if field_index < len(resolved_sub_questions) else field_spec.sub_question
                 sub_context, openai_part, gemini_part = _answer_single_question(
@@ -311,6 +311,7 @@ def run_kg_benchmark():
             if total_sub_kg_facts > len(kg_facts):
                 pass
         else:
+            multifield_split_source = "not_multifield"
             should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
 
             if should_use_kg and kg_found and _has_comprehensive_kg_context(context):
@@ -345,6 +346,7 @@ def run_kg_benchmark():
             "time_semantic": time_semantic,
             "logical_modifiers": json.dumps(logical_modifiers, ensure_ascii=False),
             "reasoning_strategy": reasoning_strategy,
+            "multifield_split_source": multifield_split_source,
             
             # KG retrieval info
             "kg_found": kg_found,
