@@ -295,38 +295,37 @@ class QuestionClassifier:
         if not entities:
             return
 
+        major_entities, helper_entities = self._assign_entity_roles(question, entities, result.major_predicates)
+        result.major_entities = major_entities
+        result.helper_entities = helper_entities
+
+    def _assign_entity_roles(self, question: str, entities: List[str], major_predicates: List[str]) -> tuple[List[str], List[str]]:
+        """Assign entity roles using current project heuristics."""
         if self._looks_like_list_target(question):
-            result.helper_entities = entities[:]
-            return
+            return [], entities[:]
 
         if self._looks_like_comparison(question) and len(entities) >= 2:
-            result.major_entities = entities[:2]
-            result.helper_entities = entities[2:]
-            return
+            return entities[:2], entities[2:]
 
         if re.search(r"^(?:is|are|was|were|does|did)\b", question) and len(entities) >= 2:
-            result.major_entities = [entities[0]]
-            result.helper_entities = entities[1:]
-            return
+            return [entities[0]], entities[1:]
 
-        if len(entities) >= 2 and len(result.major_predicates) == 1 and re.search(r"\band\b", question):
-            result.major_entities = entities[:]
-            return
+        if len(entities) >= 2 and len(major_predicates) == 1 and re.search(r"\band\b", question):
+            return entities[:], []
 
-        if len(entities) == 1 and result.major_predicates:
-            result.major_entities = entities[:]
-            return
+        if len(entities) == 1 and major_predicates:
+            return entities[:], []
 
-        result.major_entities = entities[:1]
-        result.helper_entities = entities[1:]
+        return entities[:1], entities[1:]
 
     def _detect_multi_field(self, question: str, result: ClassifiedQuestion) -> None:
-        if not re.search(r"\band\b", question):
+        if result.logic_operator != LogicOperator.AND:
             return
 
         if self._looks_like_compound_filter_or_list(question):
             return
         if len(result.major_entities) == 1 and len(result.major_predicates) >= 2:
+            # Intentionally cap the current system at 2 fields.
             field_predicates = result.major_predicates[:2]
             if not self._has_true_multi_answer_structure(question, field_predicates):
                 return
@@ -356,6 +355,7 @@ class QuestionClassifier:
             return
 
         if len(result.major_entities) >= 2 and len(result.major_predicates) == 1:
+            # Intentionally cap the current system at 2 fields.
             shared_predicate = result.major_predicates[0]
             if not self._has_true_multi_answer_structure(question, [shared_predicate]):
                 return
