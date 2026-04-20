@@ -232,7 +232,7 @@ class QuestionClassifier:
         result.original_question = question
         question_lower = question.lower()
 
-        self._detect_time_constraint(question_lower, result)
+        self._detect_time_constraint(question, question_lower, result)
         self._detect_logic_operators(question_lower, result)
         self._derive_major_helper_signals(question, question_lower, result)
         self._detect_multi_field(question_lower, result)
@@ -243,10 +243,24 @@ class QuestionClassifier:
 
         return result
 
-    def _detect_time_constraint(self, question: str, result: ClassifiedQuestion) -> None:
-        for semantic, patterns in self.TIME_PATTERNS.items():
+    def _detect_time_constraint(self, original_question: str, question_lower: str, result: ClassifiedQuestion) -> None:
+        """
+        Detect time semantics from the question text.
+
+        Uses lowercased text for regex matching while keeping the original question
+        available for future context-sensitive extensions.
+        """
+        semantic_order = [
+            TimeSemantic.BETWEEN,
+            TimeSemantic.BEFORE,
+            TimeSemantic.AFTER,
+            TimeSemantic.EXACT,
+        ]
+
+        for semantic in semantic_order:
+            patterns = self.TIME_PATTERNS[semantic]
             for pattern in patterns:
-                match = re.search(pattern, question)
+                match = re.search(pattern, question_lower)
                 if match:
                     result.has_time_constraint = True
                     result.time_semantic = semantic
