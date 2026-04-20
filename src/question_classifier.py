@@ -407,22 +407,23 @@ class QuestionClassifier:
 
     def _has_true_multi_answer_structure(self, question: str, predicates: List[str]) -> bool:
         interrogative_starts = r"(?:who|what|which|when|where|how\s+many|in\s+what\s+year|what\s+year|which\s+year)"
+        optional_time_prefix = rf"(?:(?:as\s+of|by|on|at|during|in|before|after|since|from|between)\s+{TIME_TOKEN_PATTERN}\s*,?\s+)?"
 
         if len(predicates) == 1:
             return bool(
-                re.search(r"^(?:what|which)\s+(?:is|are|was|were)\b", question) or
-                re.search(rf"^\s*{interrogative_starts}\b.*\band\b", question)
+                re.search(rf"^{optional_time_prefix}(?:what|which)\s+(?:is|are|was|were)\b", question) or
+                re.search(rf"^\s*{optional_time_prefix}{interrogative_starts}\b.*\band\b", question)
             )
         if len(predicates) != 2:
             return False
 
         if re.search(rf",\s*and\s+{interrogative_starts}\b", question):
             return True
-        if re.search(rf"^\s*{interrogative_starts}\b.*\band\s+{interrogative_starts}\b", question):
+        if re.search(rf"^\s*{optional_time_prefix}{interrogative_starts}\b.*\band\s+{interrogative_starts}\b", question):
             return True
 
         # Shared-scaffold form, e.g. "what is Saturn's mass and surface gravity?"
-        if re.search(r"^(?:what|which)\s+(?:is|are|was|were)\b", question):
+        if re.search(rf"^{optional_time_prefix}(?:what|which)\s+(?:is|are|was|were)\b", question):
             return True
 
         return False
@@ -574,22 +575,28 @@ class QuestionClassifier:
             result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"})
 
     def _finalize(self, result: ClassifiedQuestion) -> None:
-        deduped_secondaries: List[QuestionType] = []
-        for qtype in result.secondary_types:
-            if qtype == result.primary_type:
-                continue
-            if qtype not in deduped_secondaries:
-                deduped_secondaries.append(qtype)
-        result.secondary_types = deduped_secondaries[:2]
-
-        deduped_modifiers: List[LogicalModifier] = []
-        for modifier in result.logical_modifiers:
-            if modifier not in deduped_modifiers:
-                deduped_modifiers.append(modifier)
-        result.logical_modifiers = deduped_modifiers
+        result.secondary_types = self._dedupe_secondary_types(result.secondary_types, result.primary_type)
+        result.logical_modifiers = self._dedupe_preserve_order(result.logical_modifiers)
 
         if result.primary_type == QuestionType.MULTI_FIELD:
             for field_spec in result.fields:
                 field_spec.time_aware = result.has_time_constraint
                 if result.has_time_constraint and LogicalModifier.TIME_LOOKUP not in field_spec.logical_modifiers:
                     field_spec.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
+                field_spec.logical_modifiers = self._dedupe_preserve_order(field_spec.logical_modifiers)
+
+    def _dedupe_secondary_types(self, secondary_types: List[QuestionType], primary_type: QuestionType) -> List[QuestionType]:
+        deduped: List[QuestionType] = []
+        for qtype in secondary_types:
+            if qtype == primary_type:
+                continue
+            if qtype not in deduped:
+                deduped.append(qtype)
+        return deduped[:2]
+
+    def _dedupe_preserve_order(self, values: List) -> List:
+        deduped = []
+        for value in values:
+            if value not in deduped:
+                deduped.append(value)
+        return deduped
