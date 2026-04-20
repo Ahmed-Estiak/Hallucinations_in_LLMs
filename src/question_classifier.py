@@ -428,6 +428,8 @@ class QuestionClassifier:
         return False
 
     def _predicate_answer_type(self, predicate: str) -> QuestionType:
+        # Numeric outputs are routed through COUNT even when they represent
+        # a year-like value such as discovered_on.
         if predicate in {"moon_count", "discovered_on"}:
             return QuestionType.COUNT
         return QuestionType.ENTITY
@@ -458,10 +460,18 @@ class QuestionClassifier:
                     break
             type_scores[qtype] = score
 
-        if re.search(r"\bhow\s+many\b", question) or re.search(r"\b(?:count|number|total)\b", question):
+        if (
+            re.search(r"\bhow\s+many\b", question) or
+            re.search(r"\b(?:count|number)\s+of\b", question) or
+            re.search(r"\btotal\s+(?:number|count)\s+of\b", question) or
+            re.search(r"\bwhat\s+(?:is|was)\s+the\s+number\s+of\b", question)
+        ):
             type_scores[QuestionType.COUNT] = max(type_scores.get(QuestionType.COUNT, 0.0), 0.9)
 
-        if re.search(r"\b(?:which|list|all)\s+(?:planets|dwarfs|moons|satellites)\b", question):
+        if (
+            self._looks_like_list_target(question) or
+            re.search(r"\border\s+(?:the\s+)?(?:(?:terrestrial|gas\s+giant|ice\s+giant|confirmed|known)\s+){0,2}(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b", question)
+        ):
             type_scores[QuestionType.LIST] = max(type_scores.get(QuestionType.LIST, 0.0), 0.8)
 
         if re.search(r"\bhow\s+many\b", question):
