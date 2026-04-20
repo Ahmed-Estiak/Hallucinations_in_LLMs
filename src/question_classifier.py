@@ -385,27 +385,37 @@ class QuestionClassifier:
     def _looks_like_compound_filter_or_list(self, question: str) -> bool:
         if self._looks_like_list_target(question):
             return True
-        if re.search(r"\b(?:yet|that|which)\s+(?:have|has|orbit|orbits|are|were)\b", question):
+        if re.search(r"\b(?:yet|that|which)\s+(?:have|has|orbit|orbits|are|were|contain|contains|lie|lies)\b", question):
             return True
-        if re.search(r"\band\s+(?:have|has|orbit|orbits|are|were|located|found|with)\b", question):
+        if re.search(r"\band\s+(?:have|has|orbit|orbits|are|were|is|located|found|contains|lies|with)\b", question):
             return True
         if self._looks_like_comparison(question):
             return True
         return False
 
     def _looks_like_list_target(self, question: str) -> bool:
-        return bool(re.search(r"^(?:which|list|name|all)\s+(?:planets|dwarfs|moons|satellites)\b", question))
+        return bool(
+            re.search(
+                r"^(?:which|list|name|all|what\s+are\s+the)\s+"
+                r"(?:planets|dwarf\s+planets|dwarfs|moons|satellites|objects|bodies)\b",
+                question,
+            )
+        )
 
     def _looks_like_comparison(self, question: str) -> bool:
         return any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS)
 
     def _has_true_multi_answer_structure(self, question: str, predicates: List[str]) -> bool:
+        interrogative_starts = r"(?:who|what|which|when|where|how\s+many|in\s+what\s+year|what\s+year|which\s+year)"
+
         if len(predicates) == 1:
-            return True
+            return bool(
+                re.search(r"^(?:what|which)\s+(?:is|are|was|were)\b", question) or
+                re.search(rf"^\s*{interrogative_starts}\b.*\band\b", question)
+            )
         if len(predicates) != 2:
             return False
 
-        interrogative_starts = r"(?:who|what|which|when|where|how\s+many|in\s+what\s+year|what\s+year|which\s+year)"
         if re.search(rf",\s*and\s+{interrogative_starts}\b", question):
             return True
         if re.search(rf"^\s*{interrogative_starts}\b.*\band\s+{interrogative_starts}\b", question):
@@ -415,8 +425,7 @@ class QuestionClassifier:
         if re.search(r"^(?:what|which)\s+(?:is|are|was|were)\b", question):
             return True
 
-        # Predicate-driven fallback for two distinct answer predicates on one entity.
-        return True
+        return False
 
     def _predicate_answer_type(self, predicate: str) -> QuestionType:
         if predicate in {"moon_count", "discovered_on"}:
