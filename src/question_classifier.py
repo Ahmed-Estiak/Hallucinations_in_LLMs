@@ -493,26 +493,38 @@ class QuestionClassifier:
             result.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
 
         if result.primary_type != QuestionType.BOOLEAN:
-            if any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS):
+            has_ordering = any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS)
+            has_comparison = any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS)
+            has_filter = any(re.search(pattern, question) for pattern in self.FILTER_PATTERNS)
+
+            if has_ordering:
                 result.logical_modifiers.append(LogicalModifier.ORDERING)
-            if any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS):
+            if has_comparison:
                 result.logical_modifiers.append(LogicalModifier.COMPARISON)
-            if result.primary_type == QuestionType.LIST and (
-                any(re.search(pattern, question) for pattern in self.FILTER_PATTERNS) or
-                result.logic_operator == LogicOperator.AND
-            ):
+            if result.primary_type == QuestionType.LIST and (has_filter or result.logic_operator == LogicOperator.AND):
                 result.logical_modifiers.append(LogicalModifier.FILTER)
 
     def _detect_special_attributes(self, question: str, result: ClassifiedQuestion) -> None:
+        self._detect_ordering_attributes(question, result)
+        self._detect_comparison_operator(question, result)
+        self._detect_boolean_value(question, result)
+        if result.primary_type == QuestionType.LIST:
+            self._detect_list_target(result, question)
+            self._detect_list_filter_conditions(question, result)
+
+    def _detect_ordering_attributes(self, question: str, result: ClassifiedQuestion) -> None:
         for attr, pattern in self.ORDERING_KEYWORDS.items():
             if re.search(pattern, question):
                 result.ordering_attribute = attr
-                if re.search(r"decreasing|most|largest|highest", question):
+                if re.search(r"decreasing|most|largest|highest|heaviest|farthest", question):
                     result.order_direction = "descending"
+                elif re.search(r"increasing|least|smallest|lowest|lightest|closest", question):
+                    result.order_direction = "ascending"
                 else:
                     result.order_direction = "ascending"
                 break
 
+    def _detect_comparison_operator(self, question: str, result: ClassifiedQuestion) -> None:
         for op, keywords in self.COMPARISON_KEYWORDS.items():
             for keyword in keywords:
                 if keyword in question:
@@ -521,37 +533,45 @@ class QuestionClassifier:
             if result.comparison_operator:
                 break
 
+    def _detect_boolean_value(self, question: str, result: ClassifiedQuestion) -> None:
         for value in self.BOOLEAN_VALUES:
             if re.search(rf"\b{re.escape(value)}\b", question):
                 result.boolean_keyword = value
                 break
 
-        if result.primary_type == QuestionType.LIST and LogicalModifier.FILTER in result.logical_modifiers:
+    def _detect_list_target(self, result: ClassifiedQuestion, question: str) -> None:
+        if re.search(r"\bplanets\b", question):
+            result.list_target = "planets"
+        elif re.search(r"\bdwarf\s+planets\b|\bdwarfs?\b", question):
+            result.list_target = "dwarf_planets"
+        elif re.search(r"\b(?:moons|satellites)\b", question):
+            result.list_target = "moons"
+
+    def _detect_list_filter_conditions(self, question: str, result: ClassifiedQuestion) -> None:
+        if LogicalModifier.FILTER in result.logical_modifiers:
             if re.search(r"\bfewer\b.*\bthan\b", question) or re.search(r"\bless\b.*\bthan\b", question):
                 result.entity_filter_conditions.append({"operator": "<", "attribute": result.ordering_attribute or "unknown"})
             elif re.search(r"\bmore\b.*\bthan\b", question) or re.search(r"\bgreater\b.*\bthan\b", question):
                 result.entity_filter_conditions.append({"operator": ">", "attribute": result.ordering_attribute or "unknown"})
 
-        if result.primary_type == QuestionType.LIST:
-            if re.search(r"\bplanets\b", question):
-                result.list_target = "planets"
-            elif re.search(r"\bdwarfs?\b", question):
-                result.list_target = "dwarf_planets"
-            elif re.search(r"\b(?:moons|satellites)\b", question):
-                result.list_target = "moons"
+            reference_entity = result.helper_entities[0] if result.helper_entities else None
+            if re.search(r"\bfarther\b.*\bthan\b", question) and reference_entity:
+                result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": reference_entity})
+            elif re.search(r"\bcloser\b.*\bthan\b", question) and reference_entity:
+                result.entity_filter_conditions.append({"operator": "<", "attribute": "distance_from_sun", "reference_entity": reference_entity})
 
-            if re.search(r"\bterrestrial\b", question):
-                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "terrestrial"})
-            if re.search(r"\bgas\s+giant\b", question):
-                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "gas giant"})
-            if re.search(r"\bice\s+giant\b", question):
-                result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "ice giant"})
-            if re.search(r"\bin\s+the\s+kuiper\s+belt\b", question):
-                result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Kuiper Belt"})
-            if re.search(r"\bin\s+the\s+asteroid\s+belt\b", question):
-                result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Asteroid Belt"})
-            if re.search(r"\bbeyond\s+earth\b", question):
-                result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"})
+        if re.search(r"\bterrestrial\b", question):
+            result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "terrestrial"})
+        if re.search(r"\bgas\s+giant\b", question):
+            result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "gas giant"})
+        if re.search(r"\bice\s+giant\b", question):
+            result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "ice giant"})
+        if re.search(r"\bin\s+the\s+kuiper\s+belt\b", question):
+            result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Kuiper Belt"})
+        if re.search(r"\bin\s+the\s+asteroid\s+belt\b", question):
+            result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Asteroid Belt"})
+        if re.search(r"\bbeyond\s+earth\b", question):
+            result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"})
 
     def _finalize(self, result: ClassifiedQuestion) -> None:
         deduped_secondaries: List[QuestionType] = []
