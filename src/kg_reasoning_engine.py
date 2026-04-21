@@ -482,18 +482,27 @@ class KGReasoningEngine:
     def _reasoning_time_lookup(self, cq: ClassifiedQuestion,
                               entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Time lookup reasoning: find facts for specific time."""
-        facts = []
         entities_norm = [e.lower() for e in entities]
-        predicates_norm = [p.lower() for p in predicates] or ["discovered_on", "discovered_by"]
-        
-        for fact in self.kg:
-            subject = fact.get("subject", "").lower()
-            predicate = fact.get("predicate", "").lower()
-            
-            if (not entities_norm or subject in entities_norm) and \
-               (not predicates_norm or predicate in predicates_norm):
+        predicates_norm = [p.lower() for p in predicates] or [p.lower() for p in cq.major_predicates]
+        facts = []
+
+        if entities_norm and predicates_norm:
+            for entity in entities_norm:
+                for predicate in predicates_norm:
+                    fact = self._latest_fact_for(entity, predicate, cq)
+                    if fact:
+                        facts.append(fact)
+        else:
+            for fact in self.kg:
+                subject = fact.get("subject", "").lower()
+                predicate = fact.get("predicate", "").lower()
+                if entities_norm and subject not in entities_norm:
+                    continue
+                if predicates_norm and predicate not in predicates_norm:
+                    continue
                 facts.append(fact)
 
+        facts = self._dedupe_fact_list(facts)
         if facts:
             best = select_best_temporal_fact(
                 facts,
@@ -507,29 +516,25 @@ class KGReasoningEngine:
                               entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Multi-field reasoning: combine multiple predicates."""
         all_facts = []
+
+        if cq.fields:
+            for field_spec in cq.fields:
+                if not field_spec.entity or not field_spec.predicate:
+                    continue
+                fact = self._latest_fact_for(field_spec.entity, field_spec.predicate, cq)
+                if fact:
+                    all_facts.append(fact)
+            return self._dedupe_fact_list(all_facts), "multi_field_combination"
+
         entities_norm = [e.lower() for e in entities]
-        
-        # For each entity, get all matching predicates
+        multi_predicates = [p.lower() for p in cq.multi_field_predicates]
         for entity in entities_norm:
-            entity_facts = {}
-            for fact in self.kg:
-                if fact.get("subject", "").lower() == entity:
-                    predicate = fact.get("predicate", "").lower()
+            for predicate in multi_predicates:
+                fact = self._latest_fact_for(entity, predicate, cq)
+                if fact:
+                    all_facts.append(fact)
 
-                    # Match any multi-field predicate
-                    if predicate in [p.lower() for p in cq.multi_field_predicates]:
-                        entity_facts.setdefault(predicate, []).append(fact)
-
-            for predicate_facts in entity_facts.values():
-                best = select_best_temporal_fact(
-                    predicate_facts,
-                    cq.time_value if cq.has_time_constraint else None,
-                    cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
-                )
-                if best:
-                    all_facts.append(best)
-        
-        return all_facts, "multi_field_combination"
+        return self._dedupe_fact_list(all_facts), "multi_field_combination"
     
     def _reasoning_generic(self, cq: ClassifiedQuestion,
                           entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
