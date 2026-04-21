@@ -343,7 +343,9 @@ class KGReasoningEngine:
                 if reference_value is None:
                     continue
 
-                reference_numeric = self._extract_numeric_value(reference_value)
+                reference_numeric = self._extract_numeric_value_or_none(reference_value)
+                if reference_numeric is None:
+                    continue
                 next_entities = []
                 for entity in derived_entities:
                     if reference_entity and entity.lower() == str(reference_entity).lower():
@@ -351,7 +353,9 @@ class KGReasoningEngine:
                     fact = self._latest_fact_for(entity, predicate, cq)
                     if not fact:
                         continue
-                    numeric_value = self._extract_numeric_value(fact.get("object"))
+                    numeric_value = self._extract_numeric_value_or_none(fact.get("object"))
+                    if numeric_value is None:
+                        continue
                     passed = (
                         operator == "<" and numeric_value < reference_numeric or
                         operator == ">" and numeric_value > reference_numeric or
@@ -434,17 +438,27 @@ class KGReasoningEngine:
         sortable_rows = []
         for entity in derived_entities:
             fact = self._latest_fact_for(entity, ordering_attr, cq)
-            if fact:
-                supporting_facts.append(fact)
-                sortable_rows.append((entity, fact))
+            if not fact:
+                continue
+            numeric_value = self._extract_numeric_value_or_none(fact.get("object"))
+            if numeric_value is None:
+                continue
+            supporting_facts.append(fact)
+            sortable_rows.append((entity, fact, numeric_value))
         sortable_rows.sort(
-            key=lambda item: self._extract_numeric_value(item[1].get("object")),
+            key=lambda item: item[2],
             reverse=(cq.order_direction == "descending")
         )
-        ordered_entities = [entity for entity, _ in sortable_rows]
+        ordered_entities = [entity for entity, _, _ in sortable_rows]
         order_text = "decreasing" if cq.order_direction == "descending" else "increasing"
         title = f"Filtered {self._describe_list_target(cq).lower()} ordered by {order_text} {ordering_attr}"
-        return self._build_derived_result_fact(title, ordered_entities, supporting_facts, f"list_filter_and_order_by_{ordering_attr}"), f"list_filter_and_order_by_{ordering_attr}"
+        strategy = f"list_filter_and_order_by_{ordering_attr}"
+        return self._build_derived_result_fact(
+            title,
+            ordered_entities,
+            self._dedupe_fact_list(supporting_facts),
+            strategy,
+        ), strategy
     
     def _reasoning_comparison(self, cq: ClassifiedQuestion,
                              entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
@@ -583,18 +597,6 @@ class KGReasoningEngine:
         if not cq.has_time_constraint:
             return True
         return fact_matches_time(fact_time, cq.time_value, cq.time_semantic.name if cq.time_semantic else None)
-    
-    def _is_more_recent(self, fact1: Dict, fact2: Dict) -> bool:
-        """Compare two facts by time recency."""
-        time1 = fact1.get("time", "0000")
-        time2 = fact2.get("time", "0000")
-        
-        try:
-            year1 = int(str(time1).split("-")[0])
-            year2 = int(str(time2).split("-")[0])
-            return year1 > year2
-        except (ValueError, TypeError):
-            return False
     
     def _extract_numeric_value(self, value: Any) -> float:
         """Extract numeric value from fact object (handles scientific notation)."""
