@@ -184,6 +184,28 @@ class KGReasoningEngine:
         if cq.list_target == "moons":
             return "Moons"
         return "Entities"
+
+    def _describe_ordering_attribute(self, predicate: str) -> str:
+        labels = {
+            "moon_count": "number of moons",
+            "distance_from_sun": "distance from the Sun",
+            "discovered_on": "discovery year",
+            "diameter": "diameter",
+            "mass": "mass",
+            "surface_gravity": "surface gravity",
+        }
+        return labels.get(predicate, predicate.replace("_", " "))
+
+    def _extract_numeric_value_or_none(self, value: Any) -> Optional[float]:
+        """Return a numeric value when possible, otherwise None."""
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value)
+            except:
+                return None
+        return None
     
     def reason(self, classified_question: ClassifiedQuestion, 
                entities: List[str], 
@@ -354,7 +376,11 @@ class KGReasoningEngine:
         ordering_attr = self._normalize_attribute_predicate(cq.ordering_attribute) or "mass"
         candidates = self._get_candidate_entities(cq)
         if not candidates:
-            candidates = sorted({fact.get("subject") for fact in self.kg if fact.get("predicate", "").lower() == ordering_attr})
+            candidates = sorted({
+                fact.get("subject")
+                for fact in self.kg
+                if fact.get("subject") and fact.get("predicate", "").lower() == ordering_attr
+            })
 
         filtered_candidates = candidates[:]
         supporting_facts: List[Dict] = []
@@ -372,18 +398,28 @@ class KGReasoningEngine:
         sortable_rows = []
         for entity in filtered_candidates:
             fact = self._latest_fact_for(entity, ordering_attr, cq)
-            if fact:
-                supporting_facts.append(fact)
-                sortable_rows.append((entity, fact))
+            if not fact:
+                continue
+            numeric_value = self._extract_numeric_value_or_none(fact.get("object"))
+            if numeric_value is None:
+                continue
+            supporting_facts.append(fact)
+            sortable_rows.append((entity, fact, numeric_value))
 
         sortable_rows.sort(
-            key=lambda item: self._extract_numeric_value(item[1].get("object")),
+            key=lambda item: item[2],
             reverse=(cq.order_direction == "descending")
         )
-        derived_entities = [entity for entity, _ in sortable_rows]
+        derived_entities = [entity for entity, _, _ in sortable_rows]
         order_text = "decreasing" if cq.order_direction == "descending" else "increasing"
-        title = f"{self._describe_list_target(cq)} ordered by {order_text} {ordering_attr}"
-        return self._build_derived_result_fact(title, derived_entities, supporting_facts, f"ordered_list_by_{ordering_attr}_{cq.order_direction}"), f"ordered_list_by_{ordering_attr}_{cq.order_direction}"
+        title = f"{self._describe_list_target(cq)} ordered by {order_text} {self._describe_ordering_attribute(ordering_attr)}"
+        strategy = f"ordered_list_by_{ordering_attr}_{cq.order_direction}"
+        return self._build_derived_result_fact(
+            title,
+            derived_entities,
+            self._dedupe_fact_list(supporting_facts),
+            strategy,
+        ), strategy
 
     def _reasoning_list_filter_and_order(self, cq: ClassifiedQuestion,
                                          entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
