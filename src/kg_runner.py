@@ -96,13 +96,14 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
         reasoned_facts = []
         reasoning_strategy = "vanilla_retrieval"
 
+    retrieval_limit = _determine_retrieval_limit(classified_q)
     time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
     kg_facts = kg_retriever.retrieve(
         entities=entities,
         predicates=predicates,
         time_constraint=time_constraint,
         time_semantic=time_semantic,
-        limit=3
+        limit=retrieval_limit
     )
 
     derived_result_available = bool(reasoned_facts and reasoned_facts[0].get("_derived_result"))
@@ -124,6 +125,7 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
         "derived_result_available": derived_result_available,
         "kg_found": kg_found,
         "kg_facts_text": kg_facts_text,
+        "retrieval_limit": retrieval_limit,
     }
 
 
@@ -148,6 +150,21 @@ def _has_comprehensive_kg_context(context):
             relevant_entities_in_facts.add(entity)
 
     return (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or (len(kg_facts) >= 3)
+
+
+def _determine_retrieval_limit(classified_q):
+    """Choose a compact but sufficient raw KG retrieval limit by question shape."""
+    if classified_q.primary_type == QuestionType.MULTI_FIELD:
+        return 4
+    if LogicalModifier.FILTER in classified_q.logical_modifiers:
+        return 4
+    if LogicalModifier.ORDERING in classified_q.logical_modifiers:
+        return 4
+    if LogicalModifier.COMPARISON in classified_q.logical_modifiers:
+        return 2
+    if classified_q.primary_type in {QuestionType.COUNT, QuestionType.ENTITY, QuestionType.BOOLEAN}:
+        return 1
+    return 3
 
 
 def _answer_single_question(question, question_classifier, kg_retriever, kg_reasoning_engine,
@@ -351,6 +368,7 @@ def run_kg_benchmark():
             # KG retrieval info
             "kg_found": kg_found,
             "kg_facts_count": len(kg_facts),
+            "retrieval_limit": context["retrieval_limit"],
             "parsed_entities": json.dumps(entities, ensure_ascii=False),
             "parsed_predicates": json.dumps(predicates, ensure_ascii=False),
             "time_constraint": time_constraint,
