@@ -56,36 +56,79 @@ class KGReasoningEngine:
     def _get_candidate_entities(self, cq: ClassifiedQuestion) -> List[str]:
         """Resolve candidate pool for list questions."""
         if cq.list_target == "planets":
-            planet_facts = {}
-            for fact in self.kg:
-                if fact.get("predicate", "").lower() != "distance_from_sun":
-                    continue
-                subject = fact.get("subject")
-                if not subject:
-                    continue
-                current = planet_facts.get(subject)
-                if current is None or self._extract_numeric_value(fact.get("object")) < self._extract_numeric_value(current.get("object")):
-                    planet_facts[subject] = fact
-            return [
-                subject
-                for subject, _fact in sorted(
-                    planet_facts.items(),
-                    key=lambda item: self._extract_numeric_value(item[1].get("object"))
-                )
-            ]
+            return self._candidate_planets()
         if cq.list_target == "dwarf_planets":
-            return sorted({
-                fact.get("subject")
-                for fact in self.kg
-                if fact.get("predicate", "").lower() == "classification" and str(fact.get("object", "")).lower() == "dwarf planet"
-            })
+            return self._candidate_dwarf_planets()
         if cq.list_target == "moons":
-            return sorted({
-                fact.get("subject")
-                for fact in self.kg
-                if fact.get("predicate", "").lower() in {"moon_count", "latest_known_moon"}
-            })
+            return self._candidate_moons()
         return []
+
+    def _candidate_planets(self) -> List[str]:
+        """
+        Candidate planets inferred from distance facts.
+
+        Assumption:
+        - In this KG, major planets consistently have distance_from_sun facts.
+        """
+        planet_facts = {}
+        for fact in self.kg:
+            if fact.get("predicate", "").lower() != "distance_from_sun":
+                continue
+            subject = fact.get("subject")
+            if not subject:
+                continue
+            current = planet_facts.get(subject)
+            if current is None or self._extract_numeric_value(fact.get("object")) < self._extract_numeric_value(current.get("object")):
+                planet_facts[subject] = fact
+        return [
+            subject
+            for subject, _fact in sorted(
+                planet_facts.items(),
+                key=lambda item: self._extract_numeric_value(item[1].get("object"))
+            )
+        ]
+
+    def _candidate_dwarf_planets(self) -> List[str]:
+        """
+        Candidate dwarf planets inferred from explicit classification facts.
+        """
+        return sorted({
+            fact.get("subject")
+            for fact in self.kg
+            if fact.get("predicate", "").lower() == "classification" and str(fact.get("object", "")).lower() == "dwarf planet"
+        })
+
+    def _candidate_moons(self) -> List[str]:
+        """
+        Candidate moon entities.
+
+        Current safety policy:
+        - Only return subjects that look like actual moon entities via moon-specific classification/type facts.
+        - Do not infer moons from moon_count on planets, which would produce a misleading candidate pool.
+        - If the KG does not expose moon entities directly, fall back to names stored in
+          `latest_known_moon` objects.
+        """
+        moon_candidates = sorted({
+            fact.get("subject")
+            for fact in self.kg
+            if fact.get("subject") and (
+                (
+                    fact.get("predicate", "").lower() in {"classification", "planet_type"} and
+                    str(fact.get("object", "")).lower() in {"moon", "natural satellite", "satellite"}
+                ) or
+                fact.get("predicate", "").lower() == "orbits" and str(fact.get("object", "")).lower() in {
+                    "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"
+                }
+            )
+        })
+        if moon_candidates:
+            return moon_candidates
+
+        return sorted({
+            str(fact.get("object", "")).strip()
+            for fact in self.kg
+            if fact.get("predicate", "").lower() == "latest_known_moon" and str(fact.get("object", "")).strip()
+        })
 
     def _normalize_attribute_predicate(self, attribute: Optional[str]) -> Optional[str]:
         mapping = {

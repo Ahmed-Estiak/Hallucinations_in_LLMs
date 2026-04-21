@@ -541,10 +541,10 @@ class QuestionClassifier:
                 break
 
     def _detect_list_target(self, result: ClassifiedQuestion, question: str) -> None:
-        if re.search(r"\bplanets\b", question):
-            result.list_target = "planets"
-        elif re.search(r"\bdwarf\s+planets\b|\bdwarfs?\b", question):
+        if re.search(r"\bdwarf\s+planets\b|\bdwarfs?\b", question):
             result.list_target = "dwarf_planets"
+        elif re.search(r"\bplanets\b", question):
+            result.list_target = "planets"
         elif re.search(r"\b(?:moons|satellites)\b", question):
             result.list_target = "moons"
 
