@@ -540,8 +540,19 @@ class KGReasoningEngine:
                           entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Generic reasoning: fallback for uncertain types."""
         entities_norm = [e.lower() for e in entities]
-        predicates_norm = [p.lower() for p in predicates]
-        
+        predicates_norm = [p.lower() for p in predicates] or [p.lower() for p in cq.major_predicates]
+
+        direct_facts = []
+        if entities_norm and predicates_norm:
+            for entity in entities_norm:
+                for predicate in predicates_norm:
+                    fact = self._latest_fact_for(entity, predicate, cq)
+                    if fact:
+                        direct_facts.append(fact)
+            direct_facts = self._dedupe_fact_list(direct_facts)
+            if direct_facts:
+                return direct_facts[:1], "generic_fallback"
+
         facts = []
         for fact in self.kg:
             subject = fact.get("subject", "").lower()
@@ -562,7 +573,8 @@ class KGReasoningEngine:
             return ([best] if best else []), "generic_fallback"
 
         latest = latest_fact(facts)
-        return ([latest] if latest else facts[:1]), "generic_fallback"
+        deduped_facts = self._dedupe_fact_list(facts)
+        return ([latest] if latest else deduped_facts[:1]), "generic_fallback"
     
     # Helper methods
     
