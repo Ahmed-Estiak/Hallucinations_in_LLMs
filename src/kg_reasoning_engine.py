@@ -613,7 +613,7 @@ class KGReasoningEngine:
 def format_reasoned_facts(facts: List[Dict], reasoning_strategy: str) -> str:
     """Format reasoned facts for prompt."""
     if not facts:
-        return f"No facts found using strategy: {reasoning_strategy}"
+        return "No relevant KG facts found."
 
     if facts and facts[0].get("_derived_result"):
         result = facts[0]
@@ -624,13 +624,16 @@ def format_reasoned_facts(facts: List[Dict], reasoning_strategy: str) -> str:
         formatted += ", ".join(entities) if entities else "No matching entities found."
         return formatted
     
-    formatted = f"Knowledge Graph Facts (Strategy: {reasoning_strategy}):\n"
+    formatted = "Knowledge Graph Facts:\n"
     for i, fact in enumerate(facts, 1):
         subject = fact.get("subject", "?")
         predicate = fact.get("predicate", "?")
         obj = fact.get("object", "?")
-        time = fact.get("time", "unknown")
-        
-        formatted += f"{i}. {subject} | {predicate} = {obj} (as of {time})\n"
+        time = fact.get("time")
+
+        formatted += f"{i}. {subject} | {predicate} = {obj}"
+        if time:
+            formatted += f" | time: {time}"
+        formatted += "\n"
     
     return formatted
