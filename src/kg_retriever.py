@@ -116,11 +116,12 @@ class KGRetriever:
             subject = fact.get("subject", "?")
             predicate = fact.get("predicate", "?")
             obj = fact.get("object", "?")
-            time = fact.get("time", "unknown time")
-            source = fact.get("source", "unknown source")
-            
-            formatted += f"{i}. {subject} | {predicate} = {obj} (as of {time})\n"
-            formatted += f"   Source: {source}\n"
+            time = fact.get("time")
+
+            line = f"{i}. {subject} | {predicate} = {obj}"
+            if time:
+                line += f" | time: {time}"
+            formatted += line + "\n"
         
         return formatted
 
