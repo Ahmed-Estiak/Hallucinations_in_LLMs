@@ -449,49 +449,34 @@ class KGReasoningEngine:
     def _reasoning_comparison(self, cq: ClassifiedQuestion,
                              entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Comparison reasoning: compare entities by attribute."""
-        facts = []
-        comparison_attr = cq.ordering_attribute or "mass"
+        comparison_attr = self._normalize_attribute_predicate(cq.ordering_attribute) or "mass"
         entities_norm = [e.lower() for e in entities]
-        
-        # Get attribute facts for comparison entities
-        entity_values = {}
-        for fact in self.kg:
-            if fact.get("predicate", "").lower() == comparison_attr.lower():
-                subject = fact.get("subject", "").lower()
-                if subject in entities_norm:
-                    if cq.has_time_constraint:
-                        if not fact_matches_time(fact.get("time"), cq.time_value, cq.time_semantic.name if cq.time_semantic else None):
-                            continue
-                    
-                    if subject not in entity_values:
-                        entity_values[subject] = fact
-                    elif self._is_more_recent(fact, entity_values[subject]):
-                        entity_values[subject] = fact
-        
-        facts = list(entity_values.values())
+
+        facts = []
+        for entity in entities_norm:
+            fact = self._latest_fact_for(entity, comparison_attr, cq)
+            if fact:
+                facts.append(fact)
+
+        facts = self._dedupe_fact_list(facts)
         return facts, f"comparison_by_{comparison_attr}"
     
     def _reasoning_count(self, cq: ClassifiedQuestion,
                         entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Count reasoning: aggregate numbers."""
-        facts = []
         entities_norm = [e.lower() for e in entities]
         predicates_norm = [p.lower() for p in predicates]
-        
-        for fact in self.kg:
-            subject = fact.get("subject", "").lower()
-            predicate = fact.get("predicate", "").lower()
-            
-            if subject in entities_norm and predicate in predicates_norm:
-                facts.append(fact)
 
+        facts = []
+        for entity in entities_norm:
+            for predicate in predicates_norm:
+                fact = self._latest_fact_for(entity, predicate, cq)
+                if fact:
+                    facts.append(fact)
+
+        facts = self._dedupe_fact_list(facts)
         if facts:
-            best = select_best_temporal_fact(
-                facts,
-                cq.time_value if cq.has_time_constraint else None,
-                cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
-            )
-            return ([best] if best else []), "count_aggregation"
+            return facts[:1], "count_aggregation"
         return facts, "count_aggregation"
     
     def _reasoning_time_lookup(self, cq: ClassifiedQuestion,
