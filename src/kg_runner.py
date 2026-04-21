@@ -154,17 +154,29 @@ def _has_comprehensive_kg_context(context):
 
 def _determine_retrieval_limit(classified_q):
     """Choose a compact but sufficient raw KG retrieval limit by question shape."""
-    if classified_q.primary_type == QuestionType.MULTI_FIELD:
-        return 4
     if LogicalModifier.FILTER in classified_q.logical_modifiers:
         return 4
     if LogicalModifier.ORDERING in classified_q.logical_modifiers:
         return 4
     if LogicalModifier.COMPARISON in classified_q.logical_modifiers:
-        return 2
-    if classified_q.primary_type in {QuestionType.COUNT, QuestionType.ENTITY, QuestionType.BOOLEAN}:
+        return 3
+    if classified_q.primary_type == QuestionType.BOOLEAN:
+        return 3
+    if classified_q.primary_type in {QuestionType.COUNT, QuestionType.ENTITY}:
+        if classified_q.has_time_constraint or _is_time_sensitive_factual_query(classified_q):
+            return 1
         return 1
-    return 3
+    return 4
+
+
+def _is_time_sensitive_factual_query(classified_q):
+    """Whether the answer should come from the latest temporal snapshot even without an explicit time."""
+    time_sensitive_predicates = {
+        "moon_count",
+        "discovered_on",
+        "discovered_by",
+    }
+    return any(predicate in time_sensitive_predicates for predicate in classified_q.major_predicates)
 
 
 def _answer_single_question(question, question_classifier, kg_retriever, kg_reasoning_engine,
