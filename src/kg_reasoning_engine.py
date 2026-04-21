@@ -294,19 +294,25 @@ class KGReasoningEngine:
             predicate = self._normalize_attribute_predicate(attribute)
 
             if operator == "==" and predicate:
-                next_entities = []
-                for entity in derived_entities:
-                    fact = self._latest_fact_for(entity, predicate, cq)
-                    if fact and str(fact.get("object", "")).lower() == str(condition.get("value", "")).lower():
-                        next_entities.append(entity)
-                        supporting_facts.append(fact)
-                derived_entities = next_entities
+                condition_value = condition.get("value")
+                if condition_value is not None:
+                    next_entities = []
+                    for entity in derived_entities:
+                        fact = self._latest_fact_for(entity, predicate, cq)
+                        if fact and str(fact.get("object", "")).lower() == str(condition_value).lower():
+                            next_entities.append(entity)
+                            supporting_facts.append(fact)
+                    derived_entities = next_entities
+                    continue
 
-            elif operator in {"<", ">", "=="} and predicate:
+            if operator in {"<", ">", "=="} and predicate:
                 reference_entity = condition.get("reference_entity")
                 reference_value = condition.get("value")
-                if reference_entity is None and entities:
-                    reference_entity = entities[-1]
+                if reference_entity is None and reference_value is None:
+                    if cq.helper_entities:
+                        reference_entity = cq.helper_entities[-1]
+                    elif len(entities) == 1:
+                        reference_entity = entities[0]
                 if reference_entity:
                     reference_fact = self._latest_fact_for(reference_entity, predicate, cq)
                     if reference_fact:
@@ -335,7 +341,12 @@ class KGReasoningEngine:
                 derived_entities = next_entities
 
         title = f"Filtered {self._describe_list_target(cq).lower()} matching all conditions"
-        return self._build_derived_result_fact(title, derived_entities, supporting_facts, "list_filtering"), "list_filtering"
+        return self._build_derived_result_fact(
+            title,
+            derived_entities,
+            self._dedupe_fact_list(supporting_facts),
+            "list_filtering",
+        ), "list_filtering"
     
     def _reasoning_ordered_list(self, cq: ClassifiedQuestion,
                                entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
