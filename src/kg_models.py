@@ -28,33 +28,28 @@ else:
     gemini_model = legacy_genai.GenerativeModel("gemini-2.5-flash")
 
 
-# KG-grounded prompt with sophisticated conflict resolution
+# KG-grounded prompt aligned with deterministic KG selection
 PROMPT_TEMPLATE_WITH_KG = """
-Answer the astronomy question using the facts provided below. These facts are PRIMARY REFERENCE.
+Answer the astronomy question using the provided knowledge graph facts.
 
-CONFLICT RESOLUTION STRATEGY:
-1. Use provided facts as your PRIMARY answer source.
-2. If a fact conflicts with your knowledge:
-   - Check if BOTH the fact AND your hunch exist in your training data
-   - If both exist: TRUST THE PROVIDED FACT (it's verified)
-   - If only one exists: Use that one
-   - If neither exist clearly: Use the fact but note uncertainty
-3. For TIME CONSTRAINTS:
-   - If the question specifies a date/year/time, ONLY use facts matching that time
-   - If a fact's time doesn't match the question's constraint, IGNORE it
-   - If no specific time in question, use the MOST RECENT fact only
-4. If NO relevant facts are provided, answer based solely on your knowledge.
-5. Output ONLY the final answer in appropriate format (number/yes/no/entity/list).
-6. NO explanations, NO extra words, NO labels or quotes.
+Rules:
+- Use only the facts that are directly relevant to the question.
+- Ignore extra facts that do not help answer the question.
+- If multiple time-stamped facts are shown, use the fact that best matches the question's time condition.
+- If no useful fact is provided, answer using your best knowledge.
+- Output only the final answer.
+- Do not explain.
+- Do not add labels, quotation marks, or extra words.
 
-Available Facts from Knowledge Graph (verified sources):
+Available Knowledge Graph Facts:
 {kg_facts}
 
-Time Constraint from Question: {time_constraint}
+Time Constraint from Question:
+{time_constraint}
 
 Question: {question}
 
-Answer (ONLY the final answer, nothing else):
+Answer:
 """
 
 
