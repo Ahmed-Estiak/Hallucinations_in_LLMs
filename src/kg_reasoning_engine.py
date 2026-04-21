@@ -53,6 +53,23 @@ class KGReasoningEngine:
             cq.time_semantic.name if cq.has_time_constraint and cq.time_semantic else None,
         )
 
+    def _dedupe_fact_list(self, facts: List[Dict]) -> List[Dict]:
+        """Remove duplicate facts while preserving order."""
+        deduped: List[Dict] = []
+        seen = set()
+        for fact in facts:
+            key = (
+                fact.get("subject"),
+                fact.get("predicate"),
+                fact.get("object"),
+                fact.get("time"),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(fact)
+        return deduped
+
     def _get_candidate_entities(self, cq: ClassifiedQuestion) -> List[str]:
         """Resolve candidate pool for list questions."""
         if cq.list_target == "planets":
@@ -202,17 +219,8 @@ class KGReasoningEngine:
     def _reasoning_boolean(self, cq: ClassifiedQuestion, 
                           entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Boolean reasoning: find yes/no answer facts."""
-        facts = []
         entities_norm = [e.lower() for e in entities]
         predicates_norm = [p.lower() for p in predicates]
-        
-        # Find matching classification or status facts
-        for fact in self.kg:
-            subject = fact.get("subject", "").lower()
-            predicate = fact.get("predicate", "").lower()
-            
-            if subject in entities_norm and predicate in predicates_norm:
-                facts.append(fact)
 
         selected = []
         for entity in entities_norm:
@@ -220,18 +228,44 @@ class KGReasoningEngine:
                 fact = self._latest_fact_for(entity, predicate, cq)
                 if fact:
                     selected.append(fact)
-        return selected or facts, "boolean_direct_lookup"
+
+        if selected:
+            return self._dedupe_fact_list(selected), "boolean_direct_lookup"
+
+        fallback = []
+        for fact in self.kg:
+            subject = fact.get("subject", "").lower()
+            predicate = fact.get("predicate", "").lower()
+            if subject in entities_norm and predicate in predicates_norm:
+                fallback.append(fact)
+        return self._dedupe_fact_list(fallback[:3]), "boolean_direct_lookup"
     
     def _reasoning_entity(self, cq: ClassifiedQuestion,
                          entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
         """Entity reasoning: find single entity facts."""
-        facts = []
         entities_norm = [e.lower() for e in entities]
-        
+        predicates_norm = [p.lower() for p in predicates]
+
+        facts = []
         for fact in self.kg:
             subject = fact.get("subject", "").lower()
-            if subject in entities_norm:
-                facts.append(fact)
+            predicate = fact.get("predicate", "").lower()
+            if subject not in entities_norm:
+                continue
+            if predicates_norm and predicate not in predicates_norm:
+                continue
+            facts.append(fact)
+
+        if predicates_norm:
+            selected = []
+            for entity in entities_norm:
+                for predicate in predicates_norm:
+                    fact = self._latest_fact_for(entity, predicate, cq)
+                    if fact:
+                        selected.append(fact)
+            selected = self._dedupe_fact_list(selected)
+            if selected:
+                return selected[:1], "entity_lookup"
 
         if cq.has_time_constraint:
             best = select_best_temporal_fact(
