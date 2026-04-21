@@ -137,6 +137,11 @@ class KGReasoningEngine:
             "discovered": "discovered_on",
             "size": "diameter",
             "mass": "mass",
+            "classification": "classification",
+            "planet_type": "planet_type",
+            "surface_gravity": "surface_gravity",
+            "location": "location",
+            "diameter": "diameter",
         }
         if attribute is None:
             return None
