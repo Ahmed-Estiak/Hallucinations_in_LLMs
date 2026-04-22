@@ -1,7 +1,6 @@
 """
 KG Runner: Benchmark with KG-grounded LLM answers
-Runs in parallel with vanilla LLM benchmark (does not modify existing code)
-Outputs results to results/results_with_kg.csv
+Outputs results to results_with_kg.csv
 Integrates Advanced KG Reasoning System with question classification
 """
 import json
