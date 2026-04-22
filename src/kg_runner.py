@@ -48,12 +48,12 @@ def _load_vanilla_results():
         try:
             qid = int(row["id"])
             vanilla_data[qid] = {
-                "openai_answer": row.get("openai_answer", pd.NA),
-                "gemini_answer": row.get("gemini_answer", pd.NA),
-                "openai_is_correct": row.get("openai_is_correct", pd.NA),
-                "gemini_is_correct": row.get("gemini_is_correct", pd.NA),
-                "openai_reason": row.get("openai_reason", pd.NA),
-                "gemini_reason": row.get("gemini_reason", pd.NA),
+                "openai_answer": row.get("openai_answer", None),
+                "gemini_answer": row.get("gemini_answer", None),
+                "openai_is_correct": row.get("openai_is_correct", None),
+                "gemini_is_correct": row.get("gemini_is_correct", None),
+                "openai_reason": row.get("openai_reason", None),
+                "gemini_reason": row.get("gemini_reason", None),
             }
         except Exception:
             continue  # Skip invalid rows
