@@ -116,9 +116,16 @@ def earliest_fact(facts: Iterable[dict]) -> Optional[dict]:
 
 
 def fact_matches_time(fact_time: Optional[str], constraint_time: Optional[str], semantic: Optional[str]) -> bool:
-    """Deterministic temporal match rule used for filtering."""
-    if not constraint_time or not fact_time:
+    """Deterministic temporal match rule used for filtering.
+
+    Note:
+    - EXACT here behaves as an as-of snapshot rule, not strict equality.
+    - Undated facts do not match when a time constraint is present.
+    """
+    if not constraint_time:
         return True
+    if not fact_time:
+        return False
 
     fact_window = time_window(fact_time)
     if fact_window is None:
@@ -142,7 +149,7 @@ def fact_matches_time(fact_time: Optional[str], constraint_time: Optional[str], 
     if semantic_name == "AFTER":
         return fact_window[0] > constraint_window[1]
 
-    # EXACT behaves like as-of snapshot: exact if possible, otherwise latest at or before.
+    # EXACT behaves like an as-of snapshot: valid at or before the constraint.
     return fact_window[0] <= constraint_window[1]
 
 
