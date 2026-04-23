@@ -183,14 +183,20 @@ def _determine_retrieval_limit(classified_q):
     return 4
 
 
-def _is_time_sensitive_factual_query(classified_q):
-    """Whether the answer should come from the latest temporal snapshot even without an explicit time."""
-    time_sensitive_predicates = {
-        "moon_count",
-        "discovered_on",
-        "discovered_by",
-    }
-    return any(predicate in time_sensitive_predicates for predicate in classified_q.major_predicates)
+def _should_use_kg_context(classified_q):
+    """Whether this question shape should use KG context when available."""
+    return classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
+
+
+def _query_models(question, kg_facts_text=None, time_constraint=None):
+    """Query both models either with KG context or without it."""
+    if kg_facts_text is not None:
+        openai_answer = ask_openai_with_kg(question, kg_facts_text, time_constraint)
+        gemini_answer = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
+    else:
+        openai_answer = ask_openai(question)
+        gemini_answer = ask_gemini(question)
+    return openai_answer, gemini_answer
 
 
 def _answer_single_question(question, question_classifier, kg_retriever, kg_reasoning_engine,
@@ -205,14 +211,16 @@ def _answer_single_question(question, question_classifier, kg_retriever, kg_reas
         time_constraint_override=time_constraint_override,
     )
     classified_q = context["classified_q"]
-    should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
+    should_use_kg = _should_use_kg_context(classified_q)
 
     if should_use_kg and context["kg_found"] and _has_comprehensive_kg_context(context):
-        openai_answer = ask_openai_with_kg(question, context["kg_facts_text"], context["time_constraint"])
-        gemini_answer = ask_gemini_with_kg(question, context["kg_facts_text"], context["time_constraint"])
+        openai_answer, gemini_answer = _query_models(
+            question,
+            kg_facts_text=context["kg_facts_text"],
+            time_constraint=context["time_constraint"],
+        )
     else:
-        openai_answer = ask_openai(question)
-        gemini_answer = ask_gemini(question)
+        openai_answer, gemini_answer = _query_models(question)
 
     return context, openai_answer, gemini_answer
 
