@@ -70,7 +70,7 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
     time_constraint = parsed["time_constraint"]
 
     classified_q = question_classifier.classify(question)
-    if time_semantic_override is not None and time_constraint_override:
+    if time_semantic_override is not None and time_constraint_override is not None:
         classified_q.has_time_constraint = True
         classified_q.time_semantic = time_semantic_override
         classified_q.time_value = time_constraint_override
@@ -82,7 +82,8 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
         classified_q.primary_type == QuestionType.MULTI_FIELD or
         LogicalModifier.FILTER in classified_q.logical_modifiers or
         LogicalModifier.ORDERING in classified_q.logical_modifiers or
-        LogicalModifier.COMPARISON in classified_q.logical_modifiers
+        LogicalModifier.COMPARISON in classified_q.logical_modifiers or
+        classified_q.has_time_constraint
     )
 
     if use_kg_reasoning:
@@ -96,17 +97,20 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
         reasoning_strategy = "vanilla_retrieval"
 
     retrieval_limit = _determine_retrieval_limit(classified_q)
-    time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
-    kg_facts = kg_retriever.retrieve(
-        entities=entities,
-        predicates=predicates,
-        time_constraint=time_constraint,
-        time_semantic=time_semantic,
-        limit=retrieval_limit
-    )
-
     derived_result_available = bool(reasoned_facts and reasoned_facts[0].get("_derived_result"))
-    kg_found = len(kg_facts) > 0 or derived_result_available
+    should_fetch_raw_kg = not (use_kg_reasoning and derived_result_available)
+    if should_fetch_raw_kg:
+        kg_facts = kg_retriever.retrieve(
+            entities=entities,
+            predicates=predicates,
+            time_constraint=time_constraint,
+            time_semantic=classified_q.time_semantic.name if classified_q.time_semantic else None,
+            limit=retrieval_limit
+        )
+    else:
+        kg_facts = []
+
+    kg_found = len(kg_facts) > 0 or len(reasoned_facts) > 0
     if reasoned_facts:
         kg_facts_text = format_reasoned_facts(reasoned_facts, reasoning_strategy)
     else:
@@ -139,16 +143,21 @@ def _has_comprehensive_kg_context(context):
         derived_entities = reasoned_facts[0].get("entities", [])
         return len(derived_entities) > 0
 
+    if reasoned_facts:
+        effective_facts = reasoned_facts
+    else:
+        effective_facts = kg_facts
+
     relevant_entities_in_facts = set()
     relevant_subjects_in_facts = set()
-    for fact in kg_facts:
+    for fact in effective_facts:
         relevant_subjects_in_facts.add(fact.get("subject", "").lower())
 
     for entity in entities:
         if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
             relevant_entities_in_facts.add(entity)
 
-    return (len(kg_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or (len(kg_facts) >= 3)
+    return (len(effective_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or (len(effective_facts) >= 3)
 
 
 def _determine_retrieval_limit(classified_q):
