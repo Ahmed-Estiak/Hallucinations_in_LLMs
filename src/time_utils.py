@@ -3,6 +3,7 @@ Shared time parsing and deterministic temporal selection helpers.
 """
 from __future__ import annotations
 
+import calendar
 import re
 from typing import Iterable, Optional
 
@@ -20,11 +21,23 @@ def parse_time_parts(value: Optional[str]) -> tuple[Optional[int], Optional[int]
 
     if re.match(r"^\d{4}-\d{2}$", text):
         year, month = text.split("-")
-        return int(year), int(month), None
+        year_int = int(year)
+        month_int = int(month)
+        if not 1 <= month_int <= 12:
+            return None
+        return year_int, month_int, None
 
     if re.match(r"^\d{4}-\d{2}-\d{2}$", text):
         year, month, day = text.split("-")
-        return int(year), int(month), int(day)
+        year_int = int(year)
+        month_int = int(month)
+        day_int = int(day)
+        if not 1 <= month_int <= 12:
+            return None
+        max_day = calendar.monthrange(year_int, month_int)[1]
+        if not 1 <= day_int <= max_day:
+            return None
+        return year_int, month_int, day_int
 
     return None
 
@@ -45,7 +58,8 @@ def time_window(value: Optional[str]) -> tuple[int, int] | None:
     if month is None:
         return year * 10000 + 101, year * 10000 + 1231
     if day is None:
-        return year * 10000 + month * 100 + 1, year * 10000 + month * 100 + 31
+        last_day = calendar.monthrange(year, month)[1]
+        return year * 10000 + month * 100 + 1, year * 10000 + month * 100 + last_day
     numeric = year * 10000 + month * 100 + day
     return numeric, numeric
 
