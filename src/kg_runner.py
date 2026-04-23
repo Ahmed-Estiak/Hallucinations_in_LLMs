@@ -241,17 +241,150 @@ def _resolve_multifield_subquestions(question, classified_q):
     return fallback_questions, "template_fallback"
 
 
+def _get_vanilla_row(vanilla_data, qid):
+    """Return a normalized vanilla-results row with None defaults."""
+    return vanilla_data.get(qid) or {
+        "openai_answer": None,
+        "gemini_answer": None,
+        "openai_is_correct": None,
+        "gemini_is_correct": None,
+        "openai_reason": None,
+        "gemini_reason": None,
+    }
+
+
+def _answer_multifield_question(question, classified_q, time_constraint, question_classifier,
+                                kg_retriever, kg_reasoning_engine):
+    """Resolve, answer, and merge a multi-field question through sub-questions."""
+    openai_parts = []
+    gemini_parts = []
+    field_strategies = []
+    sub_kg_found = False
+    resolved_sub_questions, multifield_split_source = _resolve_multifield_subquestions(question, classified_q)
+
+    for field_index, field_spec in enumerate(classified_q.fields):
+        sub_question = resolved_sub_questions[field_index] if field_index < len(resolved_sub_questions) else field_spec.sub_question
+        sub_context, openai_part, gemini_part = _answer_single_question(
+            sub_question,
+            question_classifier,
+            kg_retriever,
+            kg_reasoning_engine,
+            time_semantic_override=classified_q.time_semantic if field_spec.time_aware else None,
+            time_constraint_override=time_constraint if field_spec.time_aware else None,
+        )
+        openai_parts.append(openai_part)
+        gemini_parts.append(gemini_part)
+        sub_kg_found = sub_kg_found or sub_context["kg_found"]
+        field_strategies.append({
+            "field": field_spec.name,
+            "sub_question": sub_question,
+            "strategy": sub_context["reasoning_strategy"],
+            "primary_type": sub_context["classified_q"].primary_type.name,
+        })
+
+    return {
+        "openai_answer": ", ".join(openai_parts),
+        "gemini_answer": ", ".join(gemini_parts),
+        "reasoning_strategy": json.dumps(field_strategies, ensure_ascii=False),
+        "multifield_split_source": multifield_split_source,
+        "kg_found": sub_kg_found,
+        "kg_facts_text": "MULTI_FIELD_SPLIT",
+        "gemini_calls": len(classified_q.fields),
+    }
+
+
+def _build_result_row(q, ground_truth, context, vanilla_row, openai_kg_ans, gemini_kg_ans,
+                      openai_kg_eval, gemini_kg_eval, reasoning_strategy, multifield_split_source, kg_found):
+    """Build one benchmark result row."""
+    classified_q = context["classified_q"]
+    primary_type = classified_q.primary_type.name if classified_q.primary_type else "UNKNOWN"
+    time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
+    logical_modifiers = [modifier.name for modifier in classified_q.logical_modifiers]
+    openai_vanilla_is_correct = vanilla_row["openai_is_correct"]
+    gemini_vanilla_is_correct = vanilla_row["gemini_is_correct"]
+
+    openai_improved = None if openai_vanilla_is_correct is None else int(openai_kg_eval["is_correct"]) - int(bool(openai_vanilla_is_correct))
+    gemini_improved = None if gemini_vanilla_is_correct is None else int(gemini_kg_eval["is_correct"]) - int(bool(gemini_vanilla_is_correct))
+
+    return {
+        "id": q["id"],
+        "question": q["question"],
+        "kind": q["answer_spec"]["kind"],
+        "type": q.get("type", ""),
+        "ground_truth": ground_truth,
+        "primary_type": primary_type,
+        "time_semantic": time_semantic,
+        "logical_modifiers": json.dumps(logical_modifiers, ensure_ascii=False),
+        "reasoning_strategy": reasoning_strategy,
+        "multifield_split_source": multifield_split_source,
+        "kg_found": kg_found,
+        "kg_facts_count": len(context["kg_facts"]),
+        "retrieval_limit": context["retrieval_limit"],
+        "parsed_entities": json.dumps(context["entities"], ensure_ascii=False),
+        "parsed_predicates": json.dumps(context["predicates"], ensure_ascii=False),
+        "time_constraint": context["time_constraint"],
+        "openai_vanilla_answer": vanilla_row["openai_answer"],
+        "gemini_vanilla_answer": vanilla_row["gemini_answer"],
+        "openai_vanilla_is_correct": openai_vanilla_is_correct,
+        "gemini_vanilla_is_correct": gemini_vanilla_is_correct,
+        "openai_kg_answer": openai_kg_ans,
+        "gemini_kg_answer": gemini_kg_ans,
+        "openai_kg_is_correct": openai_kg_eval["is_correct"],
+        "gemini_kg_is_correct": gemini_kg_eval["is_correct"],
+        "openai_vanilla_vs_kg": "same" if vanilla_row["openai_answer"] == openai_kg_ans else "different",
+        "gemini_vanilla_vs_kg": "same" if vanilla_row["gemini_answer"] == gemini_kg_ans else "different",
+        "openai_improved": openai_improved,
+        "gemini_improved": gemini_improved,
+        "openai_vanilla_reason": vanilla_row["openai_reason"],
+        "gemini_vanilla_reason": vanilla_row["gemini_reason"],
+        "openai_kg_reason": openai_kg_eval["reason"],
+        "gemini_kg_reason": gemini_kg_eval["reason"],
+    }
+
+
+def _print_benchmark_summary(total_questions, kg_found_count, vanilla_reused_count,
+                             openai_vanilla_correct, gemini_vanilla_correct,
+                             openai_kg_correct, gemini_kg_correct, results):
+    """Print benchmark summary with exact improvement aggregation."""
+    print("\n" + "=" * 80)
+    print("BENCHMARK SUMMARY - KG-Integrated Results")
+    print("=" * 80)
+    print(f"\nTotal questions: {total_questions}")
+    print(f"KG facts found for: {kg_found_count}/{total_questions} questions ({(kg_found_count/total_questions)*100:.1f}%)")
+
+    print("\n--- VANILLA LLM (No KG) ---")
+    if vanilla_reused_count > 0:
+        print(f"Vanilla results reused for {vanilla_reused_count} questions from results/results.csv.")
+        print(f"OpenAI  -> Correct: {openai_vanilla_correct}/{vanilla_reused_count} ({(openai_vanilla_correct/vanilla_reused_count)*100:.2f}%)")
+        print(f"Gemini  -> Correct: {gemini_vanilla_correct}/{vanilla_reused_count} ({(gemini_vanilla_correct/vanilla_reused_count)*100:.2f}%)")
+    else:
+        print("No vanilla results were reused.")
+
+    print("\n--- KG-GROUNDED LLM ---")
+    print(f"OpenAI  -> Correct: {openai_kg_correct}/{total_questions} ({(openai_kg_correct/total_questions)*100:.2f}%)")
+    print(f"Gemini  -> Correct: {gemini_kg_correct}/{total_questions} ({(gemini_kg_correct/total_questions)*100:.2f}%)")
+
+    print("\n--- IMPROVEMENT ANALYSIS ---")
+    if vanilla_reused_count > 0:
+        openai_improvement = sum((row["openai_improved"] or 0) for row in results if row["openai_improved"] is not None)
+        gemini_improvement = sum((row["gemini_improved"] or 0) for row in results if row["gemini_improved"] is not None)
+        print(f"OpenAI exact improvement: {openai_improvement:+d} ({(openai_improvement/vanilla_reused_count)*100:+.2f}%)")
+        print(f"Gemini exact improvement: {gemini_improvement:+d} ({(gemini_improvement/vanilla_reused_count)*100:+.2f}%)")
+    else:
+        print("No vanilla results available for improvement analysis.")
+
+    print("\nResults saved to: results/results_with_kg.csv")
+    print("=" * 80)
+
+
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
-    
-    # Initialize
     with open("data/qa_92.json") as f:
         questions = json.load(f)
 
     total_questions = len(questions)
     vanilla_data = _load_vanilla_results()
-    loaded_vanilla_count = len(vanilla_data)
-    print(f"Loaded {loaded_vanilla_count} vanilla results from results/results.csv for reuse.")
+    print(f"Loaded {len(vanilla_data)} vanilla results from results/results.csv for reuse.")
 
     kg_retriever = KGRetriever()
     question_classifier = QuestionClassifier()
@@ -259,18 +392,12 @@ def run_kg_benchmark():
     results = []
     Path("results").mkdir(exist_ok=True)
 
-    gemini_counter = 0
-    
-    # Counters for vanilla LLM stored values
+    gemini_call_counter = 0
     openai_vanilla_correct = 0
     gemini_vanilla_correct = 0
     vanilla_reused_count = 0
-    
-    # Counters for KG-grounded LLM
     openai_kg_correct = 0
     gemini_kg_correct = 0
-    
-    # Counters for KG retrieval stats
     kg_found_count = 0
 
     print(f"Starting KG-integrated benchmark ({total_questions} questions)")
@@ -279,221 +406,92 @@ def run_kg_benchmark():
     for index, q in enumerate(questions, start=1):
         qid = q["id"]
         question = q["question"]
-        kind = q["answer_spec"]["kind"]
-        question_type = q.get("type", "")
         ground_truth = _serialize_ground_truth(q["answer_spec"])
 
         print(f"[{index}/{total_questions}] Q{qid}: {question[:60]}...")
 
-        # Step 1: Parse/classify question and prepare KG context
         context = _prepare_question_context(question, question_classifier, kg_retriever, kg_reasoning_engine)
-        parsed = context["parsed"]
-        entities = context["entities"]
-        predicates = context["predicates"]
-        time_constraint = context["time_constraint"]
         classified_q = context["classified_q"]
-        primary_type = classified_q.primary_type.name if classified_q.primary_type else "UNKNOWN"
-        time_semantic = classified_q.time_semantic.name if classified_q.time_semantic else "NONE"
-        logical_modifiers = [modifier.name for modifier in classified_q.logical_modifiers]
-        reasoned_facts = context["reasoned_facts"]
         reasoning_strategy = context["reasoning_strategy"]
-        kg_facts = context["kg_facts"]
-        derived_result_available = context["derived_result_available"]
         kg_found = context["kg_found"]
         if kg_found:
             kg_found_count += 1
 
-        kg_facts_text = context["kg_facts_text"]
+        vanilla_row = _get_vanilla_row(vanilla_data, qid)
 
-        # Step 3: Retrieve vanilla LLM answers from previous results.csv if valid
-        vanilla_row = vanilla_data.get(qid, None)
-        if vanilla_row is not None:
-            openai_vanilla_ans = vanilla_row["openai_answer"]
-            gemini_vanilla_ans = vanilla_row["gemini_answer"]
-            openai_vanilla_is_correct = vanilla_row["openai_is_correct"]
-            gemini_vanilla_is_correct = vanilla_row["gemini_is_correct"]
-            openai_vanilla_reason = vanilla_row["openai_reason"]
-            gemini_vanilla_reason = vanilla_row["gemini_reason"]
-        else:
-            openai_vanilla_ans = pd.NA
-            gemini_vanilla_ans = pd.NA
-            openai_vanilla_is_correct = pd.NA
-            gemini_vanilla_is_correct = pd.NA
-            openai_vanilla_reason = pd.NA
-            gemini_vanilla_reason = pd.NA
-
-        # Step 4: Get LLM answers
         if classified_q.primary_type == QuestionType.MULTI_FIELD and classified_q.fields:
-            openai_parts = []
-            gemini_parts = []
-            field_strategies = []
-            total_sub_kg_facts = 0
-            sub_kg_found = False
-            resolved_sub_questions, multifield_split_source = _resolve_multifield_subquestions(question, classified_q)
-            for field_index, field_spec in enumerate(classified_q.fields):
-                sub_question = resolved_sub_questions[field_index] if field_index < len(resolved_sub_questions) else field_spec.sub_question
-                sub_context, openai_part, gemini_part = _answer_single_question(
-                    sub_question,
-                    question_classifier,
-                    kg_retriever,
-                    kg_reasoning_engine,
-                    time_semantic_override=classified_q.time_semantic if field_spec.time_aware else None,
-                    time_constraint_override=time_constraint if field_spec.time_aware else None,
-                )
-                openai_parts.append(openai_part)
-                gemini_parts.append(gemini_part)
-                total_sub_kg_facts += len(sub_context["kg_facts"])
-                sub_kg_found = sub_kg_found or sub_context["kg_found"]
-                field_strategies.append({
-                    "field": field_spec.name,
-                    "sub_question": sub_question,
-                    "strategy": sub_context["reasoning_strategy"],
-                    "primary_type": sub_context["classified_q"].primary_type.name,
-                })
-
-            openai_kg_ans = ", ".join(openai_parts)
-            gemini_kg_ans = ", ".join(gemini_parts)
-            reasoning_strategy = json.dumps(field_strategies, ensure_ascii=False)
-            kg_found = sub_kg_found
-            kg_facts_text = "MULTI_FIELD_SPLIT"
+            multifield_result = _answer_multifield_question(
+                question,
+                classified_q,
+                context["time_constraint"],
+                question_classifier,
+                kg_retriever,
+                kg_reasoning_engine,
+            )
+            openai_kg_ans = multifield_result["openai_answer"]
+            gemini_kg_ans = multifield_result["gemini_answer"]
+            reasoning_strategy = multifield_result["reasoning_strategy"]
+            multifield_split_source = multifield_result["multifield_split_source"]
+            kg_found = multifield_result["kg_found"]
             if kg_found and not context["kg_found"]:
                 kg_found_count += 1
-            kg_facts = kg_facts[:]
-            if total_sub_kg_facts > len(kg_facts):
-                pass
+            gemini_call_counter += multifield_result["gemini_calls"]
         else:
             multifield_split_source = "not_multifield"
-            should_use_kg = classified_q.primary_type != QuestionType.LIST or bool(classified_q.logical_modifiers)
-
+            should_use_kg = _should_use_kg_context(classified_q)
             if should_use_kg and kg_found and _has_comprehensive_kg_context(context):
-                openai_kg_ans = ask_openai_with_kg(question, kg_facts_text, time_constraint)
-                gemini_kg_ans = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
+                openai_kg_ans, gemini_kg_ans = _query_models(
+                    question,
+                    kg_facts_text=context["kg_facts_text"],
+                    time_constraint=context["time_constraint"],
+                )
             else:
-                openai_kg_ans = ask_openai(question)
-                gemini_kg_ans = ask_gemini(question)
+                openai_kg_ans, gemini_kg_ans = _query_models(question)
+            gemini_call_counter += 1
 
-        # Step 5: Evaluate KG-grounded answers only
         openai_kg_eval = evaluate_answer(q, openai_kg_ans)
         gemini_kg_eval = evaluate_answer(q, gemini_kg_ans)
 
-        # Update counters
         openai_kg_correct += int(bool(openai_kg_eval["is_correct"]))
         gemini_kg_correct += int(bool(gemini_kg_eval["is_correct"]))
-        if vanilla_row is not None:
+        if qid in vanilla_data:
             vanilla_reused_count += 1
-            openai_vanilla_correct += int(bool(openai_vanilla_is_correct))
-            gemini_vanilla_correct += int(bool(gemini_vanilla_is_correct))
+            openai_vanilla_correct += int(bool(vanilla_row["openai_is_correct"]))
+            gemini_vanilla_correct += int(bool(vanilla_row["gemini_is_correct"]))
 
-        # Build result row
-        result_row = {
-            "id": qid,
-            "question": question,
-            "kind": kind,
-            "type": question_type,
-            "ground_truth": ground_truth,
-            
-            # Question classification
-            "primary_type": primary_type,
-            "time_semantic": time_semantic,
-            "logical_modifiers": json.dumps(logical_modifiers, ensure_ascii=False),
-            "reasoning_strategy": reasoning_strategy,
-            "multifield_split_source": multifield_split_source,
-            
-            # KG retrieval info
-            "kg_found": kg_found,
-            "kg_facts_count": len(kg_facts),
-            "retrieval_limit": context["retrieval_limit"],
-            "parsed_entities": json.dumps(entities, ensure_ascii=False),
-            "parsed_predicates": json.dumps(predicates, ensure_ascii=False),
-            "time_constraint": time_constraint,
-            
-            # Vanilla LLM answers from previous results.csv
-            "openai_vanilla_answer": openai_vanilla_ans,
-            "gemini_vanilla_answer": gemini_vanilla_ans,
-            "openai_vanilla_is_correct": openai_vanilla_is_correct,
-            "gemini_vanilla_is_correct": gemini_vanilla_is_correct,
-            
-            # KG-grounded LLM answers
-            "openai_kg_answer": openai_kg_ans,
-            "gemini_kg_answer": gemini_kg_ans,
-            "openai_kg_is_correct": openai_kg_eval["is_correct"],
-            "gemini_kg_is_correct": gemini_kg_eval["is_correct"],
-            
-            # Comparison: did KG help?
-            "openai_vanilla_vs_kg": "same" if openai_vanilla_ans == openai_kg_ans else "different",
-            "gemini_vanilla_vs_kg": "same" if gemini_vanilla_ans == gemini_kg_ans else "different",
-            "openai_improved": (
-                int(openai_kg_eval["is_correct"]) - int(bool(openai_vanilla_is_correct))
-                if not pd.isna(openai_vanilla_is_correct) else pd.NA
-            ),
-            "gemini_improved": (
-                int(gemini_kg_eval["is_correct"]) - int(bool(gemini_vanilla_is_correct))
-                if not pd.isna(gemini_vanilla_is_correct) else pd.NA
-            ),
-            
-            # Evaluation reasons
-            "openai_vanilla_reason": openai_vanilla_reason,
-            "gemini_vanilla_reason": gemini_vanilla_reason,
-            "openai_kg_reason": openai_kg_eval["reason"],
-            "gemini_kg_reason": gemini_kg_eval["reason"],
-        }
+        results.append(
+            _build_result_row(
+                q,
+                ground_truth,
+                context,
+                vanilla_row,
+                openai_kg_ans,
+                gemini_kg_ans,
+                openai_kg_eval,
+                gemini_kg_eval,
+                reasoning_strategy,
+                multifield_split_source,
+                kg_found,
+            )
+        )
 
-        results.append(result_row)
-        
-        gemini_counter += 1
-        
-        # Rate limit handling
-        if gemini_counter % 4 == 0:
+        if gemini_call_counter > 0 and gemini_call_counter % 4 == 0:
             print("  [Waiting 60s for Gemini rate limit]")
             time.sleep(60)
 
-    # Save results
     df = pd.DataFrame(results)
     df.to_csv("results/results_with_kg.csv", index=False)
 
-    # Print summary
-    print("\n" + "=" * 80)
-    print("BENCHMARK SUMMARY - KG-Integrated Results")
-    print("=" * 80)
-    print(f"\nTotal questions: {total_questions}")
-    print(f"KG facts found for: {kg_found_count}/{total_questions} questions ({(kg_found_count/total_questions)*100:.1f}%)")
-    
-    print("\n--- VANILLA LLM (No KG) ---")
-    if vanilla_reused_count > 0:
-        print(f"Vanilla results reused for {vanilla_reused_count} questions from results/results.csv.")
-        print(
-            f"OpenAI  → Correct: {openai_vanilla_correct}/{vanilla_reused_count} "
-            f"({(openai_vanilla_correct/vanilla_reused_count)*100:.2f}%)"
-        )
-        print(
-            f"Gemini  → Correct: {gemini_vanilla_correct}/{vanilla_reused_count} "
-            f"({(gemini_vanilla_correct/vanilla_reused_count)*100:.2f}%)"
-        )
-    else:
-        print("No vanilla results were reused.")
-    
-    print("\n--- KG-GROUNDED LLM ---")
-    print(
-        f"OpenAI  → Correct: {openai_kg_correct}/{total_questions} "
-        f"({(openai_kg_correct/total_questions)*100:.2f}%)"
+    _print_benchmark_summary(
+        total_questions,
+        kg_found_count,
+        vanilla_reused_count,
+        openai_vanilla_correct,
+        gemini_vanilla_correct,
+        openai_kg_correct,
+        gemini_kg_correct,
+        results,
     )
-    print(
-        f"Gemini  → Correct: {gemini_kg_correct}/{total_questions} "
-        f"({(gemini_kg_correct/total_questions)*100:.2f}%)"
-    )
-    
-    print("\n--- IMPROVEMENT ANALYSIS ---")
-    if vanilla_reused_count > 0:
-        # Improvement calculated only for questions where vanilla results were reused
-        openai_improvement = openai_kg_correct - openai_vanilla_correct  # Note: kg_correct is total, but improvement is approximate
-        gemini_improvement = gemini_kg_correct - gemini_vanilla_correct
-        print(f"OpenAI improvement (approx): {openai_improvement:+d} ({(openai_improvement/vanilla_reused_count)*100:+.2f}%)")
-        print(f"Gemini improvement (approx): {gemini_improvement:+d} ({(gemini_improvement/vanilla_reused_count)*100:+.2f}%)")
-    else:
-        print("No vanilla results available for improvement analysis.")
-    
-    print("\nResults saved to: results/results_with_kg.csv")
-    print("=" * 80)
 
 
 if __name__ == "__main__":
