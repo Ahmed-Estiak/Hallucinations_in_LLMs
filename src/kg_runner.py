@@ -157,6 +157,12 @@ def _has_comprehensive_kg_context(context):
         if any(entity.lower() in subject for subject in relevant_subjects_in_facts):
             relevant_entities_in_facts.add(entity)
 
+    if classified_q.primary_type in {QuestionType.COUNT, QuestionType.ENTITY, QuestionType.BOOLEAN}:
+        return len(effective_facts) >= 1
+
+    if LogicalModifier.COMPARISON in classified_q.logical_modifiers:
+        return len(effective_facts) >= 2 and len(relevant_entities_in_facts) >= 2
+
     return (len(effective_facts) >= 2 and len(relevant_entities_in_facts) >= 2) or (len(effective_facts) >= 3)
 
 
@@ -171,9 +177,9 @@ def _determine_retrieval_limit(classified_q):
     if classified_q.primary_type == QuestionType.BOOLEAN:
         return 3
     if classified_q.primary_type in {QuestionType.COUNT, QuestionType.ENTITY}:
-        if classified_q.has_time_constraint or _is_time_sensitive_factual_query(classified_q):
-            return 1
         return 1
+    if classified_q.primary_type == QuestionType.MULTI_FIELD:
+        return 4
     return 4
 
 
