@@ -68,8 +68,13 @@ def _window_span(window: tuple[int, int]) -> int:
     return window[1] - window[0]
 
 
-def latest_fact(facts: Iterable[dict]) -> Optional[dict]:
-    """Pick the latest fact, preferring more precise timestamps on ties."""
+def _select_fact_by_time(facts: Iterable[dict], *, mode: str) -> Optional[dict]:
+    """
+    Pick the earliest or latest dated fact.
+
+    If no facts have a valid time window, fall back to the first undated fact in
+    input order.
+    """
     best_fact = None
     best_window = None
     fallback_fact = None
@@ -79,35 +84,35 @@ def latest_fact(facts: Iterable[dict]) -> Optional[dict]:
         window = time_window(fact.get("time"))
         if window is None:
             continue
-        if (
-            best_window is None or
-            window[1] > best_window[1] or
-            (window[1] == best_window[1] and _window_span(window) < _window_span(best_window))
-        ):
+
+        if mode == "latest":
+            is_better = (
+                best_window is None or
+                window[1] > best_window[1] or
+                (window[1] == best_window[1] and _window_span(window) < _window_span(best_window))
+            )
+        else:
+            is_better = (
+                best_window is None or
+                window[0] < best_window[0] or
+                (window[0] == best_window[0] and _window_span(window) < _window_span(best_window))
+            )
+
+        if is_better:
             best_fact = fact
             best_window = window
+
     return best_fact or fallback_fact
+
+
+def latest_fact(facts: Iterable[dict]) -> Optional[dict]:
+    """Pick the latest fact, preferring more precise timestamps on ties."""
+    return _select_fact_by_time(facts, mode="latest")
 
 
 def earliest_fact(facts: Iterable[dict]) -> Optional[dict]:
     """Pick the earliest fact, preferring more precise timestamps on ties."""
-    best_fact = None
-    best_window = None
-    fallback_fact = None
-    for fact in facts:
-        if fallback_fact is None:
-            fallback_fact = fact
-        window = time_window(fact.get("time"))
-        if window is None:
-            continue
-        if (
-            best_window is None or
-            window[0] < best_window[0] or
-            (window[0] == best_window[0] and _window_span(window) < _window_span(best_window))
-        ):
-            best_fact = fact
-            best_window = window
-    return best_fact or fallback_fact
+    return _select_fact_by_time(facts, mode="earliest")
 
 
 def fact_matches_time(fact_time: Optional[str], constraint_time: Optional[str], semantic: Optional[str]) -> bool:
