@@ -52,6 +52,18 @@ PREDICATE_KEYWORDS = {
         "keywords": ["discovered by", "who discovered", "discoverer", "found by", "who found", "finder"],
         "pattern": r"(?:who|which)\s+(?:astronomer\s+)?(?:discovered|found)|(?:discovered|found)\s+by|who\s+was\s+.*(?:discovered|found)\s+by|name\s+the\s+(?:astronomer|discoverer|finder)"
     },
+    "recognized_on": {
+        "keywords": ["recognized on", "recognized when", "when recognized", "recognition date", "recognition year", "officially recognized"],
+        "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?recognized|(?:officially\s+)?recognized\s+.*\bwhen\b|\brecognition\s+(?:date|year)\b"
+    },
+    "confirmed_on": {
+        "keywords": ["confirmed on", "confirmed when", "when confirmed", "confirmation date", "confirmation year", "officially confirmed"],
+        "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?confirmed|(?:officially\s+)?confirmed\s+.*\bwhen\b|\bconfirmation\s+(?:date|year)\b"
+    },
+    "first_observed_on": {
+        "keywords": ["first observed", "first observation", "when first observed", "observation date", "observation year", "first seen"],
+        "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?(?:first\s+observed|first\s+seen|observed)|(?:first\s+observed|first\s+seen)\s+.*\bwhen\b|\b(?:first\s+)?observation\s+(?:date|year)\b"
+    },
     "mass": {
         "keywords": ["mass", "weight", "massive", "heavier", "lighter", "heaviest", "lightest"],
         "pattern": r"(?:what\s+is\s+the\s+mass|mass\s+of|greater\s+mass|more\s+massive|less\s+massive|heaviest|lightest|heavier|lighter)"

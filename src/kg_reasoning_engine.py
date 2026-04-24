@@ -153,6 +153,9 @@ class KGReasoningEngine:
             "moons": "moon_count",
             "distance": "distance_from_sun",
             "discovered": "discovered_on",
+            "recognized": "recognized_on",
+            "confirmed": "confirmed_on",
+            "observed": "first_observed_on",
             "size": "diameter",
             "mass": "mass",
             "classification": "classification",
@@ -192,6 +195,9 @@ class KGReasoningEngine:
             "moon_count": "number of moons",
             "distance_from_sun": "distance from the Sun",
             "discovered_on": "discovery year",
+            "recognized_on": "recognition year",
+            "confirmed_on": "confirmation year",
+            "first_observed_on": "first observation year",
             "diameter": "diameter",
             "mass": "mass",
             "surface_gravity": "surface gravity",
@@ -211,7 +217,7 @@ class KGReasoningEngine:
 
     def _extract_ordering_value(self, predicate: str, fact: Dict) -> Optional[float]:
         """Return a comparable ordering value for numeric and date-like predicates."""
-        if predicate == "discovered_on":
+        if predicate in {"discovered_on", "recognized_on", "confirmed_on", "first_observed_on"}:
             window = time_window(fact.get("object"))
             if window is None:
                 return None

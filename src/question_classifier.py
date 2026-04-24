@@ -195,7 +195,7 @@ class QuestionClassifier:
         "discovered": r"(?:discovery\s+date|discovery\s+year|when\s+discovered)",
         "moons": r"(?:moons|moon\s+count|satellites)",
     }
-    TIME_ORDERABLE_PREDICATES = {"discovered_on"}
+    TIME_ORDERABLE_PREDICATES = {"discovered_on", "recognized_on", "confirmed_on", "first_observed_on"}
 
     COMPARISON_KEYWORDS = {
         ">": ["greater", "larger", "heavier", "farther"],
@@ -209,6 +209,9 @@ class QuestionClassifier:
         "moon_count",
         "discovered_on",
         "discovered_by",
+        "recognized_on",
+        "confirmed_on",
+        "first_observed_on",
         "mass",
         "distance_from_sun",
         "surface_gravity",
@@ -221,6 +224,9 @@ class QuestionClassifier:
         "moon_count": "How many moons does {entity} have?",
         "discovered_on": "In what year was {entity} discovered?",
         "discovered_by": "Who discovered {entity}?",
+        "recognized_on": "In what year was {entity} recognized?",
+        "confirmed_on": "In what year was {entity} confirmed?",
+        "first_observed_on": "In what year was {entity} first observed?",
         "mass": "What is the mass of {entity}?",
         "distance_from_sun": "What is {entity}'s distance from the Sun?",
         "surface_gravity": "What is the surface gravity of {entity}?",
@@ -434,7 +440,7 @@ class QuestionClassifier:
     def _predicate_answer_type(self, predicate: str) -> QuestionType:
         # Numeric outputs are routed through COUNT even when they represent
         # a year-like value such as discovered_on.
-        if predicate in {"moon_count", "discovered_on"}:
+        if predicate in {"moon_count", "discovered_on", "recognized_on", "confirmed_on", "first_observed_on"}:
             return QuestionType.COUNT
         return QuestionType.ENTITY
 
@@ -527,6 +533,12 @@ class QuestionClassifier:
             )
         )
 
+    def _first_time_orderable_predicate(self, predicates: List[str]) -> Optional[str]:
+        for predicate in predicates:
+            if predicate in self.TIME_ORDERABLE_PREDICATES:
+                return predicate
+        return None
+
     def _has_ordering_signal(self, question: str, predicates: List[str]) -> bool:
         return (
             any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS) or
@@ -537,12 +549,13 @@ class QuestionClassifier:
         return result.primary_type == QuestionType.LIST or result.target_entity_class is not None
 
     def _detect_ordering_attributes(self, question: str, result: ClassifiedQuestion) -> None:
-        if self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:first|earliest)\b", question):
-            result.ordering_attribute = "discovered"
+        temporal_predicate = self._first_time_orderable_predicate(result.major_predicates)
+        if temporal_predicate and self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:first|earliest)\b", question):
+            result.ordering_attribute = temporal_predicate
             result.order_direction = "ascending"
             return
-        if self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:last|latest|most\s+recently)\b", question):
-            result.ordering_attribute = "discovered"
+        if temporal_predicate and self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:last|latest|most\s+recently)\b", question):
+            result.ordering_attribute = temporal_predicate
             result.order_direction = "descending"
             return
 
