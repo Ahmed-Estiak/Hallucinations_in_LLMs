@@ -42,7 +42,7 @@ TIME_TOKEN_PATTERN = rf"(?:{MONTH_NAME_PATTERN}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,)
 PREDICATE_KEYWORDS = {
     "moon_count": {
         "keywords": [],
-        "pattern": rf"(?:how many|count of|number of|total number of)\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|how many\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}\s+.*(?:did|does)\s+.*have"
+        "pattern": rf"(?:how\s+many(?:\s+of\s+.+?)?\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN}|(?:count|number|total\s+number)\s+of\s+(?:officially\s+)?(?:confirmed\s+)?(?:known\s+)?{MOON_LIKE_BODY_PATTERN})"
     },
     "discovered_on": {
         "keywords": ["discovered", "discovery", "when discovered", "found", "when found", "discovery year", "found in"],
