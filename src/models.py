@@ -18,13 +18,8 @@ try:
 except ModuleNotFoundError:
     from config import OPENAI_API_KEY, GEMINI_API_KEY
 
-
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-if _GEMINI_SDK == "google-genai":
-    gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
-else:
-    legacy_genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = legacy_genai.GenerativeModel("gemini-2.5-flash")
+_openai_client = None
+_gemini_handle = None
 
 
 PROMPT_TEMPLATE = """
@@ -91,11 +86,53 @@ def _parse_split_questions(text: str, expected_parts: int) -> list[str]:
     return []
 
 
+def _load_api_keys() -> tuple[str, str]:
+    """Load API keys lazily so imports do not instantiate clients."""
+    return OPENAI_API_KEY, GEMINI_API_KEY
+
+
+def _get_openai_client():
+    """Get a lazily initialized OpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        openai_api_key, _ = _load_api_keys()
+        _openai_client = OpenAI(api_key=openai_api_key)
+    return _openai_client
+
+
+def _get_gemini_handle():
+    """Get a lazily initialized Gemini SDK handle."""
+    global _gemini_handle
+    if _gemini_handle is not None:
+        return _gemini_handle
+
+    _, gemini_api_key = _load_api_keys()
+    if _GEMINI_SDK == "google-genai":
+        _gemini_handle = google_genai.Client(api_key=gemini_api_key)
+    else:
+        legacy_genai.configure(api_key=gemini_api_key)
+        _gemini_handle = legacy_genai.GenerativeModel("gemini-2.5-flash")
+    return _gemini_handle
+
+
+def _generate_with_gemini(prompt: str) -> str:
+    """Generate text through Gemini behind one unified wrapper."""
+    gemini_handle = _get_gemini_handle()
+    if _GEMINI_SDK == "google-genai":
+        resp = gemini_handle.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+    else:
+        resp = gemini_handle.generate_content(prompt)
+    return resp.text.strip()
+
+
 def ask_openai(question):
     """Ask OpenAI with vanilla prompt (no KG facts)."""
     prompt = PROMPT_TEMPLATE.format(question=question)
 
-    resp = openai_client.responses.create(
+    resp = _get_openai_client().responses.create(
         model="gpt-5-mini",
         input=prompt
     )
@@ -106,14 +143,7 @@ def ask_openai(question):
 def ask_gemini(question):
     """Ask Gemini with vanilla prompt (no KG facts)."""
     prompt = PROMPT_TEMPLATE.format(question=question)
-    if _GEMINI_SDK == "google-genai":
-        resp = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-    else:
-        resp = gemini_model.generate_content(prompt)
-    return resp.text.strip()
+    return _generate_with_gemini(prompt)
 
 
 def split_multifield_question(question: str, expected_parts: int = 2) -> list[str]:
@@ -122,7 +152,7 @@ def split_multifield_question(question: str, expected_parts: int = 2) -> list[st
         question=question,
         expected_parts=expected_parts,
     )
-    resp = openai_client.responses.create(
+    resp = _get_openai_client().responses.create(
         model="gpt-5-mini",
         input=prompt
     )

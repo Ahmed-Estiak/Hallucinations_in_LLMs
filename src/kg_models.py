@@ -8,7 +8,7 @@ try:
     from google import genai as google_genai
     _GEMINI_SDK = "google-genai"
 except ImportError:
-    with warnings.catch_warnings():
+    with warnings.catch_warnings(): 
         warnings.simplefilter("ignore", FutureWarning)
         import google.generativeai as legacy_genai
     google_genai = None
