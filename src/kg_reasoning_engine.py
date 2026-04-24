@@ -9,7 +9,7 @@ from src.question_classifier import (
     ClassifiedQuestion, QuestionType, TimeSemantic, LogicOperator, LogicalModifier
 )
 from src.question_parser import TIME_RANGE_SEPARATOR
-from src.time_utils import fact_matches_time, select_best_temporal_fact, latest_fact
+from src.time_utils import fact_matches_time, select_best_temporal_fact, latest_fact, time_window
 
 
 class KGReasoningEngine:
@@ -71,12 +71,13 @@ class KGReasoningEngine:
         return deduped
 
     def _get_candidate_entities(self, cq: ClassifiedQuestion) -> List[str]:
-        """Resolve candidate pool for list questions."""
-        if cq.list_target == "planets":
+        """Resolve candidate pool for list and entity-selection questions."""
+        pool_target = cq.target_entity_class or cq.list_target
+        if pool_target == "planets":
             return self._candidate_planets()
-        if cq.list_target == "dwarf_planets":
+        if pool_target == "dwarf_planets":
             return self._candidate_dwarf_planets()
-        if cq.list_target == "moons":
+        if pool_target == "moons":
             return self._candidate_moons()
         return []
 
@@ -174,14 +175,15 @@ class KGReasoningEngine:
         }]
 
     def _describe_list_target(self, cq: ClassifiedQuestion) -> str:
-        if cq.list_target == "planets":
+        pool_target = cq.target_entity_class or cq.list_target
+        if pool_target == "planets":
             for condition in cq.entity_filter_conditions:
                 if condition.get("attribute") == "planet_type" and condition.get("operator") == "==":
                     return f"{str(condition.get('value')).capitalize()} planets"
             return "Planets"
-        if cq.list_target == "dwarf_planets":
+        if pool_target == "dwarf_planets":
             return "Dwarf planets"
-        if cq.list_target == "moons":
+        if pool_target == "moons":
             return "Moons"
         return "Entities"
 
@@ -206,6 +208,15 @@ class KGReasoningEngine:
             except:
                 return None
         return None
+
+    def _extract_ordering_value(self, predicate: str, fact: Dict) -> Optional[float]:
+        """Return a comparable ordering value for numeric and date-like predicates."""
+        if predicate == "discovered_on":
+            window = time_window(fact.get("object"))
+            if window is None:
+                return None
+            return float(window[0])
+        return self._extract_numeric_value_or_none(fact.get("object"))
     
     def reason(self, classified_question: ClassifiedQuestion, 
                entities: List[str], 
@@ -223,6 +234,8 @@ class KGReasoningEngine:
         elif primary_type == QuestionType.ENTITY:
             if LogicalModifier.COMPARISON in classified_question.logical_modifiers:
                 return self._reasoning_comparison(classified_question, entities, predicates)
+            if classified_question.target_entity_class:
+                return self._reasoning_entity_from_candidate_pool(classified_question, entities, predicates)
             return self._reasoning_entity(classified_question, entities, predicates)
         elif primary_type == QuestionType.LIST:
             if LogicalModifier.ORDERING in classified_question.logical_modifiers and LogicalModifier.FILTER in classified_question.logical_modifiers:
@@ -299,6 +312,35 @@ class KGReasoningEngine:
 
         best = latest_fact(facts)
         return ([best] if best else facts[:1]), "entity_lookup"
+
+    def _reasoning_entity_from_candidate_pool(self, cq: ClassifiedQuestion,
+                                              entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
+        """Select one entity from a target class using shared filter/order candidate-pool logic."""
+        if LogicalModifier.ORDERING in cq.logical_modifiers and LogicalModifier.FILTER in cq.logical_modifiers:
+            derived_result, strategy = self._reasoning_list_filter_and_order(cq, entities, predicates)
+        elif LogicalModifier.ORDERING in cq.logical_modifiers or cq.ordering_attribute:
+            derived_result, strategy = self._reasoning_ordered_list(cq, entities, predicates)
+        elif cq.entity_filter_conditions:
+            derived_result, strategy = self._reasoning_entity_list(cq, entities, predicates)
+        else:
+            return self._reasoning_entity(cq, entities, predicates)
+
+        if not derived_result or not derived_result[0].get("_derived_result"):
+            return derived_result, strategy
+
+        result = derived_result[0]
+        derived_entities = result.get("entities", [])
+        if not derived_entities:
+            return [], strategy
+
+        selected_entity = derived_entities[0]
+        title = f"Selected {self._describe_list_target(cq).rstrip('s').lower()}"
+        return self._build_derived_result_fact(
+            title,
+            [selected_entity],
+            result.get("supporting_facts", []),
+            f"{strategy}_entity_selection",
+        ), f"{strategy}_entity_selection"
     
     def _reasoning_entity_list(self, cq: ClassifiedQuestion,
                               entities: List[str], predicates: List[str]) -> Tuple[List[Dict], str]:
@@ -404,11 +446,11 @@ class KGReasoningEngine:
             fact = self._latest_fact_for(entity, ordering_attr, cq)
             if not fact:
                 continue
-            numeric_value = self._extract_numeric_value_or_none(fact.get("object"))
-            if numeric_value is None:
+            ordering_value = self._extract_ordering_value(ordering_attr, fact)
+            if ordering_value is None:
                 continue
             supporting_facts.append(fact)
-            sortable_rows.append((entity, fact, numeric_value))
+            sortable_rows.append((entity, fact, ordering_value))
 
         sortable_rows.sort(
             key=lambda item: item[2],
@@ -440,18 +482,18 @@ class KGReasoningEngine:
             fact = self._latest_fact_for(entity, ordering_attr, cq)
             if not fact:
                 continue
-            numeric_value = self._extract_numeric_value_or_none(fact.get("object"))
-            if numeric_value is None:
+            ordering_value = self._extract_ordering_value(ordering_attr, fact)
+            if ordering_value is None:
                 continue
             supporting_facts.append(fact)
-            sortable_rows.append((entity, fact, numeric_value))
+            sortable_rows.append((entity, fact, ordering_value))
         sortable_rows.sort(
             key=lambda item: item[2],
             reverse=(cq.order_direction == "descending")
         )
         ordered_entities = [entity for entity, _, _ in sortable_rows]
         order_text = "decreasing" if cq.order_direction == "descending" else "increasing"
-        title = f"Filtered {self._describe_list_target(cq).lower()} ordered by {order_text} {ordering_attr}"
+        title = f"Filtered {self._describe_list_target(cq).lower()} ordered by {order_text} {self._describe_ordering_attribute(ordering_attr)}"
         strategy = f"list_filter_and_order_by_{ordering_attr}"
         return self._build_derived_result_fact(
             title,

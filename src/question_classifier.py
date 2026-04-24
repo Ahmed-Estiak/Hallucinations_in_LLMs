@@ -83,6 +83,7 @@ class ClassifiedQuestion:
     order_direction: str = "ascending"
     comparison_operator: Optional[str] = None
     list_target: Optional[str] = None
+    target_entity_class: Optional[str] = None
     entity_filter_conditions: List[Dict] = field(default_factory=list)
     boolean_keyword: Optional[str] = None
     confidence: float = 1.0
@@ -237,6 +238,7 @@ class QuestionClassifier:
         self._derive_major_helper_signals(question, question_lower, result)
         self._detect_multi_field(question_lower, result)
         self._classify_primary_type(question_lower, result)
+        self._detect_target_entity_class(result, question_lower)
         self._detect_logical_modifiers(question_lower, result)
         self._detect_special_attributes(question_lower, result)
         self._finalize(result)
@@ -494,7 +496,7 @@ class QuestionClassifier:
             result.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
 
         if result.primary_type != QuestionType.BOOLEAN:
-            has_ordering = any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS)
+            has_ordering = self._has_ordering_signal(question)
             has_comparison = any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS)
             has_filter = any(re.search(pattern, question) for pattern in self.FILTER_PATTERNS)
 
@@ -502,18 +504,42 @@ class QuestionClassifier:
                 result.logical_modifiers.append(LogicalModifier.ORDERING)
             if has_comparison:
                 result.logical_modifiers.append(LogicalModifier.COMPARISON)
-            if result.primary_type == QuestionType.LIST and (has_filter or result.logic_operator == LogicOperator.AND):
+            if self._supports_candidate_pool_reasoning(result) and (has_filter or result.logic_operator == LogicOperator.AND):
                 result.logical_modifiers.append(LogicalModifier.FILTER)
 
     def _detect_special_attributes(self, question: str, result: ClassifiedQuestion) -> None:
         self._detect_ordering_attributes(question, result)
         self._detect_comparison_operator(question, result)
         self._detect_boolean_value(question, result)
-        if result.primary_type == QuestionType.LIST:
+        self._detect_target_entity_class(result, question)
+        if self._supports_candidate_pool_reasoning(result):
             self._detect_list_target(result, question)
             self._detect_list_filter_conditions(question, result)
 
+    def _has_ordering_signal(self, question: str) -> bool:
+        return (
+            any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS) or
+            bool(
+                re.search(
+                    r"\b(?:discovered\s+(?:first|earliest|last|latest)|first\s+discovered|last\s+discovered|earliest\s+discovered|latest\s+discovered|most\s+recently\s+discovered)\b",
+                    question,
+                )
+            )
+        )
+
+    def _supports_candidate_pool_reasoning(self, result: ClassifiedQuestion) -> bool:
+        return result.primary_type == QuestionType.LIST or result.target_entity_class is not None
+
     def _detect_ordering_attributes(self, question: str, result: ClassifiedQuestion) -> None:
+        if re.search(r"\b(?:discovered\s+(?:first|earliest)|first\s+discovered|earliest\s+discovered)\b", question):
+            result.ordering_attribute = "discovered"
+            result.order_direction = "ascending"
+            return
+        if re.search(r"\b(?:discovered\s+(?:last|latest)|last\s+discovered|latest\s+discovered|most\s+recently\s+discovered)\b", question):
+            result.ordering_attribute = "discovered"
+            result.order_direction = "descending"
+            return
+
         for attr, pattern in self.ORDERING_KEYWORDS.items():
             if re.search(pattern, question):
                 result.ordering_attribute = attr
@@ -547,6 +573,19 @@ class QuestionClassifier:
             result.list_target = "planets"
         elif re.search(r"\b(?:moons|satellites)\b", question):
             result.list_target = "moons"
+
+    def _detect_target_entity_class(self, result: ClassifiedQuestion, question: str) -> None:
+        if result.primary_type != QuestionType.ENTITY:
+            return
+        if self._looks_like_comparison(question) and len(result.major_entities) >= 2:
+            return
+
+        if re.search(r"\b(?:which|what)\s+dwarf\s+planet\b|\bname\s+(?:the|a)\s+dwarf\s+planet\b", question):
+            result.target_entity_class = "dwarf_planets"
+        elif re.search(r"\b(?:which|what)\s+planet\b|\bname\s+(?:the|a)\s+planet\b", question):
+            result.target_entity_class = "planets"
+        elif re.search(r"\b(?:which|what)\s+(?:moon|satellite)\b|\bname\s+(?:the|a)\s+(?:moon|satellite)\b", question):
+            result.target_entity_class = "moons"
 
     def _detect_list_filter_conditions(self, question: str, result: ClassifiedQuestion) -> None:
         if LogicalModifier.FILTER in result.logical_modifiers:
