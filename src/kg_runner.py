@@ -199,6 +199,15 @@ def _query_models(question, kg_facts_text=None, time_constraint=None):
     return openai_answer, gemini_answer
 
 
+def _determine_kg_context_mode(context):
+    """Classify the KG context style that was prepared for this question."""
+    if context["derived_result_available"]:
+        return "derived_reasoning"
+    if context["kg_facts"]:
+        return "raw_retrieval"
+    return "no_kg"
+
+
 def _answer_single_question(question, question_classifier, kg_retriever, kg_reasoning_engine,
                             time_semantic_override=None, time_constraint_override=None):
     """Answer one question using the same KG-or-fallback flow as the main benchmark."""
@@ -212,8 +221,11 @@ def _answer_single_question(question, question_classifier, kg_retriever, kg_reas
     )
     classified_q = context["classified_q"]
     should_use_kg = _should_use_kg_context(classified_q)
+    kg_prompt_used = should_use_kg and context["kg_found"] and _has_comprehensive_kg_context(context)
+    context["kg_prompt_used"] = kg_prompt_used
+    context["kg_context_mode"] = _determine_kg_context_mode(context)
 
-    if should_use_kg and context["kg_found"] and _has_comprehensive_kg_context(context):
+    if kg_prompt_used:
         openai_answer, gemini_answer = _query_models(
             question,
             kg_facts_text=context["kg_facts_text"],
@@ -280,6 +292,8 @@ def _answer_multifield_question(question, classified_q, time_constraint, questio
             "sub_question": sub_question,
             "strategy": sub_context["reasoning_strategy"],
             "primary_type": sub_context["classified_q"].primary_type.name,
+            "kg_prompt_used": sub_context.get("kg_prompt_used", False),
+            "kg_context_mode": sub_context.get("kg_context_mode", "no_kg"),
         })
 
     return {
@@ -317,6 +331,8 @@ def _build_result_row(q, ground_truth, context, vanilla_row, openai_kg_ans, gemi
         "logical_modifiers": json.dumps(logical_modifiers, ensure_ascii=False),
         "reasoning_strategy": reasoning_strategy,
         "multifield_split_source": multifield_split_source,
+        "kg_prompt_used": context.get("kg_prompt_used", False),
+        "kg_context_mode": context.get("kg_context_mode", _determine_kg_context_mode(context)),
         "kg_found": kg_found,
         "kg_facts_count": len(context["kg_facts"]),
         "retrieval_limit": context["retrieval_limit"],
@@ -433,13 +449,18 @@ def run_kg_benchmark():
             reasoning_strategy = multifield_result["reasoning_strategy"]
             multifield_split_source = multifield_result["multifield_split_source"]
             kg_found = multifield_result["kg_found"]
+            context["kg_prompt_used"] = True
+            context["kg_context_mode"] = "multifield_split"
             if kg_found and not context["kg_found"]:
                 kg_found_count += 1
             gemini_call_counter += multifield_result["gemini_calls"]
         else:
             multifield_split_source = "not_multifield"
             should_use_kg = _should_use_kg_context(classified_q)
-            if should_use_kg and kg_found and _has_comprehensive_kg_context(context):
+            kg_prompt_used = should_use_kg and kg_found and _has_comprehensive_kg_context(context)
+            context["kg_prompt_used"] = kg_prompt_used
+            context["kg_context_mode"] = _determine_kg_context_mode(context)
+            if kg_prompt_used:
                 openai_kg_ans, gemini_kg_ans = _query_models(
                     question,
                     kg_facts_text=context["kg_facts_text"],
