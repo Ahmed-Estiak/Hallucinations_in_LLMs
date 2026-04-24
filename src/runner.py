@@ -1,8 +1,12 @@
 import json
 import time
 from pathlib import Path
+import sys
 
 import pandas as pd
+
+# Add workspace root to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models import ask_openai, ask_gemini
 from src.evaluator import evaluate_answer
