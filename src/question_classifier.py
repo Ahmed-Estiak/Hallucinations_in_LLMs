@@ -195,6 +195,7 @@ class QuestionClassifier:
         "discovered": r"(?:discovery\s+date|discovery\s+year|when\s+discovered)",
         "moons": r"(?:moons|moon\s+count|satellites)",
     }
+    TIME_ORDERABLE_PREDICATES = {"discovered_on"}
 
     COMPARISON_KEYWORDS = {
         ">": ["greater", "larger", "heavier", "farther"],
@@ -496,7 +497,7 @@ class QuestionClassifier:
             result.logical_modifiers.append(LogicalModifier.TIME_LOOKUP)
 
         if result.primary_type != QuestionType.BOOLEAN:
-            has_ordering = self._has_ordering_signal(question)
+            has_ordering = self._has_ordering_signal(question, result.major_predicates)
             has_comparison = any(re.search(pattern, question) for pattern in self.COMPARISON_PATTERNS)
             has_filter = any(re.search(pattern, question) for pattern in self.FILTER_PATTERNS)
 
@@ -516,26 +517,31 @@ class QuestionClassifier:
             self._detect_list_target(result, question)
             self._detect_list_filter_conditions(question, result)
 
-    def _has_ordering_signal(self, question: str) -> bool:
+    def _has_temporal_ordering_signal(self, question: str, predicates: List[str]) -> bool:
+        if not any(predicate in self.TIME_ORDERABLE_PREDICATES for predicate in predicates):
+            return False
+        return bool(
+            re.search(
+                r"\b(?:first|earliest|last|latest|most\s+recently)\b",
+                question,
+            )
+        )
+
+    def _has_ordering_signal(self, question: str, predicates: List[str]) -> bool:
         return (
             any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS) or
-            bool(
-                re.search(
-                    r"\b(?:discovered\s+(?:first|earliest|last|latest)|first\s+discovered|last\s+discovered|earliest\s+discovered|latest\s+discovered|most\s+recently\s+discovered)\b",
-                    question,
-                )
-            )
+            self._has_temporal_ordering_signal(question, predicates)
         )
 
     def _supports_candidate_pool_reasoning(self, result: ClassifiedQuestion) -> bool:
         return result.primary_type == QuestionType.LIST or result.target_entity_class is not None
 
     def _detect_ordering_attributes(self, question: str, result: ClassifiedQuestion) -> None:
-        if re.search(r"\b(?:discovered\s+(?:first|earliest)|first\s+discovered|earliest\s+discovered)\b", question):
+        if self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:first|earliest)\b", question):
             result.ordering_attribute = "discovered"
             result.order_direction = "ascending"
             return
-        if re.search(r"\b(?:discovered\s+(?:last|latest)|last\s+discovered|latest\s+discovered|most\s+recently\s+discovered)\b", question):
+        if self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:last|latest|most\s+recently)\b", question):
             result.ordering_attribute = "discovered"
             result.order_direction = "descending"
             return
