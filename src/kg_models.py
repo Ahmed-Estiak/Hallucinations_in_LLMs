@@ -19,13 +19,8 @@ try:
 except ModuleNotFoundError:
     from config import OPENAI_API_KEY, GEMINI_API_KEY
 
-
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-if _GEMINI_SDK == "google-genai":
-    gemini_client = google_genai.Client(api_key=GEMINI_API_KEY)
-else:
-    legacy_genai.configure(api_key=GEMINI_API_KEY)
-    gemini_model = legacy_genai.GenerativeModel("gemini-2.5-flash")
+_openai_client = None
+_gemini_handle = None
 
 
 # KG-grounded prompt aligned with deterministic KG selection
@@ -69,44 +64,85 @@ def _build_kg_prompt(question: str, kg_facts_text: str, time_constraint: str = "
     )
 
 
-def ask_openai_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
-    """
-    Call OpenAI with KG-grounded prompt and sophisticated conflict resolution.
-    
-    Args:
-        question: The question to answer
-        kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
-        time_constraint: Time constraint from parsed question
-    
-    Returns:
-        answer string
-    """
-    prompt = _build_kg_prompt(question, kg_facts_text, time_constraint)
-    resp = openai_client.responses.create(
-        model="gpt-5-mini",
-        input=prompt
-    )
-    return resp.output_text.strip()
+def _load_api_keys() -> tuple[str, str]:
+    """Load API keys lazily so imports do not instantiate clients."""
+    return OPENAI_API_KEY, GEMINI_API_KEY
 
 
-def ask_gemini_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
-    """
-    Call Gemini with KG-grounded prompt and sophisticated conflict resolution.
-    
-    Args:
-        question: The question to answer
-        kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
-        time_constraint: Time constraint from parsed question
-    
-    Returns:
-        answer string
-    """
-    prompt = _build_kg_prompt(question, kg_facts_text, time_constraint)
+def _get_openai_client():
+    """Get a lazily initialized OpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        openai_api_key, _ = _load_api_keys()
+        _openai_client = OpenAI(api_key=openai_api_key)
+    return _openai_client
+
+
+def _get_gemini_handle():
+    """Get a lazily initialized Gemini SDK handle."""
+    global _gemini_handle
+    if _gemini_handle is not None:
+        return _gemini_handle
+
+    _, gemini_api_key = _load_api_keys()
     if _GEMINI_SDK == "google-genai":
-        resp = gemini_client.models.generate_content(
+        _gemini_handle = google_genai.Client(api_key=gemini_api_key)
+    else:
+        legacy_genai.configure(api_key=gemini_api_key)
+        _gemini_handle = legacy_genai.GenerativeModel("gemini-2.5-flash")
+    return _gemini_handle
+
+
+def _generate_with_gemini(prompt: str) -> str:
+    """Generate text through Gemini behind one unified wrapper."""
+    gemini_handle = _get_gemini_handle()
+    if _GEMINI_SDK == "google-genai":
+        resp = gemini_handle.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
         )
     else:
-        resp = gemini_model.generate_content(prompt)
+        resp = gemini_handle.generate_content(prompt)
     return resp.text.strip()
+
+
+def _ask_with_kg(model_name: str, question: str, kg_facts_text: str, time_constraint: str = "") -> str:
+    """Shared KG-grounded prompt flow for one model family."""
+    prompt = _build_kg_prompt(question, kg_facts_text, time_constraint)
+    if model_name == "openai":
+        resp = _get_openai_client().responses.create(
+            model="gpt-5-mini",
+            input=prompt
+        )
+        return resp.output_text.strip()
+    return _generate_with_gemini(prompt)
+
+
+def ask_openai_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
+    """
+    Call OpenAI with a KG-grounded prompt.
+    
+    Args:
+        question: The question to answer
+        kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
+        time_constraint: Time constraint from parsed question
+    
+    Returns:
+        answer string
+    """
+    return _ask_with_kg("openai", question, kg_facts_text, time_constraint)
+
+
+def ask_gemini_with_kg(question: str, kg_facts_text: str, time_constraint: str = "") -> str:
+    """
+    Call Gemini with a KG-grounded prompt.
+    
+    Args:
+        question: The question to answer
+        kg_facts_text: Formatted KG facts string (from kg_retriever.format_facts_for_prompt)
+        time_constraint: Time constraint from parsed question
+    
+    Returns:
+        answer string
+    """
+    return _ask_with_kg("gemini", question, kg_facts_text, time_constraint)
