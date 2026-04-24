@@ -39,7 +39,10 @@ Rules:
   - as of / by: use the latest valid fact at or before that time
   - before: use the latest fact before that time
   - after: use the earliest fact after that time
-- If the context is insufficient, use your best knowledge but do not invent extra unsupported details.
+- Prefer the provided knowledge graph context when it is directly relevant and temporally appropriate for the question.
+- If the provided context appears insufficient, not truly relevant, or temporally too distant for the question, use your best knowledge instead.
+- If the context and your background knowledge appear to conflict, prefer the answer that is better supported by question-relevant evidence.
+- Do not invent unsupported facts or add extra details beyond the answer.
 - Output only the final answer.
 - Do not explain.
 - Do not add labels, quotation marks, or extra words.
