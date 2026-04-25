@@ -54,7 +54,7 @@ kg_reasoning_engine = KGReasoningEngine()
 ### 3. Compilation & Testing Status
 
 ✅ **Compilation**: Both modules compile without errors
-✅ **Integration Test**: Successfully validated with test_integration.py
+✅ **Integration Test**: Successfully validated with scripts/test_integration.py
 ✅ **Classification**: All 8 question types properly detected
 ✅ **Reasoning**: Engine returns facts and strategy names
 ✅ **Formatting**: format_reasoned_facts() produces readable output
@@ -130,7 +130,7 @@ Question Input
   - Time matching with semantic interpretation
   - Numeric extraction and sorting
 
-- ✅ [test_integration.py](test_integration.py)
+- ✅ [scripts/test_integration.py](../scripts/test_integration.py)
   - Demonstrates full pipeline integration
   - Tests on first 3 questions
   - Shows classification and reasoning output
