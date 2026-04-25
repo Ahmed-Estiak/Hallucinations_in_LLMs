@@ -25,7 +25,7 @@ def _serialize_ground_truth(answer_spec):
 def run_benchmark():
     start_time = time.time()
 
-    with open("data/qa_92.json") as f:
+    with open("data/qa_92.json", "r", encoding="utf-8") as f:
         questions = json.load(f)
 
     results = []

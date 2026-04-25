@@ -70,6 +70,7 @@ def _prepare_question_context(question, question_classifier, kg_retriever, kg_re
     time_constraint = parsed["time_constraint"]
 
     classified_q = question_classifier.classify(question)
+
     if time_semantic_override is not None and time_constraint_override is not None:
         classified_q.has_time_constraint = True
         classified_q.time_semantic = time_semantic_override
@@ -405,7 +406,7 @@ def _save_partial_results(results):
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
     start_time = time.time()
-    with open("data/qa_92.json") as f:
+    with open("data/qa_92.json", "r", encoding="utf-8") as f:
         questions = json.load(f)
 
     total_questions = len(questions)
