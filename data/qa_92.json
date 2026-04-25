@@ -148,7 +148,7 @@
     "question": "As of November 2021, how many confirmed moons did Saturn have?",
     "answer_spec": {
       "kind": "single_number",
-      "value": 82
+      "value": 83
     },
     "entities": ["Saturn"],
     "type": "numeric"
