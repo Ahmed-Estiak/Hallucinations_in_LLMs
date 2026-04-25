@@ -48,7 +48,7 @@
     "question": "Before 1980, how many of Saturn’s moons had been officially confirmed?",
     "answer_spec": {
       "kind": "single_number",
-      "value": 17
+      "value": 10
     },
     "entities": ["Saturn"],
     "type": "numeric"
@@ -58,7 +58,7 @@
     "question": "As of May 2023, what was the number of confirmed moons orbiting Saturn?",
     "answer_spec": {
       "kind": "single_number",
-      "value": 145
+      "value": 146
     },
     "entities": ["Saturn"],
     "type": "numeric"

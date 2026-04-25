@@ -943,7 +943,7 @@
   {
     "subject": "Saturn",
     "predicate": "moon_count",
-    "object": 11,
+    "object": 10,
     "time": "1979-12",
     "source": "https://www.britannica.com/place/moons-of-Saturn-2237282"
   },
@@ -992,7 +992,7 @@
   {
     "subject": "Saturn",
     "predicate": "moon_count",
-    "object": 145,
+    "object": 146,
     "time": "2023-05",
     "source": "https://en.wikipedia.org/wiki/Moons_of_Saturn"
   },
