@@ -141,6 +141,21 @@ def extract_entities(question: str) -> List[str]:
     return entities
 
 
+def _repair_possessive_moon_entity_fallback(question: str, entities: List[str]) -> List[str]:
+    """
+    Prefer a named possessor over fallback moon entities in phrases like
+    "Saturn's moons" or "Saturn’s moons".
+    """
+    if not entities or entities == ["Moons"] or entities == ["Moon"]:
+        question_normalized = question.replace("’", "'").replace("‘", "'")
+        possessive_match = re.search(r"\b([A-Z][A-Za-z]+)'s\s+moons?\b", question_normalized)
+        if possessive_match:
+            possessor = possessive_match.group(1)
+            if possessor in PRIMARY_KNOWN_ENTITIES:
+                return [possessor]
+    return entities
+
+
 def extract_time_constraint(question: str) -> Optional[str]:
     """
     Extract time constraint from question.
@@ -274,9 +289,10 @@ def parse_question(question: str) -> Dict[str, any]:
             "time_constraint": Optional[str]
         }
     """
+    entities = _repair_possessive_moon_entity_fallback(question, extract_entities(question))
     return {
         "question": question,
-        "entities": extract_entities(question),
+        "entities": entities,
         "predicates": infer_predicates(question),
         "time_constraint": extract_time_constraint(question)
     }
