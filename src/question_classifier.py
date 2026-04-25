@@ -195,7 +195,7 @@ class QuestionClassifier:
         "discovered": r"(?:discovery\s+date|discovery\s+year|when\s+discovered)",
         "moons": r"(?:moons|moon\s+count|satellites)",
     }
-    TIME_ORDERABLE_PREDICATES = {"discovered_on", "recognized_on", "confirmed_on", "first_observed_on"}
+    TIME_ORDERABLE_PREDICATES = {"discovered_on", "recognized_on", "first_observed_on"}
 
     COMPARISON_KEYWORDS = {
         ">": ["greater", "larger", "heavier", "farther"],
@@ -210,7 +210,6 @@ class QuestionClassifier:
         "discovered_on",
         "discovered_by",
         "recognized_on",
-        "confirmed_on",
         "first_observed_on",
         "mass",
         "distance_from_sun",
@@ -225,7 +224,6 @@ class QuestionClassifier:
         "discovered_on": "In what year was {entity} discovered?",
         "discovered_by": "Who discovered {entity}?",
         "recognized_on": "In what year was {entity} recognized?",
-        "confirmed_on": "In what year was {entity} confirmed?",
         "first_observed_on": "In what year was {entity} first observed?",
         "mass": "What is the mass of {entity}?",
         "distance_from_sun": "What is {entity}'s distance from the Sun?",
@@ -440,7 +438,7 @@ class QuestionClassifier:
     def _predicate_answer_type(self, predicate: str) -> QuestionType:
         # Numeric outputs are routed through COUNT even when they represent
         # a year-like value such as discovered_on.
-        if predicate in {"moon_count", "discovered_on", "recognized_on", "confirmed_on", "first_observed_on"}:
+        if predicate in {"moon_count", "discovered_on", "recognized_on", "first_observed_on"}:
             return QuestionType.COUNT
         return QuestionType.ENTITY
 

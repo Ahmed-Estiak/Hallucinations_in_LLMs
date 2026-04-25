@@ -56,10 +56,6 @@ PREDICATE_KEYWORDS = {
         "keywords": ["recognized on", "recognized when", "when recognized", "recognition date", "recognition year", "officially recognized"],
         "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?recognized|(?:officially\s+)?recognized\s+.*\bwhen\b|\brecognition\s+(?:date|year)\b"
     },
-    "confirmed_on": {
-        "keywords": ["confirmed on", "confirmed when", "when confirmed", "confirmation date", "confirmation year", "officially confirmed"],
-        "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?confirmed|(?:officially\s+)?confirmed\s+.*\bwhen\b|\bconfirmation\s+(?:date|year)\b"
-    },
     "first_observed_on": {
         "keywords": ["first observed", "first observation", "when first observed", "observation date", "observation year", "first seen"],
         "pattern": r"(?:when|what year|which year|in what year)\s+(?:was\s+)?(?:.*\s+)?(?:first\s+observed|first\s+seen|observed)|(?:first\s+observed|first\s+seen)\s+.*\bwhen\b|\b(?:first\s+)?observation\s+(?:date|year)\b"
