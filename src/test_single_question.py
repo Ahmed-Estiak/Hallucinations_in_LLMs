@@ -20,6 +20,7 @@ from src.kg_runner import (
 from src.kg_retriever import KGRetriever
 from src.kg_reasoning_engine import KGReasoningEngine
 from src.question_classifier import QuestionClassifier
+from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
 
 
 def _load_question(question_id: int) -> dict:
@@ -31,8 +32,6 @@ def _load_question(question_id: int) -> dict:
             return question
 
     raise ValueError(f"Question ID {question_id} not found in data/qa_92.json")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one question through vanilla and KG paths.")
     parser.add_argument("--id", type=int, default=5, help="Question ID from data/qa_92.json (default: 5)")
@@ -72,8 +71,6 @@ def main() -> None:
 
     print("Running KG-grounded answers...")
     if kg_prompt_used:
-        from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
-
         openai_kg = ask_openai_with_kg(question, context["kg_facts_text"], context["time_constraint"])
         gemini_kg = ask_gemini_with_kg(question, context["kg_facts_text"], context["time_constraint"])
     else:

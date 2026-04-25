@@ -289,10 +289,9 @@ def parse_question(question: str) -> Dict[str, any]:
             "time_constraint": Optional[str]
         }
     """
-    entities = _repair_possessive_moon_entity_fallback(question, extract_entities(question))
     return {
         "question": question,
-        "entities": entities,
+        "entities": extract_entities(question),
         "predicates": infer_predicates(question),
         "time_constraint": extract_time_constraint(question)
     }
