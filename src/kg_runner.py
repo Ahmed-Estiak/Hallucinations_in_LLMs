@@ -404,6 +404,7 @@ def _save_partial_results(results):
 
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
+    start_time = time.time()
     with open("data/qa_92.json") as f:
         questions = json.load(f)
 
@@ -505,7 +506,7 @@ def run_kg_benchmark():
                 )
             )
 
-            if gemini_call_counter > 0 and gemini_call_counter % 4 == 0:
+            if gemini_call_counter > 0 and gemini_call_counter % 4 == 0 and index < total_questions:
                 print("  [Waiting 60s for Gemini rate limit]")
                 time.sleep(60)
         except Exception as exc:
@@ -526,6 +527,8 @@ def run_kg_benchmark():
         gemini_kg_correct,
         results,
     )
+    elapsed_seconds = time.time() - start_time
+    print(f"Total runtime: {elapsed_seconds:.2f} seconds ({elapsed_seconds / 60:.2f} minutes)")
 
 
 if __name__ == "__main__":

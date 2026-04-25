@@ -23,6 +23,7 @@ def _serialize_ground_truth(answer_spec):
 
 
 def run_benchmark():
+    start_time = time.time()
 
     with open("data/qa_92.json") as f:
         questions = json.load(f)
@@ -79,7 +80,7 @@ def run_benchmark():
 
         gemini_counter += 1
 
-        if gemini_counter % 4 == 0:
+        if gemini_counter % 4 == 0 and index < total_questions:
 
             print("Waiting 60 seconds for Gemini rate limit")
             time.sleep(60)
@@ -101,6 +102,8 @@ def run_benchmark():
         f"({(gemini_correct_count / total_questions) * 100:.2f}%), "
         f"manual_check: {gemini_manual_check_count}"
     )
+    elapsed_seconds = time.time() - start_time
+    print(f"Total runtime: {elapsed_seconds:.2f} seconds ({elapsed_seconds / 60:.2f} minutes)")
     print("Benchmark finished")
 
 
