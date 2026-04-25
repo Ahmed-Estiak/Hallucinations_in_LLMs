@@ -37,8 +37,11 @@ def run_benchmark():
     gemini_correct_count = 0
     openai_manual_check_count = 0
     gemini_manual_check_count = 0
+    openai_total_time = 0.0
+    gemini_total_time = 0.0
 
     for index, q in enumerate(questions, start=1):
+        question_start_time = time.time()
 
         qid = q["id"]
         question = q["question"]
@@ -48,9 +51,15 @@ def run_benchmark():
 
         print(f"Running: {qid} ({index}/{total_questions})")
 
+        openai_start_time = time.time()
         openai_ans = ask_openai(question)
+        openai_elapsed = time.time() - openai_start_time
+        openai_total_time += openai_elapsed
 
+        gemini_start_time = time.time()
         gemini_ans = ask_gemini(question)
+        gemini_elapsed = time.time() - gemini_start_time
+        gemini_total_time += gemini_elapsed
 
         openai_eval = evaluate_answer(q, openai_ans)
         gemini_eval = evaluate_answer(q, gemini_ans)
@@ -78,6 +87,13 @@ def run_benchmark():
             "gemini_eval": json.dumps(gemini_eval, ensure_ascii=False),
         })
 
+        question_elapsed = time.time() - question_start_time
+        print(
+            f"  Timing -> OpenAI: {openai_elapsed:.2f}s, "
+            f"Gemini: {gemini_elapsed:.2f}s, "
+            f"Question total: {question_elapsed:.2f}s"
+        )
+
         gemini_counter += 1
 
         if gemini_counter % 4 == 0 and index < total_questions:
@@ -103,6 +119,11 @@ def run_benchmark():
         f"manual_check: {gemini_manual_check_count}"
     )
     elapsed_seconds = time.time() - start_time
+    print(
+        "Model time -> "
+        f"OpenAI: {openai_total_time:.2f}s, "
+        f"Gemini: {gemini_total_time:.2f}s"
+    )
     print(f"Total runtime: {elapsed_seconds:.2f} seconds ({elapsed_seconds / 60:.2f} minutes)")
     print("Benchmark finished")
 

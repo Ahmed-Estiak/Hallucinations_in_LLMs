@@ -191,13 +191,19 @@ def _should_use_kg_context(classified_q):
 
 def _query_models(question, kg_facts_text=None, time_constraint=None):
     """Query both models either with KG context or without it."""
+    openai_start = time.time()
     if kg_facts_text is not None:
         openai_answer = ask_openai_with_kg(question, kg_facts_text, time_constraint)
+        openai_elapsed = time.time() - openai_start
+        gemini_start = time.time()
         gemini_answer = ask_gemini_with_kg(question, kg_facts_text, time_constraint)
     else:
         openai_answer = ask_openai(question)
+        openai_elapsed = time.time() - openai_start
+        gemini_start = time.time()
         gemini_answer = ask_gemini(question)
-    return openai_answer, gemini_answer
+    gemini_elapsed = time.time() - gemini_start
+    return openai_answer, gemini_answer, openai_elapsed, gemini_elapsed
 
 
 def _determine_kg_context_mode(context):
@@ -227,15 +233,15 @@ def _answer_single_question(question, question_classifier, kg_retriever, kg_reas
     context["kg_context_mode"] = _determine_kg_context_mode(context)
 
     if kg_prompt_used:
-        openai_answer, gemini_answer = _query_models(
+        openai_answer, gemini_answer, openai_elapsed, gemini_elapsed = _query_models(
             question,
             kg_facts_text=context["kg_facts_text"],
             time_constraint=context["time_constraint"],
         )
     else:
-        openai_answer, gemini_answer = _query_models(question)
+        openai_answer, gemini_answer, openai_elapsed, gemini_elapsed = _query_models(question)
 
-    return context, openai_answer, gemini_answer
+    return context, openai_answer, gemini_answer, openai_elapsed, gemini_elapsed
 
 
 def _resolve_multifield_subquestions(question, classified_q):
@@ -273,11 +279,13 @@ def _answer_multifield_question(question, classified_q, time_constraint, questio
     gemini_parts = []
     field_strategies = []
     sub_kg_found = False
+    openai_total_elapsed = 0.0
+    gemini_total_elapsed = 0.0
     resolved_sub_questions, multifield_split_source = _resolve_multifield_subquestions(question, classified_q)
 
     for field_index, field_spec in enumerate(classified_q.fields):
         sub_question = resolved_sub_questions[field_index] if field_index < len(resolved_sub_questions) else field_spec.sub_question
-        sub_context, openai_part, gemini_part = _answer_single_question(
+        sub_context, openai_part, gemini_part, openai_elapsed, gemini_elapsed = _answer_single_question(
             sub_question,
             question_classifier,
             kg_retriever,
@@ -287,6 +295,8 @@ def _answer_multifield_question(question, classified_q, time_constraint, questio
         )
         openai_parts.append(openai_part)
         gemini_parts.append(gemini_part)
+        openai_total_elapsed += openai_elapsed
+        gemini_total_elapsed += gemini_elapsed
         sub_kg_found = sub_kg_found or sub_context["kg_found"]
         field_strategies.append({
             "field": field_spec.name,
@@ -305,6 +315,8 @@ def _answer_multifield_question(question, classified_q, time_constraint, questio
         "kg_found": sub_kg_found,
         "kg_facts_text": "MULTI_FIELD_SPLIT",
         "gemini_calls": len(classified_q.fields),
+        "openai_elapsed": openai_total_elapsed,
+        "gemini_elapsed": gemini_total_elapsed,
     }
 
 
@@ -426,11 +438,14 @@ def run_kg_benchmark():
     openai_kg_correct = 0
     gemini_kg_correct = 0
     kg_found_count = 0
+    openai_total_time = 0.0
+    gemini_total_time = 0.0
 
     print(f"Starting KG-integrated benchmark ({total_questions} questions)")
     print("=" * 80)
 
     for index, q in enumerate(questions, start=1):
+        question_start_time = time.time()
         qid = q["id"]
         question = q["question"]
         ground_truth = _serialize_ground_truth(q["answer_spec"])
@@ -462,6 +477,10 @@ def run_kg_benchmark():
                 kg_found = multifield_result["kg_found"]
                 context["kg_prompt_used"] = True
                 context["kg_context_mode"] = "multifield_split"
+                openai_elapsed = multifield_result["openai_elapsed"]
+                gemini_elapsed = multifield_result["gemini_elapsed"]
+                openai_total_time += openai_elapsed
+                gemini_total_time += gemini_elapsed
                 if kg_found and not context["kg_found"]:
                     kg_found_count += 1
                 gemini_call_counter += multifield_result["gemini_calls"]
@@ -472,13 +491,15 @@ def run_kg_benchmark():
                 context["kg_prompt_used"] = kg_prompt_used
                 context["kg_context_mode"] = _determine_kg_context_mode(context)
                 if kg_prompt_used:
-                    openai_kg_ans, gemini_kg_ans = _query_models(
+                    openai_kg_ans, gemini_kg_ans, openai_elapsed, gemini_elapsed = _query_models(
                         question,
                         kg_facts_text=context["kg_facts_text"],
                         time_constraint=context["time_constraint"],
                     )
                 else:
-                    openai_kg_ans, gemini_kg_ans = _query_models(question)
+                    openai_kg_ans, gemini_kg_ans, openai_elapsed, gemini_elapsed = _query_models(question)
+                openai_total_time += openai_elapsed
+                gemini_total_time += gemini_elapsed
                 gemini_call_counter += 1
 
             openai_kg_eval = evaluate_answer(q, openai_kg_ans)
@@ -507,6 +528,13 @@ def run_kg_benchmark():
                 )
             )
 
+            question_elapsed = time.time() - question_start_time
+            print(
+                f"  Timing -> OpenAI: {openai_elapsed:.2f}s, "
+                f"Gemini: {gemini_elapsed:.2f}s, "
+                f"Question total: {question_elapsed:.2f}s"
+            )
+
             if gemini_call_counter > 0 and gemini_call_counter % 4 == 0 and index < total_questions:
                 print("  [Waiting 60s for Gemini rate limit]")
                 time.sleep(60)
@@ -529,6 +557,11 @@ def run_kg_benchmark():
         results,
     )
     elapsed_seconds = time.time() - start_time
+    print(
+        "Model time -> "
+        f"OpenAI: {openai_total_time:.2f}s, "
+        f"Gemini: {gemini_total_time:.2f}s"
+    )
     print(f"Total runtime: {elapsed_seconds:.2f} seconds ({elapsed_seconds / 60:.2f} minutes)")
 
 
