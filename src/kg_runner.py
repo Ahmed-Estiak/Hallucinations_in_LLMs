@@ -393,6 +393,15 @@ def _print_benchmark_summary(total_questions, kg_found_count, vanilla_reused_cou
     print("=" * 80)
 
 
+def _save_partial_results(results):
+    """Persist partial benchmark output after an interruption or API failure."""
+    if not results:
+        return
+    partial_path = Path("results/results_with_kg_partial.csv")
+    pd.DataFrame(results).to_csv(partial_path, index=False)
+    print(f"Partial results saved to: {partial_path}")
+
+
 def run_kg_benchmark():
     """Run benchmark with KG integration and advanced question reasoning."""
     with open("data/qa_92.json") as f:
@@ -425,80 +434,84 @@ def run_kg_benchmark():
         ground_truth = _serialize_ground_truth(q["answer_spec"])
 
         print(f"[{index}/{total_questions}] Q{qid}: {question[:60]}...")
-
-        context = _prepare_question_context(question, question_classifier, kg_retriever, kg_reasoning_engine)
-        classified_q = context["classified_q"]
-        reasoning_strategy = context["reasoning_strategy"]
-        kg_found = context["kg_found"]
-        if kg_found:
-            kg_found_count += 1
-
-        vanilla_row = _get_vanilla_row(vanilla_data, qid)
-
-        if classified_q.primary_type == QuestionType.MULTI_FIELD and classified_q.fields:
-            multifield_result = _answer_multifield_question(
-                question,
-                classified_q,
-                context["time_constraint"],
-                question_classifier,
-                kg_retriever,
-                kg_reasoning_engine,
-            )
-            openai_kg_ans = multifield_result["openai_answer"]
-            gemini_kg_ans = multifield_result["gemini_answer"]
-            reasoning_strategy = multifield_result["reasoning_strategy"]
-            multifield_split_source = multifield_result["multifield_split_source"]
-            kg_found = multifield_result["kg_found"]
-            context["kg_prompt_used"] = True
-            context["kg_context_mode"] = "multifield_split"
-            if kg_found and not context["kg_found"]:
+        try:
+            context = _prepare_question_context(question, question_classifier, kg_retriever, kg_reasoning_engine)
+            classified_q = context["classified_q"]
+            reasoning_strategy = context["reasoning_strategy"]
+            kg_found = context["kg_found"]
+            if kg_found:
                 kg_found_count += 1
-            gemini_call_counter += multifield_result["gemini_calls"]
-        else:
-            multifield_split_source = "not_multifield"
-            should_use_kg = _should_use_kg_context(classified_q)
-            kg_prompt_used = should_use_kg and kg_found and _has_comprehensive_kg_context(context)
-            context["kg_prompt_used"] = kg_prompt_used
-            context["kg_context_mode"] = _determine_kg_context_mode(context)
-            if kg_prompt_used:
-                openai_kg_ans, gemini_kg_ans = _query_models(
+
+            vanilla_row = _get_vanilla_row(vanilla_data, qid)
+
+            if classified_q.primary_type == QuestionType.MULTI_FIELD and classified_q.fields:
+                multifield_result = _answer_multifield_question(
                     question,
-                    kg_facts_text=context["kg_facts_text"],
-                    time_constraint=context["time_constraint"],
+                    classified_q,
+                    context["time_constraint"],
+                    question_classifier,
+                    kg_retriever,
+                    kg_reasoning_engine,
                 )
+                openai_kg_ans = multifield_result["openai_answer"]
+                gemini_kg_ans = multifield_result["gemini_answer"]
+                reasoning_strategy = multifield_result["reasoning_strategy"]
+                multifield_split_source = multifield_result["multifield_split_source"]
+                kg_found = multifield_result["kg_found"]
+                context["kg_prompt_used"] = True
+                context["kg_context_mode"] = "multifield_split"
+                if kg_found and not context["kg_found"]:
+                    kg_found_count += 1
+                gemini_call_counter += multifield_result["gemini_calls"]
             else:
-                openai_kg_ans, gemini_kg_ans = _query_models(question)
-            gemini_call_counter += 1
+                multifield_split_source = "not_multifield"
+                should_use_kg = _should_use_kg_context(classified_q)
+                kg_prompt_used = should_use_kg and kg_found and _has_comprehensive_kg_context(context)
+                context["kg_prompt_used"] = kg_prompt_used
+                context["kg_context_mode"] = _determine_kg_context_mode(context)
+                if kg_prompt_used:
+                    openai_kg_ans, gemini_kg_ans = _query_models(
+                        question,
+                        kg_facts_text=context["kg_facts_text"],
+                        time_constraint=context["time_constraint"],
+                    )
+                else:
+                    openai_kg_ans, gemini_kg_ans = _query_models(question)
+                gemini_call_counter += 1
 
-        openai_kg_eval = evaluate_answer(q, openai_kg_ans)
-        gemini_kg_eval = evaluate_answer(q, gemini_kg_ans)
+            openai_kg_eval = evaluate_answer(q, openai_kg_ans)
+            gemini_kg_eval = evaluate_answer(q, gemini_kg_ans)
 
-        openai_kg_correct += int(bool(openai_kg_eval["is_correct"]))
-        gemini_kg_correct += int(bool(gemini_kg_eval["is_correct"]))
-        if qid in vanilla_data:
-            vanilla_reused_count += 1
-            openai_vanilla_correct += int(bool(vanilla_row["openai_is_correct"]))
-            gemini_vanilla_correct += int(bool(vanilla_row["gemini_is_correct"]))
+            openai_kg_correct += int(bool(openai_kg_eval["is_correct"]))
+            gemini_kg_correct += int(bool(gemini_kg_eval["is_correct"]))
+            if qid in vanilla_data:
+                vanilla_reused_count += 1
+                openai_vanilla_correct += int(bool(vanilla_row["openai_is_correct"]))
+                gemini_vanilla_correct += int(bool(vanilla_row["gemini_is_correct"]))
 
-        results.append(
-            _build_result_row(
-                q,
-                ground_truth,
-                context,
-                vanilla_row,
-                openai_kg_ans,
-                gemini_kg_ans,
-                openai_kg_eval,
-                gemini_kg_eval,
-                reasoning_strategy,
-                multifield_split_source,
-                kg_found,
+            results.append(
+                _build_result_row(
+                    q,
+                    ground_truth,
+                    context,
+                    vanilla_row,
+                    openai_kg_ans,
+                    gemini_kg_ans,
+                    openai_kg_eval,
+                    gemini_kg_eval,
+                    reasoning_strategy,
+                    multifield_split_source,
+                    kg_found,
+                )
             )
-        )
 
-        if gemini_call_counter > 0 and gemini_call_counter % 4 == 0:
-            print("  [Waiting 60s for Gemini rate limit]")
-            time.sleep(60)
+            if gemini_call_counter > 0 and gemini_call_counter % 4 == 0:
+                print("  [Waiting 60s for Gemini rate limit]")
+                time.sleep(60)
+        except Exception as exc:
+            print(f"  [Benchmark stopped at Q{qid}: {type(exc).__name__}: {exc}]")
+            _save_partial_results(results)
+            raise
 
     df = pd.DataFrame(results)
     df.to_csv("results/results_with_kg.csv", index=False)
