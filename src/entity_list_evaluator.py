@@ -4,10 +4,17 @@ from typing import Any, Dict, List, Optional, Set
 from src.entity_evaluator import evaluate_entity
 
 
+# Strip common answer wrappers before list parsing, while preserving a
+# manual_check signal because the answer was not a clean list.
 LEADING_NOISE_RE = re.compile(
     r"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*|^(?:the\s+answer\s+is|it\s+is|it's)\s+"
 )
+
+# Explicit separators are safer than splitting every "and", because entity names
+# can legitimately contain connector words.
 LIST_SEPARATOR_RE = re.compile(r"\s*,\s*|\s*;\s*|\s*\|\s*|\s*\n\s*")
+
+# Removes numbering and bullet markers from list items after splitting.
 ITEM_PREFIX_RE = re.compile(r"^(?:\d+[\).\:-]\s*|[-*]\s*)")
 
 
@@ -23,6 +30,9 @@ def normalize_text(text: Any) -> str:
 
 
 def _clean_item(text: str) -> str:
+    """
+    Remove list-item formatting noise and normalize internal spacing.
+    """
     text = ITEM_PREFIX_RE.sub("", text.strip())
     text = re.sub(r"^and\s+", "", text)
     text = re.sub(r"\s+", " ", text)
@@ -30,6 +40,12 @@ def _clean_item(text: str) -> str:
 
 
 def _split_rightmost_and(text: str, splits_needed: int) -> Optional[List[str]]:
+    """
+    Split a phrase on the rightmost "and" occurrences.
+
+    This is used only when the expected truth count tells us how many splits are
+    needed, reducing false splits inside entity names or descriptive text.
+    """
     parts = [text.strip()]
 
     for _ in range(splits_needed):
@@ -49,6 +65,12 @@ def _split_rightmost_and(text: str, splits_needed: int) -> Optional[List[str]]:
 
 
 def _normalize_list_items(text: str, expected_count: int) -> List[str]:
+    """
+    Convert a raw answer string into candidate list items.
+
+    Explicit separators are normalized first. If the list still has too few
+    items, the parser uses the expected truth count to split the tail on "and".
+    """
     text = re.sub(r"\s*;\s*", ", ", text)
     text = re.sub(r"\s*\|\s*", ", ", text)
     text = re.sub(r"\s*\n\s*", ", ", text)
@@ -60,6 +82,7 @@ def _normalize_list_items(text: str, expected_count: int) -> List[str]:
         text = re.sub(r",\s*and\s+", ", ", text)
         items = [_clean_item(item) for item in LIST_SEPARATOR_RE.split(text) if _clean_item(item)]
 
+        # Handles answers like "A, B and C" when three truth items are expected.
         if len(items) < expected_count and items:
             tail_splits_needed = expected_count - len(items)
             tail_parts = _split_rightmost_and(items[-1], tail_splits_needed)
@@ -68,6 +91,8 @@ def _normalize_list_items(text: str, expected_count: int) -> List[str]:
 
         return items
 
+    # For answers without explicit punctuation, only split on "and" when the
+    # expected item count makes the split unambiguous enough to attempt.
     and_splits_needed = max(expected_count - 1, 0)
     and_items = _split_rightmost_and(text, and_splits_needed)
     if and_items is not None and len(and_items) == expected_count:
@@ -78,6 +103,9 @@ def _normalize_list_items(text: str, expected_count: int) -> List[str]:
 
 
 def _parse_entity_list(answer: str, expected_count: int) -> Dict[str, Any]:
+    """
+    Parse a normalized answer into candidate list items and review metadata.
+    """
     normalized_answer = normalize_text(answer)
     stripped_answer = LEADING_NOISE_RE.sub("", normalized_answer)
     manual_check = stripped_answer != normalized_answer
@@ -93,6 +121,8 @@ def _parse_entity_list(answer: str, expected_count: int) -> Dict[str, Any]:
     if len(items) > 1:
         return {
             "items": items,
+            # Manual review is needed when parsing changed the visible answer
+            # beyond simply accepting an already normalized list.
             "manual_check": manual_check or normalize_text(", ".join(items)) != stripped_answer,
             "reason": "parsed_normalized_entity_list",
         }
@@ -109,7 +139,14 @@ def _match_unordered_items(
     predicted_items: List[str],
     truth_items: List[str],
 ) -> Optional[List[Dict[str, Any]]]:
+    """
+    Match predicted items to truth items without requiring the same order.
+
+    Each item is delegated to evaluate_entity, so single-entity normalization and
+    person-name variant rules stay consistent with the rest of the project.
+    """
     def backtrack(index: int, used_truth: Set[int], current_results: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        # Stop once every predicted item has a unique matching truth item.
         if index == len(predicted_items):
             return current_results
 
@@ -123,6 +160,8 @@ def _match_unordered_items(
             if not item_result["is_correct"]:
                 continue
 
+            # Try this pairing and continue searching for a full one-to-one
+            # assignment across the remaining predicted items.
             matched_result = backtrack(
                 index + 1,
                 used_truth | {truth_index},
@@ -146,6 +185,7 @@ def evaluate_entity_list(answer: Any, truth_value: List[str]) -> Dict[str, Any]:
     predicted_items = parsed_result["items"]
     manual_check = bool(parsed_result["manual_check"])
 
+    # Empty or unparsable lists cannot be matched automatically.
     if not predicted_items:
         return {
             "is_correct": False,
@@ -156,6 +196,8 @@ def evaluate_entity_list(answer: Any, truth_value: List[str]) -> Dict[str, Any]:
             "reason": parsed_result["reason"],
         }
 
+    # List answers must have the same number of entities before item-level
+    # matching is attempted.
     if len(predicted_items) != len(normalized_truth):
         return {
             "is_correct": False,
@@ -166,6 +208,8 @@ def evaluate_entity_list(answer: Any, truth_value: List[str]) -> Dict[str, Any]:
             "reason": "entity_list_length_not_matched",
         }
 
+    # Match against the original truth values so evaluate_entity can apply its
+    # own canonicalization and person-name matching rules.
     item_results = _match_unordered_items(predicted_items, truth_value)
     if item_results is None:
         return {
@@ -177,6 +221,8 @@ def evaluate_entity_list(answer: Any, truth_value: List[str]) -> Dict[str, Any]:
             "reason": "entity_list_not_matched",
         }
 
+    # Preserve manual_check if either the list parser or any item-level matcher
+    # saw formatting noise or ambiguity.
     combined_manual_check = manual_check or any(bool(result["manual_check"]) for result in item_results)
 
     return {
