@@ -15,14 +15,23 @@ def normalize_text(text: Any) -> str:
     return str(text).strip().lower()
 
 
+# Common answer wrappers are stripped before entity comparison, but they still
+# trigger manual_check because the answer was not a clean entity-only response.
 LEADING_NOISE_RE = re.compile(
     r"^(?:the\s+)?(?:final\s+answer|answer)\s*[:\-]\s*|^(?:the\s+answer\s+is|it\s+is|it's)\s+"
 )
+
+# Separators usually mean the response contains multiple candidate entities.
 MULTI_ENTITY_SEPARATOR_RE = re.compile(r",|;|\band\b|\bor\b|\s+/\s+")
+
+# These markers make embedded matches unsafe to score automatically.
 AMBIGUITY_MARKER_RE = re.compile(r"\b(?:not|never|maybe|perhaps|probably|possibly|or)\b|,|;|\s+/\s+")
 
 
 def _canonicalize_entity_text(text: str) -> str:
+    """
+    Normalize spacing and trim surrounding punctuation from an entity string.
+    """
     text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"^[\s'\"(\[]+", "", text)
     text = re.sub(r"[\s'\")\].,!?;:]+$", "", text)
@@ -30,15 +39,30 @@ def _canonicalize_entity_text(text: str) -> str:
 
 
 def _tokenize_person_name(text: str) -> list[str]:
+    """
+    Tokenize person names into lowercase alphabetic parts for flexible matching.
+    """
     return re.findall(r"[a-z]+", text)
 
 
 def _is_person_like_truth(text: str) -> bool:
+    """
+    Treat multi-token truth values as possible person names.
+
+    Person-like truths get extra matching for initials, reordered noise, and
+    embedded name spans, while single-token entities keep stricter matching.
+    """
     tokens = _tokenize_person_name(text)
     return len(tokens) >= 2 and " " in text
 
 
 def _can_match_given_tokens(candidate_tokens: list[str], truth_tokens: list[str]) -> bool:
+    """
+    Check whether candidate given-name tokens match the truth tokens.
+
+    A candidate token may be either the full token or a single-letter initial,
+    and each truth token can only be consumed once.
+    """
     unused_truth_tokens = truth_tokens[:]
 
     for candidate_token in candidate_tokens:
@@ -62,6 +86,12 @@ def _can_match_given_tokens(candidate_tokens: list[str], truth_tokens: list[str]
 
 
 def _match_person_name_variant(candidate_text: str, truth_text: str) -> Dict[str, Any]:
+    """
+    Match person-name variants that share the surname and compatible given names.
+
+    This handles cases like full names with initials, while surname-only matches
+    remain ambiguous and require manual review.
+    """
     candidate_tokens = _tokenize_person_name(candidate_text)
     truth_tokens = _tokenize_person_name(truth_text)
 
@@ -105,10 +135,19 @@ def _match_person_name_variant(candidate_text: str, truth_text: str) -> Dict[str
 
 
 def _has_ambiguity_markers(text: str) -> bool:
+    """
+    Detect markers that make an otherwise found entity span ambiguous.
+    """
     return bool(AMBIGUITY_MARKER_RE.search(text))
 
 
 def _find_exact_truth_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
+    """
+    Look for the full truth entity inside a longer answer.
+
+    Embedded exact matches are marked for manual review because surrounding text
+    can still negate, qualify, or list multiple entities.
+    """
     if not truth_text:
         return {
             "matched": False,
@@ -116,6 +155,7 @@ def _find_exact_truth_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
             "reason": "entity_not_matched",
         }
 
+    # Boundary checks avoid matching the truth inside a larger alphanumeric word.
     truth_pattern = re.compile(rf"(?<![a-z0-9]){re.escape(truth_text)}(?![a-z0-9])")
     if not truth_pattern.search(answer_text):
         return {
@@ -139,6 +179,12 @@ def _find_exact_truth_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
 
 
 def _find_person_name_variant_span(answer_text: str, truth_text: str) -> Dict[str, Any]:
+    """
+    Search longer answers for a person-name variant span.
+
+    Candidate windows are limited around the truth-name length so the matcher can
+    catch initials or small variants without accepting arbitrary long text.
+    """
     answer_tokens = _tokenize_person_name(answer_text)
     truth_tokens = _tokenize_person_name(truth_text)
 
@@ -153,6 +199,7 @@ def _find_person_name_variant_span(answer_text: str, truth_text: str) -> Dict[st
     min_window = 2
     max_window = min(len(answer_tokens), len(truth_tokens) + 1)
 
+    # Build contiguous token windows that could represent the person name.
     for window_size in range(min_window, max_window + 1):
         for start in range(len(answer_tokens) - window_size + 1):
             window_tokens = answer_tokens[start:start + window_size]
@@ -171,6 +218,8 @@ def _find_person_name_variant_span(answer_text: str, truth_text: str) -> Dict[st
             "reason": "entity_not_matched",
         }
 
+    # If more than one strongest span matches, the answer may contain multiple
+    # people or competing interpretations.
     max_match_length = max(len(match.split()) for match in matches)
     strongest_matches = {match for match in matches if len(match.split()) == max_match_length}
 
@@ -189,6 +238,12 @@ def _find_person_name_variant_span(answer_text: str, truth_text: str) -> Dict[st
 
 
 def _extract_entity_candidate(text: str) -> Dict[str, Optional[str]]:
+    """
+    Extract the best single entity candidate from a normalized answer.
+
+    Returns candidate=None for invalid or multi-entity answers, while preserving
+    manual_check and reason metadata for downstream scoring.
+    """
     canonical_text = _canonicalize_entity_text(text)
     if not canonical_text:
         return {
@@ -197,6 +252,7 @@ def _extract_entity_candidate(text: str) -> Dict[str, Optional[str]]:
             "reason": "invalid_entity_format",
         }
 
+    # Strip harmless leading answer labels but keep manual_check enabled.
     stripped_prefix = LEADING_NOISE_RE.sub("", canonical_text)
     if stripped_prefix != canonical_text:
         candidate = _canonicalize_entity_text(stripped_prefix)
@@ -206,6 +262,7 @@ def _extract_entity_candidate(text: str) -> Dict[str, Optional[str]]:
             "reason": "parsed_entity_with_formatting_noise",
         }
 
+    # Multiple entities are intentionally not reduced to the first item.
     if MULTI_ENTITY_SEPARATOR_RE.search(canonical_text):
         return {
             "candidate": None,
@@ -234,6 +291,8 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
     manual_check = bool(parsed_result["manual_check"])
     is_person_like_truth = _is_person_like_truth(normalized_truth)
 
+    # If no single clean candidate exists, only person-name variants get a
+    # limited fallback path; other entity types remain invalid/ambiguous.
     if candidate is None:
         if is_person_like_truth and parsed_result["reason"] == "ambiguous_multiple_entities":
             person_match_result = _match_person_name_variant(normalized_answer, normalized_truth)
@@ -256,6 +315,7 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
             "reason": str(parsed_result["reason"]),
         }
 
+    # Prefer exact canonical entity matches before trying fuzzy person-name paths.
     is_correct = candidate == normalized_truth
     should_manual_check = manual_check and (
         is_correct or str(parsed_result["reason"]) == "ambiguous_multiple_entities"
@@ -270,6 +330,8 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
             "reason": "matched",
         }
 
+    # Person names can be valid even when the canonical strings differ, such as
+    # "j k rowling" matching "joanne rowling".
     if not is_correct and is_person_like_truth:
         person_match_result = _match_person_name_variant(candidate, normalized_truth)
         if person_match_result["matched"]:
@@ -290,6 +352,8 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
                 "reason": str(person_match_result["reason"]),
             }
 
+    # Longer answers can still be correct if they contain the exact truth span,
+    # but they are always routed through manual_check because context matters.
     exact_span_result = _find_exact_truth_span(normalized_answer, normalized_truth)
     if exact_span_result["matched"]:
         return {
@@ -307,9 +371,10 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
             "normalized_answer": normalized_answer,
             "normalized_truth": normalized_truth,
             "reason": str(exact_span_result["reason"]),
-        }
+            }
 
     if is_person_like_truth:
+        # Final fallback for longer answers containing person-name variants.
         person_span_result = _find_person_name_variant_span(normalized_answer, normalized_truth)
         if person_span_result["matched"]:
             return {
@@ -329,6 +394,8 @@ def evaluate_entity(answer: Any, truth_value: str) -> Dict[str, Any]:
                 "reason": str(person_span_result["reason"]),
             }
 
+    # Clean parse failures should report a semantic mismatch instead of exposing
+    # parser-stage labels as final mismatch reasons.
     mismatch_reason = (
         "entity_not_matched"
         if parsed_result["reason"] in {"parsed_clean_entity", "parsed_entity_with_formatting_noise"}
