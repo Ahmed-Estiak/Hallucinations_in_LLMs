@@ -6,3 +6,4 @@ hallucination_llm_env/
 .DS_Store
 .vscode/
 results/*.ods
+external/Wikipedia_text_extractor/
