@@ -17,7 +17,7 @@ from src.rag.retriever import RagRetriever
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag
 
 
-DEFAULT_QUESTION_IDS = [9]
+DEFAULT_QUESTION_IDS = [9, 11]
 
 
 def _serialize_ground_truth(answer_spec: dict[str, Any]) -> str:
@@ -41,8 +41,11 @@ def run_rag_benchmark(
     *,
     question_ids: list[int] | None = None,
     chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
-    output_path: str | Path = "results/results_rag_llm_q9.csv",
+    output_path: str | Path = "results/results_rag_llm.csv",
     top_k: int = 12,
+    per_source_limit: int = 4,
+    retrieval_mode: str = "global",
+    top_n_sources: int = 12,
 ) -> None:
     start_time = time.time()
     questions = load_questions(question_ids or DEFAULT_QUESTION_IDS)
@@ -60,7 +63,14 @@ def run_rag_benchmark(
         print(f"[{index}/{len(questions)}] Q{question_row['id']}: {question}")
         question_start = time.time()
 
-        retrieved = retriever.retrieve(question, top_k=top_k)
+        retrieval_result = retriever.retrieve_with_details(
+            question,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            mode=retrieval_mode,
+            top_n_sources=top_n_sources,
+        )
+        retrieved = retrieval_result.retrieved_chunks
         rag_context = retriever.format_context(retrieved)
         context_sufficient = len(retrieved) > 0 and len(rag_context) >= 200
 
@@ -82,6 +92,18 @@ def run_rag_benchmark(
             "kind": question_row["answer_spec"]["kind"],
             "type": question_row.get("type", ""),
             "ground_truth": _serialize_ground_truth(question_row["answer_spec"]),
+            "retrieval_mode": retrieval_result.retrieval_mode,
+            "fallback_used": retrieval_result.fallback_used,
+            "fallback_reason": retrieval_result.fallback_reason,
+            "selected_sources": json.dumps(
+                retrieval_result.source_selection.selected_source_ids if retrieval_result.source_selection else [],
+                ensure_ascii=False,
+            ),
+            "source_scores": json.dumps(
+                [score.to_dict() for score in retrieval_result.source_selection.scores[:12]]
+                if retrieval_result.source_selection else [],
+                ensure_ascii=False,
+            ),
             "rag_context_sufficient": context_sufficient,
             "retrieved_chunk_ids": json.dumps([item.chunk["chunk_id"] for item in retrieved], ensure_ascii=False),
             "retrieved_sources": json.dumps([item.chunk["source_id"] for item in retrieved], ensure_ascii=False),
@@ -98,7 +120,7 @@ def run_rag_benchmark(
         elapsed = time.time() - question_start
         print(f"  OpenAI: {openai_answer} ({openai_eval['reason']})")
         print(f"  Gemini: {gemini_answer} ({gemini_eval['reason']})")
-        print(f"  Retrieved chunks: {len(retrieved)} | Timing: {elapsed:.2f}s")
+        print(f"  Retrieved chunks: {len(retrieved)} | Mode: {retrieval_mode} | Timing: {elapsed:.2f}s")
 
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False)

@@ -1,0 +1,108 @@
+[
+  {
+    "source_id": "wiki_dwarf_planet",
+    "url": "https://en.wikipedia.org/wiki/Dwarf_planet",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_kuiper_belt",
+    "url": "https://en.wikipedia.org/wiki/Kuiper_belt",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "nasa_kuiper_belt_facts",
+    "url": "https://science.nasa.gov/solar-system/kuiper-belt/facts/",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "official"
+  },
+  {
+    "source_id": "britannica_kuiper_belt",
+    "url": "https://www.britannica.com/place/Kuiper-belt",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "space_kuiper_belt_objects",
+    "url": "https://www.space.com/16144-kuiper-belt-objects.html",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "article"
+  },
+  {
+    "source_id": "nasa_moons_facts",
+    "url": "https://science.nasa.gov/solar-system/moons/facts/",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "official"
+  },
+  {
+    "source_id": "wiki_solar_system",
+    "url": "https://en.wikipedia.org/wiki/Solar_System",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_neptune",
+    "url": "https://en.wikipedia.org/wiki/Neptune",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_uranus",
+    "url": "https://en.wikipedia.org/wiki/Uranus",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_mercury",
+    "url": "https://en.wikipedia.org/wiki/Mercury_(planet)",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_venus",
+    "url": "https://en.wikipedia.org/wiki/Venus",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_earth",
+    "url": "https://en.wikipedia.org/wiki/Earth",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_mars",
+    "url": "https://en.wikipedia.org/wiki/Mars",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_jupiter",
+    "url": "https://en.wikipedia.org/wiki/Jupiter",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  },
+  {
+    "source_id": "wiki_saturn",
+    "url": "https://en.wikipedia.org/wiki/Saturn",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "trust_level": "reference"
+  }
+]
+

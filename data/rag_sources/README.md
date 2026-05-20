@@ -34,8 +34,9 @@ different folder.
 Q9 RAG+LLM vertical slice:
 
 ```powershell
-python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_q9.json
+python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.json
 python scripts\build_rag_index.py
 python scripts\preview_rag_context.py --id 9
-python main_rag.py
+python scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
+python main_rag.py --ids 9 11 --retrieval-mode auto-source
 ```

@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Ingest RAG source links into cleaned text files.")
     parser.add_argument(
         "--sources",
-        default=str(PROJECT_ROOT / "data" / "rag_sources" / "sources_q9.json"),
+        default=str(PROJECT_ROOT / "data" / "rag_sources" / "sources_master.json"),
         help="Path to source manifest JSON",
     )
     parser.add_argument(
@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path where document metadata JSONL is written",
     )
     parser.add_argument("--limit", type=int, help="Only ingest the first N sources")
+    parser.add_argument("--refresh", action="store_true", help="Re-fetch sources even if cached clean text exists")
     return parser
 
 
@@ -57,6 +58,7 @@ def ingest_source(source: RagSource) -> dict[str, Any]:
         "url": source.url,
         "cleaner": source.cleaner,
         "domain": source.domain,
+        "trust_level": source.trust_level,
         "target_questions": source.target_questions,
         "needed_evidence": source.needed_evidence,
         "title": result.get("title", source.source_id),
@@ -75,13 +77,19 @@ def main() -> int:
 
     documents_path = Path(args.documents)
     documents_path.parent.mkdir(parents=True, exist_ok=True)
+    existing_documents = load_existing_documents(documents_path)
 
     documents = []
     for source in sources:
-        print(f"Ingesting {source.source_id}: {source.url}")
-        document = ingest_source(source)
+        existing_document = existing_documents.get(source.source_id)
+        if existing_document and not args.refresh and Path(existing_document.get("clean_text_path", "")).exists():
+            print(f"Skipping cached {source.source_id}: {source.url}")
+            document = update_cached_document(existing_document, source)
+        else:
+            print(f"Ingesting {source.source_id}: {source.url}")
+            document = ingest_source(source)
+            print(f"  saved: {document['clean_text_path']} ({document['char_count']} chars)")
         documents.append(document)
-        print(f"  saved: {document['clean_text_path']} ({document['char_count']} chars)")
 
     with documents_path.open("w", encoding="utf-8") as f:
         for document in documents:
@@ -90,6 +98,32 @@ def main() -> int:
     return 0
 
 
+def load_existing_documents(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    documents = {}
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            document = json.loads(line)
+            documents[document["source_id"]] = document
+    return documents
+
+
+def update_cached_document(document: dict[str, Any], source: RagSource) -> dict[str, Any]:
+    updated = dict(document)
+    updated.update({
+        "url": source.url,
+        "cleaner": source.cleaner,
+        "domain": source.domain,
+        "trust_level": source.trust_level,
+        "target_questions": source.target_questions,
+        "needed_evidence": source.needed_evidence,
+    })
+    return updated
+
+
 if __name__ == "__main__":
     raise SystemExit(main())
-

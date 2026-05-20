@@ -14,6 +14,7 @@ class RagSource:
     url: str
     cleaner: str
     domain: str = "astronomy"
+    trust_level: str = "reference"
     target_questions: list[int] = field(default_factory=list)
     needed_evidence: list[str] = field(default_factory=list)
 
@@ -24,6 +25,7 @@ class RagSource:
             url=data["url"],
             cleaner=data["cleaner"],
             domain=data.get("domain", "astronomy"),
+            trust_level=data.get("trust_level", "reference"),
             target_questions=list(data.get("target_questions", [])),
             needed_evidence=list(data.get("needed_evidence", [])),
         )
@@ -34,6 +36,7 @@ class RagSource:
             "url": self.url,
             "cleaner": self.cleaner,
             "domain": self.domain,
+            "trust_level": self.trust_level,
             "target_questions": self.target_questions,
             "needed_evidence": self.needed_evidence,
         }
@@ -43,4 +46,3 @@ def load_sources(path: str | Path) -> list[RagSource]:
     with Path(path).open("r", encoding="utf-8") as f:
         data = json.load(f)
     return [RagSource.from_dict(item) for item in data]
-
