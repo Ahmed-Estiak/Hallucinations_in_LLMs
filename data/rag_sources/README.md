@@ -36,5 +36,6 @@ Q9 RAG+LLM vertical slice:
 ```powershell
 python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_q9.json
 python scripts\build_rag_index.py
+python scripts\preview_rag_context.py --id 9
 python main_rag.py
 ```
