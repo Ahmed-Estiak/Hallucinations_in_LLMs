@@ -1,0 +1,43 @@
+[
+  {
+    "source_id": "wiki_dwarf_planet",
+    "url": "https://en.wikipedia.org/wiki/Dwarf_planet",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "target_questions": [9],
+    "needed_evidence": ["dwarf_planet_candidates", "kuiper_belt_membership", "discovery_dates"]
+  },
+  {
+    "source_id": "wiki_kuiper_belt",
+    "url": "https://en.wikipedia.org/wiki/Kuiper_belt",
+    "cleaner": "wikipedia",
+    "domain": "astronomy",
+    "target_questions": [9],
+    "needed_evidence": ["kuiper_belt_membership", "kuiper_belt_objects"]
+  },
+  {
+    "source_id": "nasa_kuiper_belt_facts",
+    "url": "https://science.nasa.gov/solar-system/kuiper-belt/facts/",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "target_questions": [9],
+    "needed_evidence": ["kuiper_belt_objects", "dwarf_planets"]
+  },
+  {
+    "source_id": "britannica_kuiper_belt",
+    "url": "https://www.britannica.com/place/Kuiper-belt",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "target_questions": [9],
+    "needed_evidence": ["kuiper_belt_objects", "discovery_context"]
+  },
+  {
+    "source_id": "space_kuiper_belt_objects",
+    "url": "https://www.space.com/16144-kuiper-belt-objects.html",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "target_questions": [9],
+    "needed_evidence": ["kuiper_belt_objects", "dwarf_planets"]
+  }
+]
+

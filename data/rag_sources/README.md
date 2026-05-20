@@ -30,3 +30,11 @@ python scripts\clean_wikipedia_source.py --url "https://en.wikipedia.org/wiki/Sa
 The script uses `external/Wikipedia_text_extractor` by default. Set
 `WIKIPEDIA_TEXT_EXTRACTOR_DIR` or pass `--cleaner-dir` if the cleaner lives in a
 different folder.
+
+Q9 RAG+LLM vertical slice:
+
+```powershell
+python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_q9.json
+python scripts\build_rag_index.py
+python main_rag.py
+```
