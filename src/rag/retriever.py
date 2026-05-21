@@ -146,6 +146,7 @@ class RagRetriever:
             parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
         ))
         time_constraints = extract_time_constraints(question)
+        target_entity_class = classified.target_entity_class
 
         scored: list[RetrievedChunk] = []
         for chunk in chunks:
@@ -155,6 +156,7 @@ class RagRetriever:
                 entity_terms=entity_terms,
                 predicate_terms=predicate_terms,
                 time_constraints=time_constraints,
+                target_entity_class=target_entity_class,
                 has_filter=LogicalModifier.FILTER in classified.logical_modifiers,
                 has_ordering=LogicalModifier.ORDERING in classified.logical_modifiers,
             )
@@ -189,6 +191,7 @@ class RagRetriever:
         entity_terms: list[str],
         predicate_terms: list[str],
         time_constraints: dict[str, list[str]],
+        target_entity_class: str | None,
         has_filter: bool,
         has_ordering: bool,
     ) -> tuple[float, list[str]]:
@@ -252,7 +255,7 @@ class RagRetriever:
         if has_ordering and tokens.get("discovered", 0) >= 2:
             score += 2.0 + math.log(tokens["discovered"])
             reasons.append("multiple_discovery_mentions")
-        if "dwarf planet" in text:
+        if has_dwarf_planet_context_intent(target_entity_class, query_terms) and "dwarf planet" in text:
             score += 2.0
             reasons.append("dwarf_planet_context")
 
@@ -289,6 +292,13 @@ def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:
     if not items:
         return True
     return items[0].score < 8.0
+
+
+def has_dwarf_planet_context_intent(target_entity_class: str | None, query_terms: list[str]) -> bool:
+    if target_entity_class == "dwarf_planets":
+        return True
+    terms = set(query_terms)
+    return bool({"dwarf", "dwarf planet", "dwarf planets", "minor planet"} & terms)
 
 
 MONTH_NAMES = {
