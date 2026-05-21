@@ -103,6 +103,33 @@
     "cleaner": "wikipedia",
     "domain": "astronomy",
     "trust_level": "reference"
+  },
+  {
+    "source_id": "nasa_saturn_moons",
+    "url": "https://science.nasa.gov/saturn/moons/",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "official"
+  },
+  {
+    "source_id": "fas37_new_moons_solar_system",
+    "url": "https://www.fas37.org/wp/new-moons-for-the-solar-system/",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "article"
+  },
+  {
+    "source_id": "jpl_satellite_discovery",
+    "url": "https://ssd.jpl.nasa.gov/sats/discovery.html",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "official"
+  },
+  {
+    "source_id": "usgs_planetary_names_planets",
+    "url": "https://planetarynames.wr.usgs.gov/Page/Planets",
+    "cleaner": "generic_html",
+    "domain": "astronomy",
+    "trust_level": "official"
   }
 ]
-

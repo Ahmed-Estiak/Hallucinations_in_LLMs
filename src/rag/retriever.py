@@ -145,6 +145,7 @@ class RagRetriever:
         predicate_terms = list(dict.fromkeys(
             parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
         ))
+        time_constraints = extract_time_constraints(question)
 
         scored: list[RetrievedChunk] = []
         for chunk in chunks:
@@ -153,6 +154,7 @@ class RagRetriever:
                 query_terms=query_terms,
                 entity_terms=entity_terms,
                 predicate_terms=predicate_terms,
+                time_constraints=time_constraints,
                 has_filter=LogicalModifier.FILTER in classified.logical_modifiers,
                 has_ordering=LogicalModifier.ORDERING in classified.logical_modifiers,
             )
@@ -186,6 +188,7 @@ class RagRetriever:
         query_terms: list[str],
         entity_terms: list[str],
         predicate_terms: list[str],
+        time_constraints: dict[str, list[str]],
         has_filter: bool,
         has_ordering: bool,
     ) -> tuple[float, list[str]]:
@@ -223,10 +226,19 @@ class RagRetriever:
         if has_filter and any(value in text for value in ("fewer", "less than", "beyond earth", "orbit beyond", "moons")):
             score += 2.5
             reasons.append("comparative_filter_context")
+        entity_match_present = any(entity and entity in text for entity in set(entity_terms))
+
         if "moon_count" in predicate_terms:
             moon_score, moon_reasons = score_moon_count_context(chunk, text)
             score += moon_score
             reasons.extend(moon_reasons)
+        time_score, time_reasons = score_time_context(
+            text,
+            time_constraints,
+            entity_match_present=entity_match_present,
+        )
+        score += time_score
+        reasons.extend(time_reasons)
         if "distance_from_sun" in predicate_terms:
             distance_score, distance_reasons = score_orbit_order_context(chunk, text)
             score += distance_score
@@ -277,6 +289,73 @@ def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:
     if not items:
         return True
     return items[0].score < 8.0
+
+
+MONTH_NAMES = {
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+}
+
+
+def extract_time_constraints(question: str) -> dict[str, list[str]]:
+    question_lower = question.lower()
+    years = re.findall(r"\b(?:18|19|20)\d{2}\b", question_lower)
+    months = [month for month in MONTH_NAMES if re.search(rf"\b{month}\b", question_lower)]
+    phrases = []
+    for month in months:
+        for year in years:
+            phrase = f"{month} {year}"
+            if phrase in question_lower:
+                phrases.append(phrase)
+    return {
+        "phrases": list(dict.fromkeys(phrases)),
+        "years": list(dict.fromkeys(years)),
+        "months": list(dict.fromkeys(months)),
+    }
+
+
+def score_time_context(
+    text: str,
+    time_constraints: dict[str, list[str]],
+    *,
+    entity_match_present: bool,
+) -> tuple[float, list[str]]:
+    score = 0.0
+    reasons: list[str] = []
+    phrases = time_constraints.get("phrases", [])
+    years = time_constraints.get("years", [])
+    months = time_constraints.get("months", [])
+    if not phrases and not years and not months:
+        return score, reasons
+
+    for phrase in phrases:
+        if phrase in text:
+            score += 14.0 if entity_match_present else 3.0
+            reasons.append(f"exact_time:{phrase}" if entity_match_present else f"exact_time_without_entity:{phrase}")
+    if not entity_match_present:
+        return score, reasons
+    for year in years:
+        if re.search(rf"\b{re.escape(year)}\b", text):
+            score += 4.0
+            reasons.append(f"year:{year}")
+    for month in months:
+        if re.search(rf"\b{re.escape(month)}\b", text):
+            score += 2.0
+            reasons.append(f"month:{month}")
+    if phrases and "as of" in text and any(phrase in text for phrase in phrases):
+        score += 3.0
+        reasons.append("as_of_time_context")
+    return score, reasons
 
 
 def score_moon_count_context(chunk: dict[str, Any], text: str) -> tuple[float, list[str]]:

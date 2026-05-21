@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from src.rag.structured_satellite_facts import extract_satellite_count_facts
+
 
 ASTRONOMY_ENTITIES = [
     "Mercury",
@@ -100,6 +102,28 @@ def build_chunks_from_documents(
                     "content_type": "text",
                 })
                 chunk_index += 1
+        for fact in extract_satellite_count_facts(text):
+            chunk_id = f"{document['source_id']}_fact_{chunk_index:04d}"
+            predicate_hints = detect_predicate_hints(fact.text)
+            if "moon_count" not in predicate_hints:
+                predicate_hints.append("moon_count")
+            chunks.append({
+                "chunk_id": chunk_id,
+                "document_id": document["document_id"],
+                "source_id": document["source_id"],
+                "url": document["url"],
+                "title": document.get("title", document["source_id"]),
+                "section": fact.heading,
+                "text": fact.text,
+                "target_questions": document.get("target_questions", []),
+                "needed_evidence": document.get("needed_evidence", []),
+                "entities": detect_entities(fact.text),
+                "predicate_hints": predicate_hints,
+                "tokens_estimate": max(1, len(fact.text.split())),
+                "content_type": "structured_fact",
+                "structured_fact_id": fact.fact_id,
+            })
+            chunk_index += 1
     return chunks
 
 
@@ -168,4 +192,3 @@ def detect_predicate_hints(text: str) -> list[str]:
         if re.search(pattern, text_lower):
             found.append(predicate)
     return found
-

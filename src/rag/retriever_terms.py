@@ -42,6 +42,7 @@ STOPWORDS = {
 
 QUERY_EXPANSIONS = {
     "beyond": ["beyond", "farther", "outer", "orbit beyond"],
+    "confirmed": ["confirmed", "officially recognized", "known"],
     "discovered": ["discovered", "discovery", "found", "first observed"],
     "dwarf": ["dwarf", "dwarf planet", "minor planet"],
     "fewer": ["fewer", "less", "moon", "moons", "satellite", "satellites"],
@@ -56,6 +57,7 @@ QUERY_EXPANSIONS = {
     "orbits": ["orbit", "orbital", "distance", "semi-major axis"],
     "planet": ["planet", "planets"],
     "planets": ["planet", "planets"],
+    "saturn": ["saturn", "saturnian"],
 }
 
 

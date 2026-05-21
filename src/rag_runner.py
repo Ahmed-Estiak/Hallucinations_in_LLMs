@@ -17,7 +17,7 @@ from src.rag.retriever import RagRetriever
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag
 
 
-DEFAULT_QUESTION_IDS = [9, 11]
+DEFAULT_QUESTION_IDS = [9, 11, 15]
 
 
 def _serialize_ground_truth(answer_spec: dict[str, Any]) -> str:

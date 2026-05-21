@@ -38,5 +38,11 @@ python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.j
 python scripts\build_rag_index.py
 python scripts\preview_rag_context.py --id 9
 python scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
-python main_rag.py --ids 9 11 --retrieval-mode auto-source
+python scripts\preview_rag_context.py --id 15 --retrieval-mode auto-source
+python main_rag.py --ids 9 11 15 --retrieval-mode auto-source
 ```
+
+For satellite discovery tables, the index builder adds structured count fact
+chunks such as `As of November 2021, Saturn had 83 confirmed moons...` from the
+flattened source table. This keeps temporal moon-count questions grounded
+without asking the LLM to count table rows itself.

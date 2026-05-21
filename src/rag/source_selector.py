@@ -213,7 +213,10 @@ def score_source(
     if LogicalModifier.COMPARISON in modifiers and any(value in text for value in ("greater", "less", "more", "fewer", "mass", "distance")):
         score += 3.0
         reasons.append("comparison_support")
-    if LogicalModifier.TIME_LOOKUP in modifiers and re.search(r"\b(?:as of|by|before|after|in)\s+\d{4}\b", text):
+    if LogicalModifier.TIME_LOOKUP in modifiers and re.search(
+        r"\b(?:as of|by|before|after|in)\s+(?:[a-z]+\s+)?\d{4}\b",
+        text,
+    ):
         score += 3.0
         reasons.append("time_support")
 
