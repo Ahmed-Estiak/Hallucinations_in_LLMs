@@ -146,7 +146,7 @@ class RagRetriever:
             parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
         ))
         time_constraints = extract_time_constraints(question)
-        target_entity_class = classified.target_entity_class
+        target_entity_class = classified.target_entity_class or classified.list_target
 
         scored: list[RetrievedChunk] = []
         for chunk in chunks:
@@ -206,7 +206,7 @@ class RagRetriever:
 
         for term in query_terms:
             if " " in term:
-                if term in text:
+                if has_phrase(text, term):
                     score += 3.0
                     reasons.append(f"phrase:{term}")
             elif tokens.get(term):
@@ -255,9 +255,13 @@ class RagRetriever:
         if has_ordering and tokens.get("discovered", 0) >= 2:
             score += 2.0 + math.log(tokens["discovered"])
             reasons.append("multiple_discovery_mentions")
-        if has_dwarf_planet_context_intent(target_entity_class, query_terms) and "dwarf planet" in text:
-            score += 2.0
-            reasons.append("dwarf_planet_context")
+        dwarf_score, dwarf_reasons = score_dwarf_planet_context(
+            text,
+            target_entity_class=target_entity_class,
+            query_terms=query_terms,
+        )
+        score += dwarf_score
+        reasons.extend(dwarf_reasons)
 
         return score, reasons
 
@@ -294,11 +298,33 @@ def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:
     return items[0].score < 8.0
 
 
-def has_dwarf_planet_context_intent(target_entity_class: str | None, query_terms: list[str]) -> bool:
+def score_dwarf_planet_context(
+    text: str,
+    *,
+    target_entity_class: str | None,
+    query_terms: list[str],
+) -> tuple[float, list[str]]:
+    if not re.search(r"\b(?:dwarf|minor)\s+planets?\b", text):
+        return 0.0, []
+
+    score = 0.0
+    reasons: list[str] = []
+    if has_dwarf_planet_query_intent(query_terms):
+        score += 2.0
+        reasons.append("dwarf_planet_query_context")
     if target_entity_class == "dwarf_planets":
-        return True
+        score += 1.0
+        reasons.append("target_class:dwarf_planets")
+    return score, reasons
+
+
+def has_dwarf_planet_query_intent(query_terms: list[str]) -> bool:
     terms = set(query_terms)
-    return bool({"dwarf", "dwarf planet", "dwarf planets", "minor planet"} & terms)
+    return bool({"dwarf", "dwarf planet", "dwarf planets", "minor planet", "minor planets"} & terms)
+
+
+def has_phrase(text: str, phrase: str) -> bool:
+    return bool(re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text))
 
 
 MONTH_NAMES = {

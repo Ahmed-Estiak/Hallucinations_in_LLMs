@@ -44,7 +44,7 @@ QUERY_EXPANSIONS = {
     "beyond": ["beyond", "farther", "outer", "orbit beyond"],
     "confirmed": ["confirmed", "officially recognized", "known"],
     "discovered": ["discovered", "discovery", "found", "first observed"],
-    "dwarf": ["dwarf", "dwarf planet", "minor planet"],
+    "dwarf": ["dwarf", "dwarf planet", "dwarf planets", "minor planet", "minor planets"],
     "fewer": ["fewer", "less", "moon", "moons", "satellite", "satellites"],
     "jupiter": ["jupiter", "jovian"],
     "kuiper": ["kuiper", "kuiper belt", "trans-neptunian", "beyond neptune"],

@@ -107,6 +107,7 @@ class SourceSelector:
         predicate_terms = list(dict.fromkeys(
             parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
         ))
+        target_class = classified.target_entity_class or classified.list_target
         modifiers = set(classified.logical_modifiers)
 
         scores = []
@@ -117,6 +118,7 @@ class SourceSelector:
                 query_terms=query_terms,
                 entity_terms=entity_terms,
                 predicate_terms=predicate_terms,
+                target_entity_class=target_class,
                 modifiers=modifiers,
             )
             if score > 0:
@@ -157,6 +159,7 @@ def score_source(
     query_terms: list[str],
     entity_terms: list[str],
     predicate_terms: list[str],
+    target_entity_class: str | None,
     modifiers: set[LogicalModifier],
 ) -> tuple[float, list[str]]:
     title_url = f"{profile.title} {profile.url} {slug_from_url(profile.url)}".lower()
@@ -166,10 +169,10 @@ def score_source(
 
     for term in query_terms:
         if " " in term:
-            if term in title_url:
+            if has_phrase(title_url, term):
                 score += 6.0
                 reasons.append(f"title_url_phrase:{term}")
-            phrase_count = text.count(term)
+            phrase_count = count_phrase_occurrences(text, term)
             if phrase_count:
                 phrase_score = min(8.0, 2.0 + math.log(phrase_count + 1) * 2.0)
                 score += phrase_score
@@ -204,6 +207,14 @@ def score_source(
             score += 5.0
             reasons.append(f"predicate:{predicate}")
 
+    target_class_score, target_class_reasons = score_target_class_context(
+        profile,
+        title_url=title_url,
+        target_entity_class=target_entity_class,
+    )
+    score += target_class_score
+    reasons.extend(target_class_reasons)
+
     if LogicalModifier.FILTER in modifiers and any(value in text for value in ("fewer than", "less than", "beyond", "located", "kuiper belt")):
         score += 3.0
         reasons.append("filter_support")
@@ -232,6 +243,42 @@ def score_source(
         reasons.append("substantial_source")
 
     return max(score, 0.0), reasons
+
+
+def score_target_class_context(
+    profile: SourceProfile,
+    *,
+    title_url: str,
+    target_entity_class: str | None,
+) -> tuple[float, list[str]]:
+    if target_entity_class != "dwarf_planets":
+        return 0.0, []
+
+    score = 0.0
+    reasons: list[str] = []
+    if has_dwarf_planet_text(title_url):
+        score += 3.0
+        reasons.append("target_class_title:dwarf_planets")
+    elif has_dwarf_planet_text(profile.text):
+        score += 1.5
+        reasons.append("target_class_text:dwarf_planets")
+
+    if "classification" in profile.predicates:
+        score += 1.0
+        reasons.append("target_class_predicate:classification")
+    return score, reasons
+
+
+def has_dwarf_planet_text(text: str) -> bool:
+    return bool(re.search(r"\b(?:dwarf|minor)\s+planets?\b", text))
+
+
+def has_phrase(text: str, phrase: str) -> bool:
+    return bool(re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", text))
+
+
+def count_phrase_occurrences(text: str, phrase: str) -> int:
+    return len(re.findall(rf"(?<!\w){re.escape(phrase)}(?!\w)", text))
 
 
 def load_documents(path: str | Path) -> dict[str, dict[str, Any]]:
