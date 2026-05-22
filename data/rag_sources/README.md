@@ -36,10 +36,15 @@ Q9 RAG+LLM vertical slice:
 ```powershell
 python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.json
 python scripts\build_rag_index.py
+python scripts\build_rag_embeddings.py
 python scripts\preview_rag_context.py --id 9
 python scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
+python scripts\preview_rag_context.py --id 9 --retrieval-mode vector
+python scripts\preview_rag_context.py --id 9 --retrieval-mode hybrid
 python scripts\preview_rag_context.py --id 15 --retrieval-mode auto-source
 python main_rag.py --ids 9 11 15 --retrieval-mode auto-source
+python main_rag.py --ids 9 11 15 --retrieval-mode vector
+python main_rag.py --ids 9 11 15 --retrieval-mode hybrid
 ```
 
 For satellite discovery tables, the index builder adds structured count fact

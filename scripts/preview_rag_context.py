@@ -28,7 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--per-source-limit", type=int, default=4)
-    parser.add_argument("--retrieval-mode", choices=("global", "auto-source"), default="global")
+    parser.add_argument("--retrieval-mode", choices=("global", "auto-source", "vector", "hybrid"), default="global")
+    parser.add_argument(
+        "--embeddings",
+        default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "chunk_embeddings.jsonl"),
+        help="Embedding JSONL path for vector/hybrid retrieval",
+    )
     parser.add_argument("--top-n-sources", type=int, default=12)
     parser.add_argument("--max-chars", type=int, default=12000)
     parser.add_argument("--preview-chars", type=int, default=180)
@@ -39,7 +44,7 @@ def main() -> int:
     args = build_parser().parse_args()
     question = args.question or question_by_id(args.id)
 
-    retriever = RagRetriever(args.chunks)
+    retriever = RagRetriever(args.chunks, embeddings_path=args.embeddings)
     result = retriever.retrieve_with_details(
         question,
         top_k=args.top_k,

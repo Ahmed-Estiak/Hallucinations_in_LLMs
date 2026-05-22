@@ -12,8 +12,16 @@ from typing import Any
 
 from src.question_classifier import LogicalModifier, QuestionClassifier
 from src.question_parser import parse_question
+from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH, EmbeddingIndex, cosine_similarity
 from src.rag.retriever_terms import build_query_terms, infer_query_predicates, tokenize
-from src.rag.source_selector import SourceSelection, SourceSelector
+from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, append_major_planet_sources
+
+
+RETRIEVAL_MODES = {"global", "auto-source", "vector", "hybrid"}
+HYBRID_SOURCE_LEXICAL_WEIGHT = 0.60
+HYBRID_SOURCE_VECTOR_WEIGHT = 0.40
+HYBRID_CHUNK_LEXICAL_WEIGHT = 0.50
+HYBRID_CHUNK_VECTOR_WEIGHT = 0.50
 
 
 @dataclass
@@ -43,10 +51,13 @@ class RagRetriever:
         self,
         chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
         documents_path: str | Path = "data/rag_sources/rag_index/documents.jsonl",
+        embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
     ) -> None:
         self.chunks_path = Path(chunks_path)
         self.chunks = self._load_chunks(self.chunks_path)
         self.documents_path = Path(documents_path)
+        self.embeddings_path = Path(embeddings_path)
+        self._embedding_index: EmbeddingIndex | None = None
         self.question_classifier = QuestionClassifier()
         self.source_selector = SourceSelector(self.chunks, documents_path=self.documents_path)
 
@@ -76,13 +87,15 @@ class RagRetriever:
         mode: str = "global",
         top_n_sources: int = 5,
     ) -> RagRetrievalResult:
-        if mode not in {"global", "auto-source"}:
-            raise ValueError("mode must be one of: global, auto-source")
+        if mode not in RETRIEVAL_MODES:
+            raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
 
         source_selection = None
         selected_source_ids = None
         fallback_used = False
         fallback_reason = ""
+        query_embedding = None
+        vector_scores = None
         if mode == "auto-source":
             source_selection = self.source_selector.select(question, top_n_sources=top_n_sources)
             selected_source_ids = set(source_selection.selected_source_ids)
@@ -90,17 +103,54 @@ class RagRetriever:
                 fallback_used = True
                 fallback_reason = "no_sources_selected"
                 selected_source_ids = None
+        elif mode in {"vector", "hybrid"}:
+            query_embedding = self.embedding_index.embed_query(question)
+            vector_scores = self._vector_scores_by_chunk(query_embedding)
+            if mode == "vector":
+                source_selection = self._select_sources_vector(
+                    question,
+                    vector_scores,
+                    top_n_sources=top_n_sources,
+                )
+            else:
+                source_selection = self._select_sources_hybrid(
+                    question,
+                    vector_scores,
+                    top_n_sources=top_n_sources,
+                )
+            selected_source_ids = set(source_selection.selected_source_ids)
+            if not selected_source_ids:
+                fallback_used = True
+                fallback_reason = "no_sources_selected"
+                selected_source_ids = None
 
         effective_per_source_limit = self._effective_per_source_limit(question, per_source_limit)
-        retrieved = self._retrieve_from_chunks(
-            question,
-            chunks=[
-                chunk for chunk in self.chunks
-                if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
-            ],
-            top_k=top_k,
-            per_source_limit=effective_per_source_limit,
-        )
+        candidate_chunks = [
+            chunk for chunk in self.chunks
+            if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
+        ]
+        if mode == "vector":
+            retrieved = self._retrieve_from_chunks_vector(
+                candidate_chunks,
+                vector_scores=vector_scores or {},
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+            )
+        elif mode == "hybrid":
+            retrieved = self._retrieve_from_chunks_hybrid(
+                question,
+                chunks=candidate_chunks,
+                vector_scores=vector_scores or {},
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+            )
+        else:
+            retrieved = self._retrieve_from_chunks(
+                question,
+                chunks=candidate_chunks,
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+            )
 
         if mode == "auto-source" and is_weak_retrieval(retrieved):
             fallback_used = True
@@ -111,6 +161,24 @@ class RagRetriever:
                 top_k=top_k,
                 per_source_limit=effective_per_source_limit,
             )
+        if mode in {"vector", "hybrid"} and is_weak_retrieval(retrieved):
+            fallback_used = True
+            fallback_reason = "weak_vector_chunks"
+            if mode == "vector":
+                retrieved = self._retrieve_from_chunks_vector(
+                    self.chunks,
+                    vector_scores=vector_scores or {},
+                    top_k=top_k,
+                    per_source_limit=effective_per_source_limit,
+                )
+            else:
+                retrieved = self._retrieve_from_chunks_hybrid(
+                    question,
+                    chunks=self.chunks,
+                    vector_scores=vector_scores or {},
+                    top_k=top_k,
+                    per_source_limit=effective_per_source_limit,
+                )
 
         if source_selection and source_selection.fallback_used:
             fallback_used = True
@@ -162,6 +230,196 @@ class RagRetriever:
             )
             if score > 0:
                 scored.append(RetrievedChunk(chunk=chunk, score=score, reasons=reasons))
+
+        scored.sort(key=lambda item: item.score, reverse=True)
+        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+
+    @property
+    def embedding_index(self) -> EmbeddingIndex:
+        if self._embedding_index is None:
+            self._embedding_index = EmbeddingIndex(self.embeddings_path)
+        return self._embedding_index
+
+    def _vector_scores_by_chunk(self, query_embedding: list[float]) -> dict[str, float]:
+        scores: dict[str, float] = {}
+        for chunk in self.chunks:
+            embedding = self.embedding_index.get(chunk["chunk_id"])
+            if embedding is None:
+                continue
+            scores[chunk["chunk_id"]] = cosine_similarity(query_embedding, embedding)
+        return scores
+
+    def _select_sources_vector(
+        self,
+        question: str,
+        vector_scores: dict[str, float],
+        *,
+        top_n_sources: int,
+    ) -> SourceSelection:
+        source_scores = self._aggregate_vector_source_scores(vector_scores)
+        source_scores.sort(key=lambda item: item.score, reverse=True)
+        selected = [score.source_id for score in source_scores[:top_n_sources]]
+        return SourceSelection(
+            mode="vector",
+            selected_source_ids=selected,
+            scores=source_scores,
+        )
+
+    def _select_sources_hybrid(
+        self,
+        question: str,
+        vector_scores: dict[str, float],
+        *,
+        top_n_sources: int,
+    ) -> SourceSelection:
+        lexical_selection = self.source_selector.select(
+            question,
+            top_n_sources=max(top_n_sources, len(self.source_selector.profiles)),
+            min_score=0.0,
+        )
+        lexical_scores = {score.source_id: score for score in lexical_selection.scores}
+        vector_source_scores = {
+            score.source_id: score
+            for score in self._aggregate_vector_source_scores(vector_scores)
+        }
+        source_ids = set(lexical_scores) | set(vector_source_scores)
+        hybrid_scores = []
+        for source_id in source_ids:
+            lexical_score = lexical_scores.get(source_id)
+            vector_score = vector_source_scores.get(source_id)
+            lexical_value = lexical_score.score if lexical_score else 0.0
+            vector_value = vector_score.score if vector_score else 0.0
+            score = (
+                HYBRID_SOURCE_LEXICAL_WEIGHT * lexical_value
+                + HYBRID_SOURCE_VECTOR_WEIGHT * vector_value
+            )
+            profile = self.source_selector.profiles.get(source_id)
+            reasons = [
+                f"hybrid_lexical:{lexical_value:.2f}",
+                f"hybrid_vector:{vector_value:.2f}",
+            ]
+            if lexical_score:
+                reasons.extend(lexical_score.reasons[:4])
+            if vector_score:
+                reasons.extend(vector_score.reasons[:2])
+            hybrid_scores.append(SourceScore(
+                source_id=source_id,
+                score=score,
+                reasons=reasons,
+                title=(profile.title if profile else ""),
+                url=(profile.url if profile else ""),
+                chunk_count=(profile.chunk_count if profile else 0),
+                char_count=(profile.char_count if profile else 0),
+            ))
+
+        hybrid_scores.sort(key=lambda item: item.score, reverse=True)
+        selected = [score.source_id for score in hybrid_scores[:top_n_sources]]
+        if re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()):
+            selected = append_major_planet_sources(selected, self.source_selector.profiles)
+        return SourceSelection(
+            mode="hybrid",
+            selected_source_ids=selected,
+            scores=hybrid_scores,
+        )
+
+    def _aggregate_vector_source_scores(self, vector_scores: dict[str, float]) -> list[SourceScore]:
+        scores_by_source: dict[str, list[float]] = defaultdict(list)
+        for chunk in self.chunks:
+            score = vector_scores.get(chunk["chunk_id"])
+            if score is not None:
+                scores_by_source[chunk["source_id"]].append(score)
+
+        source_scores = []
+        for source_id, scores in scores_by_source.items():
+            profile = self.source_selector.profiles.get(source_id)
+            top_scores = sorted(scores, reverse=True)[:3]
+            if not top_scores:
+                continue
+            top_average = sum(top_scores) / len(top_scores)
+            top_score = top_scores[0]
+            score = top_average * 100.0
+            source_scores.append(SourceScore(
+                source_id=source_id,
+                score=score,
+                reasons=[
+                    f"vector_top_similarity:{top_score:.4f}",
+                    f"vector_top3_avg:{top_average:.4f}",
+                    f"vector_chunks:{len(scores)}",
+                ],
+                title=(profile.title if profile else ""),
+                url=(profile.url if profile else ""),
+                chunk_count=(profile.chunk_count if profile else len(scores)),
+                char_count=(profile.char_count if profile else 0),
+            ))
+        return source_scores
+
+    def _retrieve_from_chunks_vector(
+        self,
+        chunks: list[dict[str, Any]],
+        *,
+        vector_scores: dict[str, float],
+        top_k: int,
+        per_source_limit: int,
+    ) -> list[RetrievedChunk]:
+        scored = []
+        for chunk in chunks:
+            similarity = vector_scores.get(chunk["chunk_id"])
+            if similarity is None:
+                continue
+            scored.append(RetrievedChunk(
+                chunk=chunk,
+                score=similarity * 100.0,
+                reasons=[f"vector_similarity:{similarity:.4f}"],
+            ))
+        scored.sort(key=lambda item: item.score, reverse=True)
+        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+
+    def _retrieve_from_chunks_hybrid(
+        self,
+        question: str,
+        *,
+        chunks: list[dict[str, Any]],
+        vector_scores: dict[str, float],
+        top_k: int,
+        per_source_limit: int,
+    ) -> list[RetrievedChunk]:
+        parsed = parse_question(question)
+        classified = self.question_classifier.classify(question)
+        query_terms = build_query_terms(question)
+        entity_terms = [entity.lower() for entity in parsed["entities"] + classified.major_entities]
+        predicate_terms = list(dict.fromkeys(
+            parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
+        ))
+        time_constraints = extract_time_constraints(question)
+        target_entity_class = classified.target_entity_class or classified.list_target
+
+        scored: list[RetrievedChunk] = []
+        for chunk in chunks:
+            lexical_score, lexical_reasons = self._score_chunk(
+                chunk,
+                query_terms=query_terms,
+                entity_terms=entity_terms,
+                predicate_terms=predicate_terms,
+                time_constraints=time_constraints,
+                target_entity_class=target_entity_class,
+                has_filter=LogicalModifier.FILTER in classified.logical_modifiers,
+                has_ordering=LogicalModifier.ORDERING in classified.logical_modifiers,
+            )
+            vector_similarity = vector_scores.get(chunk["chunk_id"], 0.0)
+            vector_score = vector_similarity * 100.0
+            score = (
+                HYBRID_CHUNK_LEXICAL_WEIGHT * lexical_score
+                + HYBRID_CHUNK_VECTOR_WEIGHT * vector_score
+            )
+            if score <= 0:
+                continue
+            reasons = [
+                f"hybrid_lexical:{lexical_score:.2f}",
+                f"hybrid_vector:{vector_score:.2f}",
+                f"vector_similarity:{vector_similarity:.4f}",
+            ]
+            reasons.extend(lexical_reasons[:8])
+            scored.append(RetrievedChunk(chunk=chunk, score=score, reasons=reasons))
 
         scored.sort(key=lambda item: item.score, reverse=True)
         return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)

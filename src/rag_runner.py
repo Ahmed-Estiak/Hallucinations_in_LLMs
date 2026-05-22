@@ -41,6 +41,7 @@ def run_rag_benchmark(
     *,
     question_ids: list[int] | None = None,
     chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
+    embeddings_path: str | Path = "data/rag_sources/rag_index/chunk_embeddings.jsonl",
     output_path: str | Path = "results/results_rag_llm.csv",
     top_k: int = 12,
     per_source_limit: int = 4,
@@ -49,7 +50,7 @@ def run_rag_benchmark(
 ) -> None:
     start_time = time.time()
     questions = load_questions(question_ids or DEFAULT_QUESTION_IDS)
-    retriever = RagRetriever(chunks_path)
+    retriever = RagRetriever(chunks_path, embeddings_path=embeddings_path)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     rows = []
