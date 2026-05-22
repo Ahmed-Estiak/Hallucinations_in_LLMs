@@ -235,11 +235,11 @@ def score_source(
     score += trust_boost
     reasons.append(f"trust:{profile.trust_level}")
 
-    if profile.char_count < 1000:
-        score -= 3.0
+    if profile.char_count < 500:
+        score -= 1.0
         reasons.append("short_source_penalty")
     elif profile.char_count > 5000:
-        score += 1.0
+        score += 0.5
         reasons.append("substantial_source")
 
     return max(score, 0.0), reasons
