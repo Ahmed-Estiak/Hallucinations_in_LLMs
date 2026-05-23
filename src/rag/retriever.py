@@ -44,6 +44,9 @@ class RagRetrievalResult:
     source_selection: SourceSelection | None = None
     fallback_used: bool = False
     fallback_reason: str = ""
+    embedding_provider: str = ""
+    embedding_model: str = ""
+    embeddings_path: str = ""
 
 
 class RagRetriever:
@@ -94,6 +97,8 @@ class RagRetriever:
         selected_source_ids = None
         fallback_used = False
         fallback_reason = ""
+        embedding_provider = ""
+        embedding_model = ""
         query_embedding = None
         vector_scores = None
         if mode == "auto-source":
@@ -104,7 +109,10 @@ class RagRetriever:
                 fallback_reason = "no_sources_selected"
                 selected_source_ids = None
         elif mode in {"vector", "hybrid"}:
-            query_embedding = self.embedding_index.embed_query(question)
+            embedding_index = self.embedding_index
+            embedding_provider = embedding_index.provider
+            embedding_model = embedding_index.model
+            query_embedding = embedding_index.embed_query(question)
             vector_scores = self._vector_scores_by_chunk(query_embedding)
             if mode == "vector":
                 source_selection = self._select_sources_vector(
@@ -190,6 +198,9 @@ class RagRetriever:
             source_selection=source_selection,
             fallback_used=fallback_used,
             fallback_reason=fallback_reason,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embeddings_path=str(self.embeddings_path),
         )
 
     def _effective_per_source_limit(self, question: str, per_source_limit: int) -> int:

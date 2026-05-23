@@ -2,3 +2,4 @@ python-dotenv
 openai
 google-genai
 pandas
+sentence-transformers

@@ -47,6 +47,21 @@ python main_rag.py --ids 9 11 15 --retrieval-mode vector
 python main_rag.py --ids 9 11 15 --retrieval-mode hybrid
 ```
 
+Embeddings default to local SentenceTransformers:
+
+```powershell
+python scripts\build_rag_embeddings.py --provider local --model BAAI/bge-small-en-v1.5
+```
+
+This writes `data\rag_sources\rag_index\chunk_embeddings_local.jsonl`.
+The first local run downloads the model; later runs reuse the local model cache
+and the chunk embedding cache. To use OpenAI embeddings explicitly:
+
+```powershell
+python scripts\build_rag_embeddings.py --provider openai --model text-embedding-3-small
+python scripts\preview_rag_context.py --id 9 --retrieval-mode vector --embeddings data\rag_sources\rag_index\chunk_embeddings_openai.jsonl
+```
+
 For satellite discovery tables, the index builder adds structured count fact
 chunks such as `As of November 2021, Saturn had 83 confirmed moons...` from the
 flattened source table. This keeps temporal moon-count questions grounded

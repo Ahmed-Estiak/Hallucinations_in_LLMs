@@ -13,6 +13,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.evaluator import evaluate_answer
+from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH
 from src.rag.retriever import RagRetriever
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag
 
@@ -41,7 +42,7 @@ def run_rag_benchmark(
     *,
     question_ids: list[int] | None = None,
     chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
-    embeddings_path: str | Path = "data/rag_sources/rag_index/chunk_embeddings.jsonl",
+    embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
     output_path: str | Path = "results/results_rag_llm.csv",
     top_k: int = 12,
     per_source_limit: int = 4,
@@ -94,6 +95,9 @@ def run_rag_benchmark(
             "type": question_row.get("type", ""),
             "ground_truth": _serialize_ground_truth(question_row["answer_spec"]),
             "retrieval_mode": retrieval_result.retrieval_mode,
+            "embedding_provider": retrieval_result.embedding_provider,
+            "embedding_model": retrieval_result.embedding_model,
+            "embeddings_path": retrieval_result.embeddings_path,
             "fallback_used": retrieval_result.fallback_used,
             "fallback_reason": retrieval_result.fallback_reason,
             "selected_sources": json.dumps(

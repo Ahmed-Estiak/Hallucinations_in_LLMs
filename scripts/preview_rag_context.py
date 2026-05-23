@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.rag.retriever import RagRetriever
+from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH
 
 
 DEFAULT_QUESTION_ID = 9
@@ -31,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--retrieval-mode", choices=("global", "auto-source", "vector", "hybrid"), default="global")
     parser.add_argument(
         "--embeddings",
-        default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "chunk_embeddings.jsonl"),
+        default=str(PROJECT_ROOT / DEFAULT_EMBEDDINGS_PATH),
         help="Embedding JSONL path for vector/hybrid retrieval",
     )
     parser.add_argument("--top-n-sources", type=int, default=12)
@@ -57,6 +58,10 @@ def main() -> int:
 
     print(f"Question: {question}")
     print(f"Retrieval mode: {result.retrieval_mode}")
+    if result.embedding_provider:
+        print(f"Embedding provider: {result.embedding_provider}")
+        print(f"Embedding model: {result.embedding_model}")
+        print(f"Embeddings path: {result.embeddings_path}")
     if result.fallback_used:
         print(f"Fallback used: {result.fallback_reason}")
     print()
