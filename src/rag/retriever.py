@@ -12,16 +12,41 @@ from typing import Any
 
 from src.question_classifier import LogicalModifier, QuestionClassifier
 from src.question_parser import parse_question
-from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH, EmbeddingIndex, cosine_similarity
+from src.rag.embeddings import (
+    DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+    DEFAULT_EMBEDDINGS_PATH,
+    DEFAULT_OPENAI_EMBEDDINGS_PATH,
+    EmbeddingIndex,
+    bge_m3_colbert_scores,
+    cosine_similarity,
+    embedding_text_for_chunk,
+    sparse_dot,
+)
 from src.rag.retriever_terms import build_query_terms, infer_query_predicates, tokenize
 from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, append_major_planet_sources
 
 
-RETRIEVAL_MODES = {"global", "auto-source", "vector", "hybrid"}
+RETRIEVAL_MODES = {
+    "global",
+    "auto-source",
+    "vector",
+    "hybrid",
+    "bge-m3-rrf",
+    "bge-base-rrf",
+    "openai-embedding-rrf",
+}
+DEFAULT_RETRIEVAL_MODE = "bge-m3-rrf"
 HYBRID_SOURCE_LEXICAL_WEIGHT = 0.60
 HYBRID_SOURCE_VECTOR_WEIGHT = 0.40
 HYBRID_CHUNK_LEXICAL_WEIGHT = 0.50
 HYBRID_CHUNK_VECTOR_WEIGHT = 0.50
+RRF_K = 60
+BGE_M3_SOURCE_RRF_WEIGHTS = {"dense": 0.30, "sparse": 0.45, "lexical": 0.25}
+BGE_M3_CHUNK_RRF_WEIGHTS = {"dense": 0.35, "sparse": 0.40, "lexical": 0.25}
+BGE_M3_FINAL_RRF_WEIGHTS = {"colbert": 0.45, "sparse": 0.25, "dense": 0.20, "lexical": 0.10}
+DENSE_LEXICAL_SOURCE_RRF_WEIGHTS = {"dense": 0.40, "lexical": 0.60}
+DENSE_LEXICAL_CHUNK_RRF_WEIGHTS = {"dense": 0.50, "lexical": 0.50}
+COLBERT_RERANK_CANDIDATES = 80
 
 
 @dataclass
@@ -55,12 +80,17 @@ class RagRetriever:
         chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
         documents_path: str | Path = "data/rag_sources/rag_index/documents.jsonl",
         embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
+        bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+        openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
     ) -> None:
         self.chunks_path = Path(chunks_path)
         self.chunks = self._load_chunks(self.chunks_path)
         self.documents_path = Path(documents_path)
         self.embeddings_path = Path(embeddings_path)
+        self.bge_base_embeddings_path = Path(bge_base_embeddings_path)
+        self.openai_embeddings_path = Path(openai_embeddings_path)
         self._embedding_index: EmbeddingIndex | None = None
+        self._embedding_indexes: dict[Path, EmbeddingIndex] = {}
         self.question_classifier = QuestionClassifier()
         self.source_selector = SourceSelector(self.chunks, documents_path=self.documents_path)
 
@@ -70,7 +100,7 @@ class RagRetriever:
         *,
         top_k: int = 12,
         per_source_limit: int = 4,
-        mode: str = "global",
+        mode: str = DEFAULT_RETRIEVAL_MODE,
         top_n_sources: int = 5,
     ) -> list[RetrievedChunk]:
         return self.retrieve_with_details(
@@ -87,11 +117,36 @@ class RagRetriever:
         *,
         top_k: int = 12,
         per_source_limit: int = 4,
-        mode: str = "global",
+        mode: str = DEFAULT_RETRIEVAL_MODE,
         top_n_sources: int = 5,
     ) -> RagRetrievalResult:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
+
+        if mode == "bge-m3-rrf":
+            return self._retrieve_rrf_fallback_chain(
+                question,
+                modes=["bge-m3-rrf", "bge-base-rrf", "auto-source"],
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                top_n_sources=top_n_sources,
+            )
+        if mode == "bge-base-rrf":
+            return self._retrieve_rrf_fallback_chain(
+                question,
+                modes=["bge-base-rrf", "auto-source"],
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                top_n_sources=top_n_sources,
+            )
+        if mode == "openai-embedding-rrf":
+            return self._retrieve_rrf_mode_once(
+                question,
+                mode=mode,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                top_n_sources=top_n_sources,
+            )
 
         source_selection = None
         selected_source_ids = None
@@ -203,6 +258,102 @@ class RagRetriever:
             embeddings_path=str(self.embeddings_path),
         )
 
+    def _retrieve_rrf_fallback_chain(
+        self,
+        question: str,
+        *,
+        modes: list[str],
+        top_k: int,
+        per_source_limit: int,
+        top_n_sources: int,
+    ) -> RagRetrievalResult:
+        failures = []
+        for mode in modes:
+            try:
+                if mode == "auto-source":
+                    result = self.retrieve_with_details(
+                        question,
+                        top_k=top_k,
+                        per_source_limit=per_source_limit,
+                        mode=mode,
+                        top_n_sources=top_n_sources,
+                    )
+                else:
+                    result = self._retrieve_rrf_mode_once(
+                        question,
+                        mode=mode,
+                        top_k=top_k,
+                        per_source_limit=per_source_limit,
+                        top_n_sources=top_n_sources,
+                    )
+            except (FileNotFoundError, RuntimeError) as exc:
+                failures.append(f"{mode}:{type(exc).__name__}:{exc}")
+                continue
+
+            if not is_weak_retrieval(result.retrieved_chunks) or mode == modes[-1]:
+                if mode != modes[0] or failures:
+                    result.fallback_used = True
+                    reason_parts = failures + [f"selected:{mode}"]
+                    result.fallback_reason = "; ".join(reason_parts)
+                return result
+            failures.append(f"{mode}:weak_retrieval")
+
+        return self.retrieve_with_details(
+            question,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            mode="auto-source",
+            top_n_sources=top_n_sources,
+        )
+
+    def _retrieve_rrf_mode_once(
+        self,
+        question: str,
+        *,
+        mode: str,
+        top_k: int,
+        per_source_limit: int,
+        top_n_sources: int,
+    ) -> RagRetrievalResult:
+        embedding_index = self._embedding_index_for_rrf_mode(mode)
+        query_features = embedding_index.encode_query(question)
+        dense_scores = self._dense_scores_by_chunk(embedding_index, query_features.dense)
+        sparse_scores = (
+            self._sparse_scores_by_chunk(embedding_index, query_features.sparse)
+            if mode == "bge-m3-rrf"
+            else {}
+        )
+        source_selection = self._select_sources_rrf(
+            question,
+            mode=mode,
+            dense_scores=dense_scores,
+            sparse_scores=sparse_scores,
+            top_n_sources=top_n_sources,
+        )
+        selected_source_ids = set(source_selection.selected_source_ids)
+        candidate_chunks = [
+            chunk for chunk in self.chunks
+            if not selected_source_ids or chunk.get("source_id") in selected_source_ids
+        ]
+        retrieved = self._retrieve_from_chunks_rrf(
+            question,
+            chunks=candidate_chunks,
+            mode=mode,
+            dense_scores=dense_scores,
+            sparse_scores=sparse_scores,
+            embedding_index=embedding_index,
+            top_k=top_k,
+            per_source_limit=self._effective_per_source_limit(question, per_source_limit),
+        )
+        return RagRetrievalResult(
+            retrieved_chunks=retrieved,
+            retrieval_mode=mode,
+            source_selection=source_selection,
+            embedding_provider=embedding_index.provider,
+            embedding_model=embedding_index.model,
+            embeddings_path=str(embedding_index.path),
+        )
+
     def _effective_per_source_limit(self, question: str, per_source_limit: int) -> int:
         classified = self.question_classifier.classify(question)
         if str(classified.primary_type.name) == "LIST":
@@ -216,6 +367,15 @@ class RagRetriever:
         chunks: list[dict[str, Any]],
         top_k: int,
         per_source_limit: int,
+    ) -> list[RetrievedChunk]:
+        scored = self._score_chunks_lexical(question, chunks=chunks)
+        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+
+    def _score_chunks_lexical(
+        self,
+        question: str,
+        *,
+        chunks: list[dict[str, Any]],
     ) -> list[RetrievedChunk]:
         parsed = parse_question(question)
         classified = self.question_classifier.classify(question)
@@ -243,7 +403,7 @@ class RagRetriever:
                 scored.append(RetrievedChunk(chunk=chunk, score=score, reasons=reasons))
 
         scored.sort(key=lambda item: item.score, reverse=True)
-        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+        return scored
 
     @property
     def embedding_index(self) -> EmbeddingIndex:
@@ -251,13 +411,49 @@ class RagRetriever:
             self._embedding_index = EmbeddingIndex(self.embeddings_path)
         return self._embedding_index
 
+    def _embedding_index_for_rrf_mode(self, mode: str) -> EmbeddingIndex:
+        if mode == "bge-m3-rrf":
+            path = self.embeddings_path
+        elif mode == "bge-base-rrf":
+            path = self.bge_base_embeddings_path
+        elif mode == "openai-embedding-rrf":
+            path = self.openai_embeddings_path
+        else:
+            raise ValueError(f"RRF embedding mode not supported: {mode}")
+        path = Path(path)
+        if path not in self._embedding_indexes:
+            self._embedding_indexes[path] = EmbeddingIndex(path)
+        return self._embedding_indexes[path]
+
     def _vector_scores_by_chunk(self, query_embedding: list[float]) -> dict[str, float]:
+        return self._dense_scores_by_chunk(self.embedding_index, query_embedding)
+
+    def _dense_scores_by_chunk(
+        self,
+        embedding_index: EmbeddingIndex,
+        query_embedding: list[float],
+    ) -> dict[str, float]:
         scores: dict[str, float] = {}
         for chunk in self.chunks:
-            embedding = self.embedding_index.get(chunk["chunk_id"])
+            embedding = embedding_index.get(chunk["chunk_id"])
             if embedding is None:
                 continue
             scores[chunk["chunk_id"]] = cosine_similarity(query_embedding, embedding)
+        return scores
+
+    def _sparse_scores_by_chunk(
+        self,
+        embedding_index: EmbeddingIndex,
+        query_sparse: dict[str, float] | None,
+    ) -> dict[str, float]:
+        scores: dict[str, float] = {}
+        if not query_sparse:
+            return scores
+        for chunk in self.chunks:
+            sparse_weights = embedding_index.get_sparse(chunk["chunk_id"])
+            score = sparse_dot(query_sparse, sparse_weights)
+            if score > 0:
+                scores[chunk["chunk_id"]] = score
         return scores
 
     def _select_sources_vector(
@@ -333,6 +529,77 @@ class RagRetriever:
             scores=hybrid_scores,
         )
 
+    def _select_sources_rrf(
+        self,
+        question: str,
+        *,
+        mode: str,
+        dense_scores: dict[str, float],
+        sparse_scores: dict[str, float],
+        top_n_sources: int,
+    ) -> SourceSelection:
+        lexical_selection = self.source_selector.select(
+            question,
+            top_n_sources=max(top_n_sources, len(self.source_selector.profiles)),
+            min_score=0.0,
+        )
+        dense_source_scores = self._aggregate_vector_source_scores(dense_scores)
+        sparse_source_scores = self._aggregate_sparse_source_scores(sparse_scores)
+        lexical_ranks = source_rank_map(lexical_selection.scores)
+        dense_ranks = source_rank_map(dense_source_scores)
+        sparse_ranks = source_rank_map(sparse_source_scores)
+        source_ids = set(lexical_ranks) | set(dense_ranks) | set(sparse_ranks)
+        weights = (
+            BGE_M3_SOURCE_RRF_WEIGHTS
+            if mode == "bge-m3-rrf"
+            else DENSE_LEXICAL_SOURCE_RRF_WEIGHTS
+        )
+        lexical_by_id = {score.source_id: score for score in lexical_selection.scores}
+        dense_by_id = {score.source_id: score for score in dense_source_scores}
+        sparse_by_id = {score.source_id: score for score in sparse_source_scores}
+
+        rrf_scores = []
+        for source_id in source_ids:
+            rank_values = {
+                "lexical": lexical_ranks.get(source_id),
+                "dense": dense_ranks.get(source_id),
+                "sparse": sparse_ranks.get(source_id),
+            }
+            score = weighted_rrf(rank_values, weights) * 1000.0
+            profile = self.source_selector.profiles.get(source_id)
+            reasons = [
+                f"rrf:{score:.4f}",
+                f"rank_lexical:{rank_values['lexical'] or 'none'}",
+                f"rank_dense:{rank_values['dense'] or 'none'}",
+            ]
+            if "sparse" in weights:
+                reasons.append(f"rank_sparse:{rank_values['sparse'] or 'none'}")
+            if lexical_by_id.get(source_id):
+                reasons.extend(lexical_by_id[source_id].reasons[:4])
+            if dense_by_id.get(source_id):
+                reasons.extend(dense_by_id[source_id].reasons[:2])
+            if sparse_by_id.get(source_id):
+                reasons.extend(sparse_by_id[source_id].reasons[:2])
+            rrf_scores.append(SourceScore(
+                source_id=source_id,
+                score=score,
+                reasons=reasons,
+                title=(profile.title if profile else ""),
+                url=(profile.url if profile else ""),
+                chunk_count=(profile.chunk_count if profile else 0),
+                char_count=(profile.char_count if profile else 0),
+            ))
+
+        rrf_scores.sort(key=lambda item: item.score, reverse=True)
+        selected = [score.source_id for score in rrf_scores[:top_n_sources]]
+        if re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()):
+            selected = append_major_planet_sources(selected, self.source_selector.profiles)
+        return SourceSelection(
+            mode=mode,
+            selected_source_ids=selected,
+            scores=rrf_scores,
+        )
+
     def _aggregate_vector_source_scores(self, vector_scores: dict[str, float]) -> list[SourceScore]:
         scores_by_source: dict[str, list[float]] = defaultdict(list)
         for chunk in self.chunks:
@@ -362,6 +629,37 @@ class RagRetriever:
                 chunk_count=(profile.chunk_count if profile else len(scores)),
                 char_count=(profile.char_count if profile else 0),
             ))
+        return source_scores
+
+    def _aggregate_sparse_source_scores(self, sparse_scores: dict[str, float]) -> list[SourceScore]:
+        scores_by_source: dict[str, list[float]] = defaultdict(list)
+        for chunk in self.chunks:
+            score = sparse_scores.get(chunk["chunk_id"])
+            if score is not None:
+                scores_by_source[chunk["source_id"]].append(score)
+
+        source_scores = []
+        for source_id, scores in scores_by_source.items():
+            profile = self.source_selector.profiles.get(source_id)
+            top_scores = sorted(scores, reverse=True)[:3]
+            if not top_scores:
+                continue
+            top_average = sum(top_scores) / len(top_scores)
+            top_score = top_scores[0]
+            source_scores.append(SourceScore(
+                source_id=source_id,
+                score=top_average,
+                reasons=[
+                    f"sparse_top_score:{top_score:.4f}",
+                    f"sparse_top3_avg:{top_average:.4f}",
+                    f"sparse_chunks:{len(scores)}",
+                ],
+                title=(profile.title if profile else ""),
+                url=(profile.url if profile else ""),
+                chunk_count=(profile.chunk_count if profile else len(scores)),
+                char_count=(profile.char_count if profile else 0),
+            ))
+        source_scores.sort(key=lambda item: item.score, reverse=True)
         return source_scores
 
     def _retrieve_from_chunks_vector(
@@ -434,6 +732,89 @@ class RagRetriever:
 
         scored.sort(key=lambda item: item.score, reverse=True)
         return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+
+    def _retrieve_from_chunks_rrf(
+        self,
+        question: str,
+        *,
+        chunks: list[dict[str, Any]],
+        mode: str,
+        dense_scores: dict[str, float],
+        sparse_scores: dict[str, float],
+        embedding_index: EmbeddingIndex,
+        top_k: int,
+        per_source_limit: int,
+    ) -> list[RetrievedChunk]:
+        lexical_items = self._score_chunks_lexical(question, chunks=chunks)
+        chunk_ids = {chunk["chunk_id"] for chunk in chunks}
+        dense_items = [
+            RetrievedChunk(chunk=chunk, score=dense_scores[chunk["chunk_id"]] * 100.0, reasons=[])
+            for chunk in chunks
+            if chunk["chunk_id"] in dense_scores
+        ]
+        sparse_items = [
+            RetrievedChunk(chunk=chunk, score=sparse_scores[chunk["chunk_id"]], reasons=[])
+            for chunk in chunks
+            if chunk["chunk_id"] in sparse_scores
+        ]
+        lexical_ranks = chunk_rank_map(lexical_items)
+        dense_ranks = chunk_rank_map(sorted(dense_items, key=lambda item: item.score, reverse=True))
+        sparse_ranks = chunk_rank_map(sorted(sparse_items, key=lambda item: item.score, reverse=True))
+        lexical_by_id = {item.chunk["chunk_id"]: item for item in lexical_items}
+        dense_by_id = {item.chunk["chunk_id"]: item for item in dense_items}
+        sparse_by_id = {item.chunk["chunk_id"]: item for item in sparse_items}
+        chunk_by_id = {chunk["chunk_id"]: chunk for chunk in chunks}
+        rank_maps = {
+            "lexical": lexical_ranks,
+            "dense": dense_ranks,
+            "sparse": sparse_ranks,
+        }
+        item_maps = {
+            "lexical": lexical_by_id,
+            "dense": dense_by_id,
+            "sparse": sparse_by_id,
+        }
+        weights = (
+            BGE_M3_CHUNK_RRF_WEIGHTS
+            if mode == "bge-m3-rrf"
+            else DENSE_LEXICAL_CHUNK_RRF_WEIGHTS
+        )
+        initial_items = combine_chunk_rrf(
+            chunk_ids=chunk_ids,
+            chunk_by_id=chunk_by_id,
+            rank_maps=rank_maps,
+            item_maps=item_maps,
+            weights=weights,
+        )
+        initial_items.sort(key=lambda item: item.score, reverse=True)
+        if mode != "bge-m3-rrf":
+            return cap_per_source(initial_items, top_k=top_k, per_source_limit=per_source_limit)
+
+        rerank_candidates = initial_items[: max(COLBERT_RERANK_CANDIDATES, top_k)]
+        colbert_scores = bge_m3_colbert_scores(
+            question,
+            [embedding_text_for_chunk(item.chunk) for item in rerank_candidates],
+            model=embedding_index.model,
+        )
+        colbert_items = [
+            RetrievedChunk(chunk=item.chunk, score=score, reasons=[f"colbert_score:{score:.4f}"])
+            for item, score in zip(rerank_candidates, colbert_scores)
+        ]
+        colbert_items.sort(key=lambda item: item.score, reverse=True)
+        final_rank_maps = dict(rank_maps)
+        final_rank_maps["colbert"] = chunk_rank_map(colbert_items)
+        final_item_maps = dict(item_maps)
+        final_item_maps["colbert"] = {item.chunk["chunk_id"]: item for item in colbert_items}
+        candidate_ids = {item.chunk["chunk_id"] for item in rerank_candidates}
+        final_items = combine_chunk_rrf(
+            chunk_ids=candidate_ids,
+            chunk_by_id=chunk_by_id,
+            rank_maps=final_rank_maps,
+            item_maps=final_item_maps,
+            weights=BGE_M3_FINAL_RRF_WEIGHTS,
+        )
+        final_items.sort(key=lambda item: item.score, reverse=True)
+        return cap_per_source(final_items, top_k=top_k, per_source_limit=per_source_limit)
 
     def format_context(self, retrieved_chunks: list[RetrievedChunk], *, max_chars: int = 12000) -> str:
         parts = []
@@ -543,6 +924,62 @@ class RagRetriever:
                 if line:
                     chunks.append(json.loads(line))
         return chunks
+
+
+def source_rank_map(items: list[SourceScore]) -> dict[str, int]:
+    return {item.source_id: index for index, item in enumerate(items, start=1)}
+
+
+def chunk_rank_map(items: list[RetrievedChunk]) -> dict[str, int]:
+    return {item.chunk["chunk_id"]: index for index, item in enumerate(items, start=1)}
+
+
+def weighted_rrf(
+    ranks: dict[str, int | None],
+    weights: dict[str, float],
+    *,
+    k: int = RRF_K,
+) -> float:
+    score = 0.0
+    for name, weight in weights.items():
+        rank = ranks.get(name)
+        if rank is None:
+            continue
+        score += weight / (k + rank)
+    return score
+
+
+def combine_chunk_rrf(
+    *,
+    chunk_ids: set[str],
+    chunk_by_id: dict[str, dict[str, Any]],
+    rank_maps: dict[str, dict[str, int]],
+    item_maps: dict[str, dict[str, RetrievedChunk]],
+    weights: dict[str, float],
+) -> list[RetrievedChunk]:
+    combined = []
+    for chunk_id in chunk_ids:
+        rank_values = {
+            name: rank_map.get(chunk_id)
+            for name, rank_map in rank_maps.items()
+        }
+        score = weighted_rrf(rank_values, weights) * 1000.0
+        if score <= 0:
+            continue
+        reasons = [f"rrf:{score:.4f}"]
+        for name in weights:
+            rank = rank_values.get(name)
+            reasons.append(f"rank_{name}:{rank or 'none'}")
+            item = item_maps.get(name, {}).get(chunk_id)
+            if item:
+                reasons.append(f"{name}_score:{item.score:.4f}")
+                reasons.extend(item.reasons[:4])
+        combined.append(RetrievedChunk(
+            chunk=chunk_by_id[chunk_id],
+            score=score,
+            reasons=reasons,
+        ))
+    return combined
 
 
 def cap_per_source(items: list[RetrievedChunk], *, top_k: int, per_source_limit: int) -> list[RetrievedChunk]:

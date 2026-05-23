@@ -10,8 +10,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.rag.retriever import RagRetriever
-from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH
+from src.rag.retriever import DEFAULT_RETRIEVAL_MODE, RETRIEVAL_MODES, RagRetriever
+from src.rag.embeddings import (
+    DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+    DEFAULT_EMBEDDINGS_PATH,
+    DEFAULT_OPENAI_EMBEDDINGS_PATH,
+)
 
 
 DEFAULT_QUESTION_ID = 9
@@ -29,11 +33,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--per-source-limit", type=int, default=4)
-    parser.add_argument("--retrieval-mode", choices=("global", "auto-source", "vector", "hybrid"), default="global")
+    parser.add_argument("--retrieval-mode", choices=sorted(RETRIEVAL_MODES), default=DEFAULT_RETRIEVAL_MODE)
     parser.add_argument(
         "--embeddings",
         default=str(PROJECT_ROOT / DEFAULT_EMBEDDINGS_PATH),
-        help="Embedding JSONL path for vector/hybrid retrieval",
+        help="Embedding JSONL path for bge-m3-rrf/vector/hybrid retrieval",
+    )
+    parser.add_argument(
+        "--bge-base-embeddings",
+        default=str(PROJECT_ROOT / DEFAULT_BGE_BASE_EMBEDDINGS_PATH),
+        help="Embedding JSONL path for bge-base-rrf fallback",
+    )
+    parser.add_argument(
+        "--openai-embeddings",
+        default=str(PROJECT_ROOT / DEFAULT_OPENAI_EMBEDDINGS_PATH),
+        help="Embedding JSONL path for explicit openai-embedding-rrf mode",
     )
     parser.add_argument("--top-n-sources", type=int, default=12)
     parser.add_argument("--max-chars", type=int, default=12000)
@@ -45,7 +59,12 @@ def main() -> int:
     args = build_parser().parse_args()
     question = args.question or question_by_id(args.id)
 
-    retriever = RagRetriever(args.chunks, embeddings_path=args.embeddings)
+    retriever = RagRetriever(
+        args.chunks,
+        embeddings_path=args.embeddings,
+        bge_base_embeddings_path=args.bge_base_embeddings,
+        openai_embeddings_path=args.openai_embeddings,
+    )
     result = retriever.retrieve_with_details(
         question,
         top_k=args.top_k,

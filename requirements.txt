@@ -3,3 +3,4 @@ openai
 google-genai
 pandas
 sentence-transformers
+FlagEmbedding

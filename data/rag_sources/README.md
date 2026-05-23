@@ -38,28 +38,45 @@ python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.j
 python scripts\build_rag_index.py
 python scripts\build_rag_embeddings.py
 python scripts\preview_rag_context.py --id 9
+python scripts\preview_rag_context.py --id 9 --retrieval-mode bge-m3-rrf
+python scripts\preview_rag_context.py --id 9 --retrieval-mode bge-base-rrf
 python scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
 python scripts\preview_rag_context.py --id 9 --retrieval-mode vector
 python scripts\preview_rag_context.py --id 9 --retrieval-mode hybrid
 python scripts\preview_rag_context.py --id 15 --retrieval-mode auto-source
+python main_rag.py --ids 9 11 15 --retrieval-mode bge-m3-rrf
 python main_rag.py --ids 9 11 15 --retrieval-mode auto-source
 python main_rag.py --ids 9 11 15 --retrieval-mode vector
 python main_rag.py --ids 9 11 15 --retrieval-mode hybrid
 ```
 
-Embeddings default to local SentenceTransformers:
+Embeddings default to BGE-M3 with FlagEmbedding:
+
+```powershell
+python scripts\build_rag_embeddings.py --provider bge-m3 --model BAAI/bge-m3
+```
+
+This writes `data\rag_sources\rag_index\chunk_embeddings_bge_m3.jsonl` with
+dense vectors and sparse lexical weights. The first local run downloads the
+model; later runs reuse the local model cache and the chunk embedding cache.
+
+The default retrieval mode is `bge-m3-rrf`, which ranks by BGE-M3 dense,
+BGE-M3 sparse, and existing lexical heuristic signals, then reranks top
+candidates with BGE-M3 ColBERT scores. If the BGE-M3 cache/dependency is not
+available, it falls back to `bge-base-rrf`, then `auto-source`.
+
+Build the first local fallback cache:
 
 ```powershell
 python scripts\build_rag_embeddings.py --provider local --model BAAI/bge-base-en-v1.5
 ```
 
-This writes `data\rag_sources\rag_index\chunk_embeddings_local.jsonl`.
-The first local run downloads the model; later runs reuse the local model cache
-and the chunk embedding cache. To use OpenAI embeddings explicitly:
+This writes `data\rag_sources\rag_index\chunk_embeddings_bge_base.jsonl`.
+To use OpenAI embeddings explicitly:
 
 ```powershell
 python scripts\build_rag_embeddings.py --provider openai --model text-embedding-3-small
-python scripts\preview_rag_context.py --id 9 --retrieval-mode vector --embeddings data\rag_sources\rag_index\chunk_embeddings_openai.jsonl
+python scripts\preview_rag_context.py --id 9 --retrieval-mode openai-embedding-rrf
 ```
 
 For satellite discovery tables, the index builder adds structured count fact

@@ -13,8 +13,12 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.evaluator import evaluate_answer
-from src.rag.embeddings import DEFAULT_EMBEDDINGS_PATH
-from src.rag.retriever import RagRetriever
+from src.rag.embeddings import (
+    DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+    DEFAULT_EMBEDDINGS_PATH,
+    DEFAULT_OPENAI_EMBEDDINGS_PATH,
+)
+from src.rag.retriever import DEFAULT_RETRIEVAL_MODE, RagRetriever
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag
 
 
@@ -43,15 +47,22 @@ def run_rag_benchmark(
     question_ids: list[int] | None = None,
     chunks_path: str | Path = "data/rag_sources/rag_index/chunks.jsonl",
     embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
+    bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+    openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
     output_path: str | Path = "results/results_rag_llm.csv",
     top_k: int = 12,
     per_source_limit: int = 4,
-    retrieval_mode: str = "global",
+    retrieval_mode: str = DEFAULT_RETRIEVAL_MODE,
     top_n_sources: int = 12,
 ) -> None:
     start_time = time.time()
     questions = load_questions(question_ids or DEFAULT_QUESTION_IDS)
-    retriever = RagRetriever(chunks_path, embeddings_path=embeddings_path)
+    retriever = RagRetriever(
+        chunks_path,
+        embeddings_path=embeddings_path,
+        bge_base_embeddings_path=bge_base_embeddings_path,
+        openai_embeddings_path=openai_embeddings_path,
+    )
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     rows = []
@@ -125,7 +136,11 @@ def run_rag_benchmark(
         elapsed = time.time() - question_start
         print(f"  OpenAI: {openai_answer} ({openai_eval['reason']})")
         print(f"  Gemini: {gemini_answer} ({gemini_eval['reason']})")
-        print(f"  Retrieved chunks: {len(retrieved)} | Mode: {retrieval_mode} | Timing: {elapsed:.2f}s")
+        fallback_note = f" | Fallback: {retrieval_result.fallback_reason}" if retrieval_result.fallback_used else ""
+        print(
+            f"  Retrieved chunks: {len(retrieved)} | Mode: {retrieval_result.retrieval_mode}"
+            f"{fallback_note} | Timing: {elapsed:.2f}s"
+        )
 
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False)

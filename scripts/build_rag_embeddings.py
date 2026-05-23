@@ -11,6 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.rag.chunker import load_jsonl
 from src.rag.embeddings import (
+    DEFAULT_BGE_M3_MODEL,
     DEFAULT_EMBEDDING_PROVIDER,
     DEFAULT_LOCAL_EMBEDDING_MODEL,
     DEFAULT_OPENAI_EMBEDDING_MODEL,
@@ -37,16 +38,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--provider",
-        choices=("local", "openai"),
+        choices=("bge-m3", "local", "openai"),
         default=DEFAULT_EMBEDDING_PROVIDER,
-        help="Embedding provider. local uses SentenceTransformers; openai uses the OpenAI embeddings API.",
+        help=(
+            "Embedding provider. bge-m3 uses FlagEmbedding dense+sparse; "
+            "local uses SentenceTransformers; openai uses the OpenAI embeddings API."
+        ),
     )
     parser.add_argument(
         "--model",
         default=None,
         help=(
             "Embedding model. Defaults to "
-            f"{DEFAULT_LOCAL_EMBEDDING_MODEL} for local and "
+            f"{DEFAULT_BGE_M3_MODEL} for bge-m3, "
+            f"{DEFAULT_LOCAL_EMBEDDING_MODEL} for local, and "
             f"{DEFAULT_OPENAI_EMBEDDING_MODEL} for openai."
         ),
     )
