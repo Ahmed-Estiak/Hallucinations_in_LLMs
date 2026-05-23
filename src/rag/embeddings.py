@@ -18,6 +18,8 @@ DEFAULT_EMBEDDING_MODEL = DEFAULT_BGE_M3_MODEL
 DEFAULT_EMBEDDINGS_PATH = Path("data/rag_sources/rag_index/chunk_embeddings_bge_m3.jsonl")
 DEFAULT_BGE_BASE_EMBEDDINGS_PATH = Path("data/rag_sources/rag_index/chunk_embeddings_bge_base.jsonl")
 DEFAULT_OPENAI_EMBEDDINGS_PATH = Path("data/rag_sources/rag_index/chunk_embeddings_openai.jsonl")
+BGE_M3_EMBED_MAX_LENGTH = 512
+BGE_M3_COLBERT_MAX_PASSAGE_LENGTH = 512
 EMBEDDING_PROVIDERS = {"bge-m3", "local", "openai"}
 
 _LOCAL_MODEL_CACHE: dict[str, Any] = {}
@@ -195,6 +197,7 @@ def embed_text_features_bge_m3(
         return_dense=True,
         return_sparse=return_sparse,
         return_colbert_vecs=False,
+        max_length=BGE_M3_EMBED_MAX_LENGTH,
     )
     dense_vectors = output.get("dense_vecs")
     if dense_vectors is None:
@@ -222,7 +225,7 @@ def bge_m3_colbert_scores(
     passages: list[str],
     *,
     model: str = DEFAULT_BGE_M3_MODEL,
-    max_passage_length: int = 512,
+    max_passage_length: int = BGE_M3_COLBERT_MAX_PASSAGE_LENGTH,
 ) -> list[float]:
     if not passages:
         return []
@@ -253,7 +256,7 @@ def get_bge_m3_model(model: str) -> Any:
         ) from exc
 
     if model not in _BGE_M3_MODEL_CACHE:
-        _BGE_M3_MODEL_CACHE[model] = BGEM3FlagModel(model, use_fp16=False)
+        _BGE_M3_MODEL_CACHE[model] = BGEM3FlagModel(local_snapshot_or_model_id(model), use_fp16=False)
     return _BGE_M3_MODEL_CACHE[model]
 
 
@@ -267,7 +270,7 @@ def embed_texts_local(texts: list[str], *, model: str) -> list[list[float]]:
         ) from exc
 
     if model not in _LOCAL_MODEL_CACHE:
-        _LOCAL_MODEL_CACHE[model] = SentenceTransformer(model)
+        _LOCAL_MODEL_CACHE[model] = SentenceTransformer(local_snapshot_or_model_id(model))
     encoder = _LOCAL_MODEL_CACHE[model]
     embeddings = encoder.encode(
         texts,
@@ -368,6 +371,14 @@ def default_embeddings_path_for_provider(provider: str) -> Path:
     if provider == "local":
         return DEFAULT_BGE_BASE_EMBEDDINGS_PATH
     return DEFAULT_OPENAI_EMBEDDINGS_PATH
+
+
+def local_snapshot_or_model_id(model: str) -> str:
+    try:
+        from huggingface_hub import snapshot_download
+        return snapshot_download(model, local_files_only=True)
+    except Exception:
+        return model
 
 
 def normalize_sparse_weights(value: Any) -> dict[str, float] | None:
