@@ -11,7 +11,7 @@ from typing import Any, Iterable
 
 
 DEFAULT_EMBEDDING_PROVIDER = "local"
-DEFAULT_LOCAL_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+DEFAULT_LOCAL_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
 DEFAULT_EMBEDDING_MODEL = DEFAULT_LOCAL_EMBEDDING_MODEL
 DEFAULT_EMBEDDINGS_PATH = Path("data/rag_sources/rag_index/chunk_embeddings_local.jsonl")

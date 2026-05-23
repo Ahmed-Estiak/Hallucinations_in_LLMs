@@ -50,7 +50,7 @@ python main_rag.py --ids 9 11 15 --retrieval-mode hybrid
 Embeddings default to local SentenceTransformers:
 
 ```powershell
-python scripts\build_rag_embeddings.py --provider local --model BAAI/bge-small-en-v1.5
+python scripts\build_rag_embeddings.py --provider local --model BAAI/bge-base-en-v1.5
 ```
 
 This writes `data\rag_sources\rag_index\chunk_embeddings_local.jsonl`.
