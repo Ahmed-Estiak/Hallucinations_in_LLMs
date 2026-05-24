@@ -15,7 +15,10 @@ from src.rag.embeddings import (
     DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
     DEFAULT_EMBEDDINGS_PATH,
     DEFAULT_OPENAI_EMBEDDINGS_PATH,
+    embedding_cache_request_for_retrieval_mode,
+    ensure_embedding_cache,
 )
+from src.rag.chunker import load_jsonl
 
 
 DEFAULT_QUESTION_ID = 9
@@ -52,12 +55,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-n-sources", type=int, default=12)
     parser.add_argument("--max-chars", type=int, default=12000)
     parser.add_argument("--preview-chars", type=int, default=180)
+    parser.add_argument(
+        "--build-missing-embeddings",
+        action="store_true",
+        help=(
+            "Build the selected retrieval embedding cache when it is missing or incomplete. "
+            "For openai-embedding-rrf this calls the OpenAI embeddings API."
+        ),
+    )
+    parser.add_argument("--embedding-batch-size", type=int, default=64)
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     question = args.question or question_by_id(args.id)
+    maybe_build_missing_embeddings(args)
 
     retriever = RagRetriever(
         args.chunks,
@@ -135,6 +148,37 @@ def question_by_id(question_id: int) -> str:
         if int(question["id"]) == question_id:
             return question["question"]
     raise ValueError(f"Question id not found: {question_id}")
+
+
+def maybe_build_missing_embeddings(args: argparse.Namespace) -> None:
+    if not args.build_missing_embeddings:
+        return
+    request = embedding_cache_request_for_retrieval_mode(
+        args.retrieval_mode,
+        embeddings_path=args.embeddings,
+        bge_base_embeddings_path=args.bge_base_embeddings,
+        openai_embeddings_path=args.openai_embeddings,
+    )
+    if request is None:
+        print(f"No embedding cache required for retrieval mode: {args.retrieval_mode}")
+        return
+
+    provider, path = request
+    if provider == "openai":
+        print("Building missing OpenAI embedding cache. This calls the OpenAI embeddings API.")
+    else:
+        print(f"Ensuring {provider} embedding cache: {path}")
+    result = ensure_embedding_cache(
+        load_jsonl(args.chunks),
+        path=path,
+        provider=provider,
+        batch_size=args.embedding_batch_size,
+    )
+    status = "built/updated" if result.built else "already complete"
+    print(
+        f"Embedding cache {status}: {result.path} "
+        f"({result.total_chunks} chunks, provider={result.provider}, model={result.model})"
+    )
 
 
 def one_line(text: str, limit: int) -> str:

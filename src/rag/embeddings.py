@@ -54,6 +54,16 @@ class EmbeddingRecord:
         return data
 
 
+@dataclass
+class EmbeddingCacheBuildResult:
+    path: Path
+    provider: str
+    model: str
+    built: bool
+    existing_complete_records: int
+    total_chunks: int
+
+
 class EmbeddingIndex:
     def __init__(self, path: str | Path = DEFAULT_EMBEDDINGS_PATH) -> None:
         self.path = Path(path)
@@ -142,6 +152,75 @@ def build_chunk_embedding_records(
     order = {chunk["chunk_id"]: index for index, chunk in enumerate(chunks)}
     output_records.sort(key=lambda record: order.get(record.chunk_id, 10**9))
     return output_records
+
+
+def ensure_embedding_cache(
+    chunks: list[dict[str, Any]],
+    *,
+    path: str | Path,
+    provider: str,
+    model: str | None = None,
+    batch_size: int = 64,
+    refresh: bool = False,
+) -> EmbeddingCacheBuildResult:
+    provider = normalize_provider(provider)
+    model = model or default_model_for_provider(provider)
+    target = Path(path)
+    existing_records = load_embedding_records(target)
+    complete_count = count_complete_embedding_records(
+        chunks,
+        records=existing_records,
+        provider=provider,
+        model=model,
+    )
+    if complete_count == len(chunks) and not refresh:
+        return EmbeddingCacheBuildResult(
+            path=target,
+            provider=provider,
+            model=model,
+            built=False,
+            existing_complete_records=complete_count,
+            total_chunks=len(chunks),
+        )
+
+    records = build_chunk_embedding_records(
+        chunks,
+        existing_records=existing_records,
+        provider=provider,
+        model=model,
+        batch_size=batch_size,
+        refresh=refresh,
+    )
+    write_embedding_records(target, records)
+    return EmbeddingCacheBuildResult(
+        path=target,
+        provider=provider,
+        model=model,
+        built=True,
+        existing_complete_records=complete_count,
+        total_chunks=len(chunks),
+    )
+
+
+def count_complete_embedding_records(
+    chunks: list[dict[str, Any]],
+    *,
+    records: dict[str, EmbeddingRecord],
+    provider: str,
+    model: str,
+) -> int:
+    complete = 0
+    for chunk in chunks:
+        text = embedding_text_for_chunk(chunk)
+        record = records.get(chunk["chunk_id"])
+        if (
+            record
+            and record.provider == provider
+            and record.model == model
+            and record.text_hash == hash_text(text)
+        ):
+            complete += 1
+    return complete
 
 
 def embedding_text_for_chunk(chunk: dict[str, Any], *, max_chars: int = 12000) -> str:
@@ -376,6 +455,24 @@ def default_embeddings_path_for_provider(provider: str) -> Path:
     if provider == "local":
         return DEFAULT_BGE_BASE_EMBEDDINGS_PATH
     return DEFAULT_OPENAI_EMBEDDINGS_PATH
+
+
+def embedding_cache_request_for_retrieval_mode(
+    mode: str,
+    *,
+    embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
+    bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
+    openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
+) -> tuple[str, Path] | None:
+    if mode == "bge-m3-rrf":
+        return "bge-m3", Path(embeddings_path)
+    if mode == "bge-base-rrf":
+        return "local", Path(bge_base_embeddings_path)
+    if mode == "openai-embedding-rrf":
+        return "openai", Path(openai_embeddings_path)
+    if mode in {"vector", "hybrid"}:
+        return "bge-m3", Path(embeddings_path)
+    return None
 
 
 def local_snapshot_or_model_id(model: str) -> str:

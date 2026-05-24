@@ -91,6 +91,16 @@ To use OpenAI embeddings explicitly:
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode openai-embedding-rrf
 ```
 
+Or let the selected retrieval command build the missing cache explicitly:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode openai-embedding-rrf --build-missing-embeddings
+.\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode openai-embedding-rrf --build-missing-embeddings
+```
+
+The OpenAI cache is not built silently because that would call the OpenAI
+embeddings API from a command that may otherwise be only a retrieval preview.
+
 For satellite discovery tables, the index builder adds structured count fact
 chunks such as `As of November 2021, Saturn had 83 confirmed moons...` from the
 flattened source table. This keeps temporal moon-count questions grounded
