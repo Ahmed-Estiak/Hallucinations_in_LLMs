@@ -21,10 +21,22 @@ Suggested file naming:
 - `rag_doc_04_mixed_astronomy_facts`
 - `rag_doc_05_temporal_astronomy_notes`
 
+Recommended local Python:
+
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print(torch.cuda.is_available())"
+```
+
+If `.venv` is missing, install Python 3.12 and run:
+
+```powershell
+.\scripts\setup_rag_gpu_env.ps1
+```
+
 Wikipedia cleaning:
 
 ```powershell
-python scripts\clean_wikipedia_source.py --url "https://en.wikipedia.org/wiki/Saturn" --source-id wiki_saturn
+.\.venv\Scripts\python.exe scripts\clean_wikipedia_source.py --url "https://en.wikipedia.org/wiki/Saturn" --source-id wiki_saturn
 ```
 
 The script uses `external/Wikipedia_text_extractor` by default. Set
@@ -34,26 +46,26 @@ different folder.
 Q9 RAG+LLM vertical slice:
 
 ```powershell
-python scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.json
-python scripts\build_rag_index.py
-python scripts\build_rag_embeddings.py
-python scripts\preview_rag_context.py --id 9
-python scripts\preview_rag_context.py --id 9 --retrieval-mode bge-m3-rrf
-python scripts\preview_rag_context.py --id 9 --retrieval-mode bge-base-rrf
-python scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
-python scripts\preview_rag_context.py --id 9 --retrieval-mode vector
-python scripts\preview_rag_context.py --id 9 --retrieval-mode hybrid
-python scripts\preview_rag_context.py --id 15 --retrieval-mode auto-source
-python main_rag.py --ids 9 11 15 --retrieval-mode bge-m3-rrf
-python main_rag.py --ids 9 11 15 --retrieval-mode auto-source
-python main_rag.py --ids 9 11 15 --retrieval-mode vector
-python main_rag.py --ids 9 11 15 --retrieval-mode hybrid
+.\.venv\Scripts\python.exe scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.json
+.\.venv\Scripts\python.exe scripts\build_rag_index.py
+.\.venv\Scripts\python.exe scripts\build_rag_embeddings.py
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode bge-m3-rrf
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode bge-base-rrf
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode vector
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode hybrid
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 15 --retrieval-mode auto-source
+.\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode bge-m3-rrf
+.\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode auto-source
+.\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode vector
+.\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode hybrid
 ```
 
 Embeddings default to BGE-M3 with FlagEmbedding:
 
 ```powershell
-python scripts\build_rag_embeddings.py --provider bge-m3 --model BAAI/bge-m3
+.\.venv\Scripts\python.exe scripts\build_rag_embeddings.py --provider bge-m3 --model BAAI/bge-m3
 ```
 
 This writes `data\rag_sources\rag_index\chunk_embeddings_bge_m3.jsonl` with
@@ -68,15 +80,15 @@ available, it falls back to `bge-base-rrf`, then `auto-source`.
 Build the first local fallback cache:
 
 ```powershell
-python scripts\build_rag_embeddings.py --provider local --model BAAI/bge-base-en-v1.5
+.\.venv\Scripts\python.exe scripts\build_rag_embeddings.py --provider local --model BAAI/bge-base-en-v1.5
 ```
 
 This writes `data\rag_sources\rag_index\chunk_embeddings_bge_base.jsonl`.
 To use OpenAI embeddings explicitly:
 
 ```powershell
-python scripts\build_rag_embeddings.py --provider openai --model text-embedding-3-small
-python scripts\preview_rag_context.py --id 9 --retrieval-mode openai-embedding-rrf
+.\.venv\Scripts\python.exe scripts\build_rag_embeddings.py --provider openai --model text-embedding-3-small
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode openai-embedding-rrf
 ```
 
 For satellite discovery tables, the index builder adds structured count fact

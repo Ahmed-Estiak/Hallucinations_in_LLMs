@@ -256,7 +256,12 @@ def get_bge_m3_model(model: str) -> Any:
         ) from exc
 
     if model not in _BGE_M3_MODEL_CACHE:
-        _BGE_M3_MODEL_CACHE[model] = BGEM3FlagModel(local_snapshot_or_model_id(model), use_fp16=False)
+        use_cuda = torch_cuda_available()
+        _BGE_M3_MODEL_CACHE[model] = BGEM3FlagModel(
+            local_snapshot_or_model_id(model),
+            use_fp16=use_cuda,
+            devices="cuda" if use_cuda else None,
+        )
     return _BGE_M3_MODEL_CACHE[model]
 
 
@@ -379,6 +384,14 @@ def local_snapshot_or_model_id(model: str) -> str:
         return snapshot_download(model, local_files_only=True)
     except Exception:
         return model
+
+
+def torch_cuda_available() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
 
 
 def normalize_sparse_weights(value: Any) -> dict[str, float] | None:

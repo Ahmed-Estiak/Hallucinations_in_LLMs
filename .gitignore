@@ -3,6 +3,9 @@ __pycache__/
 results/*.csv
 results/.~lock.*
 hallucination_llm_env/
+.venv/
+/.venv/
+.venv/**
 *.pyc
 .DS_Store
 .vscode/
