@@ -92,7 +92,7 @@ class RagRetriever:
         self._embedding_index: EmbeddingIndex | None = None
         self._embedding_indexes: dict[Path, EmbeddingIndex] = {}
         self.question_classifier = QuestionClassifier()
-        self.source_selector = SourceSelector(self.chunks, documents_path=self.documents_path)
+        self._source_selector: SourceSelector | None = None
 
     def retrieve(
         self,
@@ -410,6 +410,12 @@ class RagRetriever:
         if self._embedding_index is None:
             self._embedding_index = EmbeddingIndex(self.embeddings_path)
         return self._embedding_index
+
+    @property
+    def source_selector(self) -> SourceSelector:
+        if self._source_selector is None:
+            self._source_selector = SourceSelector(self.chunks, documents_path=self.documents_path)
+        return self._source_selector
 
     def _embedding_index_for_rrf_mode(self, mode: str) -> EmbeddingIndex:
         if mode == "bge-m3-rrf":
