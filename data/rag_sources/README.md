@@ -93,8 +93,9 @@ hierarchical-bge-m3-rrf
 ```
 
 `bge-m3-rrf` is the full-chunk BGE-M3 baseline. Hierarchical retrieval falls
-back to it when routing is unavailable, evidence is weak, or the candidate
-reduction is below 10 percent. When automatic fallback reaches
+back to it when routing is unavailable or evidence is weak. Comparison
+reduction is reported as a diagnostic metric only; low savings do not replace
+an otherwise useful hierarchical result. When automatic fallback reaches
 `openai-embedding-rrf`, it prints a warning, builds any missing OpenAI cache
 records, and sends query embeddings to the OpenAI API.
 

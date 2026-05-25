@@ -50,7 +50,6 @@ BGE_M3_FINAL_RRF_WEIGHTS = {"colbert": 0.45, "sparse": 0.25, "dense": 0.20, "lex
 DENSE_LEXICAL_SOURCE_RRF_WEIGHTS = {"dense": 0.40, "lexical": 0.60}
 DENSE_LEXICAL_CHUNK_RRF_WEIGHTS = {"dense": 0.50, "lexical": 0.50}
 COLBERT_RERANK_CANDIDATES = 80
-MIN_HIERARCHICAL_REDUCTION_PERCENT = 10.0
 ROUTE_RRF_WEIGHTS = {"dense": 0.35, "sparse": 0.40, "lexical": 0.25}
 ROUTE_SOURCE_HIT_WEIGHTS = (1.0, 0.50, 0.25)
 AUTOMATIC_FALLBACK_CHAIN = [
@@ -405,13 +404,6 @@ class RagRetriever:
         ]
         compared_units = len(routes) + len(candidate_chunks)
         reduction_percent = (1.0 - (compared_units / max(1, len(self.chunks)))) * 100.0
-        if reduction_percent < MIN_HIERARCHICAL_REDUCTION_PERCENT:
-            raise RuntimeError(
-                "hierarchical_savings_too_small:"
-                f"routing_units={len(routes)};candidate_chunks={len(candidate_chunks)};"
-                f"full_chunks={len(self.chunks)};reduction={reduction_percent:.2f}%"
-                f"<{MIN_HIERARCHICAL_REDUCTION_PERCENT:.2f}%"
-            )
 
         chunk_dense_scores = self._dense_scores_for_items(candidate_chunks, chunk_index, query_features.dense)
         chunk_sparse_scores = self._sparse_scores_for_items(candidate_chunks, chunk_index, query_features.sparse)
