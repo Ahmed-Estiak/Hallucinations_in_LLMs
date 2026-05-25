@@ -6,7 +6,7 @@ import json
 import math
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -20,13 +20,16 @@ from src.rag.embeddings import (
     bge_m3_colbert_scores,
     cosine_similarity,
     embedding_text_for_chunk,
+    ensure_embedding_cache,
     sparse_dot,
 )
 from src.rag.retriever_terms import build_query_terms, infer_query_predicates, tokenize
+from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, append_major_planet_sources
 
 
 RETRIEVAL_MODES = {
+    "hierarchical-bge-m3-rrf",
     "global",
     "auto-source",
     "vector",
@@ -35,7 +38,7 @@ RETRIEVAL_MODES = {
     "bge-base-rrf",
     "openai-embedding-rrf",
 }
-DEFAULT_RETRIEVAL_MODE = "bge-m3-rrf"
+DEFAULT_RETRIEVAL_MODE = "hierarchical-bge-m3-rrf"
 HYBRID_SOURCE_LEXICAL_WEIGHT = 0.60
 HYBRID_SOURCE_VECTOR_WEIGHT = 0.40
 HYBRID_CHUNK_LEXICAL_WEIGHT = 0.50
@@ -47,6 +50,17 @@ BGE_M3_FINAL_RRF_WEIGHTS = {"colbert": 0.45, "sparse": 0.25, "dense": 0.20, "lex
 DENSE_LEXICAL_SOURCE_RRF_WEIGHTS = {"dense": 0.40, "lexical": 0.60}
 DENSE_LEXICAL_CHUNK_RRF_WEIGHTS = {"dense": 0.50, "lexical": 0.50}
 COLBERT_RERANK_CANDIDATES = 80
+MIN_HIERARCHICAL_REDUCTION_PERCENT = 10.0
+ROUTE_RRF_WEIGHTS = {"dense": 0.35, "sparse": 0.40, "lexical": 0.25}
+ROUTE_SOURCE_HIT_WEIGHTS = (1.0, 0.50, 0.25)
+AUTOMATIC_FALLBACK_CHAIN = [
+    "hierarchical-bge-m3-rrf",
+    "bge-m3-rrf",
+    "bge-base-rrf",
+    "openai-embedding-rrf",
+    "auto-source",
+    "global",
+]
 
 
 @dataclass
@@ -66,12 +80,20 @@ class RetrievedChunk:
 class RagRetrievalResult:
     retrieved_chunks: list[RetrievedChunk]
     retrieval_mode: str
+    requested_mode: str = ""
     source_selection: SourceSelection | None = None
     fallback_used: bool = False
     fallback_reason: str = ""
     embedding_provider: str = ""
     embedding_model: str = ""
     embeddings_path: str = ""
+    routing_units_total: int = 0
+    routing_units_scored: int = 0
+    selected_route_ids: list[str] = field(default_factory=list)
+    candidate_chunks_scored: int = 0
+    full_chunk_count: int = 0
+    comparison_reduction_percent: float | None = None
+    colbert_candidates: int = 0
 
 
 class RagRetriever:
@@ -82,6 +104,8 @@ class RagRetriever:
         embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
         bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
         openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
+        routing_units_path: str | Path = DEFAULT_ROUTING_UNITS_PATH,
+        routing_embeddings_path: str | Path = DEFAULT_ROUTING_EMBEDDINGS_PATH,
     ) -> None:
         self.chunks_path = Path(chunks_path)
         self.chunks = self._load_chunks(self.chunks_path)
@@ -89,8 +113,12 @@ class RagRetriever:
         self.embeddings_path = Path(embeddings_path)
         self.bge_base_embeddings_path = Path(bge_base_embeddings_path)
         self.openai_embeddings_path = Path(openai_embeddings_path)
+        self.routing_units_path = Path(routing_units_path)
+        self.routing_embeddings_path = Path(routing_embeddings_path)
         self._embedding_index: EmbeddingIndex | None = None
         self._embedding_indexes: dict[Path, EmbeddingIndex] = {}
+        self._routing_units: list[dict[str, Any]] | None = None
+        self._routing_embedding_index: EmbeddingIndex | None = None
         self.question_classifier = QuestionClassifier()
         self._source_selector: SourceSelector | None = None
 
@@ -123,10 +151,18 @@ class RagRetriever:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
 
+        if mode == "hierarchical-bge-m3-rrf":
+            return self._retrieve_rrf_fallback_chain(
+                question,
+                modes=AUTOMATIC_FALLBACK_CHAIN,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                top_n_sources=top_n_sources,
+            )
         if mode == "bge-m3-rrf":
             return self._retrieve_rrf_fallback_chain(
                 question,
-                modes=["bge-m3-rrf", "bge-base-rrf", "auto-source"],
+                modes=AUTOMATIC_FALLBACK_CHAIN[1:],
                 top_k=top_k,
                 per_source_limit=per_source_limit,
                 top_n_sources=top_n_sources,
@@ -134,15 +170,15 @@ class RagRetriever:
         if mode == "bge-base-rrf":
             return self._retrieve_rrf_fallback_chain(
                 question,
-                modes=["bge-base-rrf", "auto-source"],
+                modes=AUTOMATIC_FALLBACK_CHAIN[2:],
                 top_k=top_k,
                 per_source_limit=per_source_limit,
                 top_n_sources=top_n_sources,
             )
         if mode == "openai-embedding-rrf":
-            return self._retrieve_rrf_mode_once(
+            return self._retrieve_rrf_fallback_chain(
                 question,
-                mode=mode,
+                modes=AUTOMATIC_FALLBACK_CHAIN[3:],
                 top_k=top_k,
                 per_source_limit=per_source_limit,
                 top_n_sources=top_n_sources,
@@ -250,6 +286,7 @@ class RagRetriever:
         return RagRetrievalResult(
             retrieved_chunks=retrieved,
             retrieval_mode=mode,
+            requested_mode=mode,
             source_selection=source_selection,
             fallback_used=fallback_used,
             fallback_reason=fallback_reason,
@@ -268,9 +305,17 @@ class RagRetriever:
         top_n_sources: int,
     ) -> RagRetrievalResult:
         failures = []
+        requested_mode = modes[0]
         for mode in modes:
             try:
-                if mode == "auto-source":
+                if mode == "hierarchical-bge-m3-rrf":
+                    result = self._retrieve_hierarchical_mode_once(
+                        question,
+                        top_k=top_k,
+                        per_source_limit=per_source_limit,
+                        top_n_sources=top_n_sources,
+                    )
+                elif mode in {"auto-source", "global"}:
                     result = self.retrieve_with_details(
                         question,
                         top_k=top_k,
@@ -279,6 +324,13 @@ class RagRetriever:
                         top_n_sources=top_n_sources,
                     )
                 else:
+                    if mode == "openai-embedding-rrf":
+                        print(
+                            "Attempting OpenAI embedding fallback. "
+                            "This may build missing cache records and sends the query "
+                            "to the OpenAI embeddings API."
+                        )
+                        self._ensure_openai_embedding_cache()
                     result = self._retrieve_rrf_mode_once(
                         question,
                         mode=mode,
@@ -286,25 +338,246 @@ class RagRetriever:
                         per_source_limit=per_source_limit,
                         top_n_sources=top_n_sources,
                     )
-            except (FileNotFoundError, RuntimeError) as exc:
+            except (FileNotFoundError, RuntimeError, ValueError) as exc:
+                failures.append(f"{mode}:{type(exc).__name__}:{exc}")
+                continue
+            except Exception as exc:
+                if mode != "openai-embedding-rrf":
+                    raise
                 failures.append(f"{mode}:{type(exc).__name__}:{exc}")
                 continue
 
             if not is_weak_retrieval(result.retrieved_chunks) or mode == modes[-1]:
-                if mode != modes[0] or failures:
+                result.requested_mode = requested_mode
+                if mode != requested_mode or failures:
                     result.fallback_used = True
                     reason_parts = failures + [f"selected:{mode}"]
                     result.fallback_reason = "; ".join(reason_parts)
                 return result
             failures.append(f"{mode}:weak_retrieval")
 
-        return self.retrieve_with_details(
+        result = self.retrieve_with_details(
             question,
             top_k=top_k,
             per_source_limit=per_source_limit,
-            mode="auto-source",
+            mode="global",
             top_n_sources=top_n_sources,
         )
+        result.requested_mode = requested_mode
+        result.fallback_used = True
+        result.fallback_reason = "; ".join(failures + ["selected:global"])
+        return result
+
+    def _retrieve_hierarchical_mode_once(
+        self,
+        question: str,
+        *,
+        top_k: int,
+        per_source_limit: int,
+        top_n_sources: int,
+    ) -> RagRetrievalResult:
+        routes = self.routing_units
+        routing_index = self.routing_embedding_index
+        chunk_index = self._embedding_index_for_rrf_mode("bge-m3-rrf")
+        if routing_index.provider != "bge-m3" or chunk_index.provider != "bge-m3":
+            raise RuntimeError("Hierarchical retrieval requires BGE-M3 routing and chunk embedding caches.")
+        if routing_index.model != chunk_index.model:
+            raise RuntimeError("Routing and chunk embedding caches must use the same BGE-M3 model.")
+
+        query_features = routing_index.encode_query(question)
+        route_dense_scores = self._dense_scores_for_items(routes, routing_index, query_features.dense)
+        route_sparse_scores = self._sparse_scores_for_items(routes, routing_index, query_features.sparse)
+        route_items = self._rank_routing_units(
+            question,
+            routes=routes,
+            dense_scores=route_dense_scores,
+            sparse_scores=route_sparse_scores,
+        )
+        source_selection, selected_route_ids = self._select_sources_from_routes(
+            question,
+            route_items=route_items,
+            top_n_sources=top_n_sources,
+        )
+        selected_source_ids = set(source_selection.selected_source_ids)
+        candidate_chunks = [
+            chunk for chunk in self.chunks
+            if chunk.get("source_id") in selected_source_ids
+        ]
+        compared_units = len(routes) + len(candidate_chunks)
+        reduction_percent = (1.0 - (compared_units / max(1, len(self.chunks)))) * 100.0
+        if reduction_percent < MIN_HIERARCHICAL_REDUCTION_PERCENT:
+            raise RuntimeError(
+                "hierarchical_savings_too_small:"
+                f"routing_units={len(routes)};candidate_chunks={len(candidate_chunks)};"
+                f"full_chunks={len(self.chunks)};reduction={reduction_percent:.2f}%"
+                f"<{MIN_HIERARCHICAL_REDUCTION_PERCENT:.2f}%"
+            )
+
+        chunk_dense_scores = self._dense_scores_for_items(candidate_chunks, chunk_index, query_features.dense)
+        chunk_sparse_scores = self._sparse_scores_for_items(candidate_chunks, chunk_index, query_features.sparse)
+        retrieved = self._retrieve_from_chunks_rrf(
+            question,
+            chunks=candidate_chunks,
+            mode="bge-m3-rrf",
+            dense_scores=chunk_dense_scores,
+            sparse_scores=chunk_sparse_scores,
+            embedding_index=chunk_index,
+            top_k=top_k * 2,
+            per_source_limit=self._effective_per_source_limit(question, per_source_limit),
+        )
+        retrieved = suppress_near_duplicate_chunks(retrieved, top_k=top_k)
+        evidence_gap = self._hierarchical_evidence_gap(question, retrieved)
+        if evidence_gap:
+            raise RuntimeError(evidence_gap)
+        return RagRetrievalResult(
+            retrieved_chunks=retrieved,
+            retrieval_mode="hierarchical-bge-m3-rrf",
+            requested_mode="hierarchical-bge-m3-rrf",
+            source_selection=source_selection,
+            embedding_provider=routing_index.provider,
+            embedding_model=routing_index.model,
+            embeddings_path=str(self.routing_embeddings_path),
+            routing_units_total=len(routes),
+            routing_units_scored=len(routes),
+            selected_route_ids=selected_route_ids,
+            candidate_chunks_scored=len(candidate_chunks),
+            full_chunk_count=len(self.chunks),
+            comparison_reduction_percent=round(reduction_percent, 2),
+            colbert_candidates=min(len(candidate_chunks), COLBERT_RERANK_CANDIDATES),
+        )
+
+    def _rank_routing_units(
+        self,
+        question: str,
+        *,
+        routes: list[dict[str, Any]],
+        dense_scores: dict[str, float],
+        sparse_scores: dict[str, float],
+    ) -> list[RetrievedChunk]:
+        lexical_items = self._score_chunks_lexical(question, chunks=routes)
+        dense_items = [
+            RetrievedChunk(chunk=route, score=dense_scores[route["chunk_id"]] * 100.0, reasons=[])
+            for route in routes
+            if route["chunk_id"] in dense_scores
+        ]
+        sparse_items = [
+            RetrievedChunk(chunk=route, score=sparse_scores[route["chunk_id"]], reasons=[])
+            for route in routes
+            if route["chunk_id"] in sparse_scores
+        ]
+        rank_maps = {
+            "lexical": chunk_rank_map(lexical_items),
+            "dense": chunk_rank_map(sorted(dense_items, key=lambda item: item.score, reverse=True)),
+            "sparse": chunk_rank_map(sorted(sparse_items, key=lambda item: item.score, reverse=True)),
+        }
+        item_maps = {
+            "lexical": {item.chunk["chunk_id"]: item for item in lexical_items},
+            "dense": {item.chunk["chunk_id"]: item for item in dense_items},
+            "sparse": {item.chunk["chunk_id"]: item for item in sparse_items},
+        }
+        ranked = combine_chunk_rrf(
+            chunk_ids={route["chunk_id"] for route in routes},
+            chunk_by_id={route["chunk_id"]: route for route in routes},
+            rank_maps=rank_maps,
+            item_maps=item_maps,
+            weights=ROUTE_RRF_WEIGHTS,
+        )
+        ranked.sort(key=lambda item: item.score, reverse=True)
+        return ranked
+
+    def _select_sources_from_routes(
+        self,
+        question: str,
+        *,
+        route_items: list[RetrievedChunk],
+        top_n_sources: int,
+    ) -> tuple[SourceSelection, list[str]]:
+        distinct_by_source: dict[str, list[RetrievedChunk]] = defaultdict(list)
+        for item in route_items:
+            existing = distinct_by_source[item.chunk["source_id"]]
+            if any(routes_overlap(item.chunk, previous.chunk) for previous in existing):
+                continue
+            existing.append(item)
+
+        scores: list[SourceScore] = []
+        for source_id, items in distinct_by_source.items():
+            best_items = items[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
+            score = sum(
+                weight * item.score
+                for weight, item in zip(ROUTE_SOURCE_HIT_WEIGHTS, best_items)
+            )
+            best = best_items[0].chunk
+            source_chunks = [chunk for chunk in self.chunks if chunk["source_id"] == source_id]
+            reasons = [
+                f"route_weighted_score:{score:.4f}",
+                *[
+                    f"route_hit_{index}:{item.chunk['route_id']}:{item.score:.4f}"
+                    for index, item in enumerate(best_items, start=1)
+                ],
+            ]
+            scores.append(SourceScore(
+                source_id=source_id,
+                score=score,
+                reasons=reasons,
+                title=best.get("title", ""),
+                url=best.get("url", ""),
+                chunk_count=len(source_chunks),
+                char_count=sum(len(chunk.get("text", "")) for chunk in source_chunks),
+            ))
+        scores.sort(key=lambda item: item.score, reverse=True)
+
+        budget = self._hierarchical_source_budget(question, top_n_sources)
+        guard_sources = []
+        for item in route_items[: max(3, budget)]:
+            source_id = item.chunk["source_id"]
+            if source_id not in guard_sources:
+                guard_sources.append(source_id)
+            if len(guard_sources) >= min(2, budget):
+                break
+        selected = list(guard_sources)
+        for source_score in scores:
+            if source_score.source_id not in selected:
+                selected.append(source_score.source_id)
+            if len(selected) >= budget:
+                break
+        selected_route_items = [
+            item
+            for source_id in selected
+            for item in distinct_by_source.get(source_id, [])[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
+        ]
+        selected_route_items.sort(key=lambda item: item.score, reverse=True)
+        selected_routes = [
+            item.chunk["route_id"]
+            for item in selected_route_items
+        ][: max(10, budget * 3)]
+        return SourceSelection(
+            mode="hierarchical-bge-m3-rrf",
+            selected_source_ids=selected,
+            scores=scores,
+        ), selected_routes
+
+    def _hierarchical_source_budget(self, question: str, maximum: int) -> int:
+        classified = self.question_classifier.classify(question)
+        modifiers = set(classified.logical_modifiers)
+        if str(classified.primary_type.name) == "LIST":
+            return min(maximum, 12)
+        if LogicalModifier.COMPARISON in modifiers:
+            return min(maximum, 8)
+        if LogicalModifier.TIME_LOOKUP in modifiers:
+            return min(maximum, 6)
+        return min(maximum, 5)
+
+    def _hierarchical_evidence_gap(self, question: str, retrieved: list[RetrievedChunk]) -> str:
+        classified = self.question_classifier.classify(question)
+        if not classified.has_time_constraint:
+            return ""
+        constraints = extract_time_constraints(question)
+        context = " ".join(item.chunk.get("text", "").lower() for item in retrieved)
+        if constraints["phrases"] and not any(phrase in context for phrase in constraints["phrases"]):
+            return "hierarchical_missing_exact_time_evidence"
+        if constraints["years"] and not any(year in context for year in constraints["years"]):
+            return "hierarchical_missing_year_evidence"
+        return ""
 
     def _retrieve_rrf_mode_once(
         self,
@@ -353,6 +626,18 @@ class RagRetriever:
             embedding_model=embedding_index.model,
             embeddings_path=str(embedding_index.path),
         )
+
+    def _ensure_openai_embedding_cache(self) -> None:
+        result = ensure_embedding_cache(
+            self.chunks,
+            path=self.openai_embeddings_path,
+            provider="openai",
+        )
+        if result.built:
+            print(
+                f"Built/updated OpenAI embedding cache: {result.path} "
+                f"({result.total_chunks} chunks)."
+            )
 
     def _effective_per_source_limit(self, question: str, per_source_limit: int) -> int:
         classified = self.question_classifier.classify(question)
@@ -417,6 +702,23 @@ class RagRetriever:
             self._source_selector = SourceSelector(self.chunks, documents_path=self.documents_path)
         return self._source_selector
 
+    @property
+    def routing_units(self) -> list[dict[str, Any]]:
+        if self._routing_units is None:
+            if not self.routing_units_path.exists():
+                raise FileNotFoundError(
+                    f"Routing units not found: {self.routing_units_path}. "
+                    "Run: python scripts\\build_rag_routing_index.py"
+                )
+            self._routing_units = self._load_chunks(self.routing_units_path)
+        return self._routing_units
+
+    @property
+    def routing_embedding_index(self) -> EmbeddingIndex:
+        if self._routing_embedding_index is None:
+            self._routing_embedding_index = EmbeddingIndex(self.routing_embeddings_path)
+        return self._routing_embedding_index
+
     def _embedding_index_for_rrf_mode(self, mode: str) -> EmbeddingIndex:
         if mode == "bge-m3-rrf":
             path = self.embeddings_path
@@ -439,12 +741,20 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_embedding: list[float],
     ) -> dict[str, float]:
+        return self._dense_scores_for_items(self.chunks, embedding_index, query_embedding)
+
+    def _dense_scores_for_items(
+        self,
+        items: list[dict[str, Any]],
+        embedding_index: EmbeddingIndex,
+        query_embedding: list[float],
+    ) -> dict[str, float]:
         scores: dict[str, float] = {}
-        for chunk in self.chunks:
-            embedding = embedding_index.get(chunk["chunk_id"])
+        for item in items:
+            embedding = embedding_index.get(item["chunk_id"])
             if embedding is None:
                 continue
-            scores[chunk["chunk_id"]] = cosine_similarity(query_embedding, embedding)
+            scores[item["chunk_id"]] = cosine_similarity(query_embedding, embedding)
         return scores
 
     def _sparse_scores_by_chunk(
@@ -452,14 +762,22 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_sparse: dict[str, float] | None,
     ) -> dict[str, float]:
+        return self._sparse_scores_for_items(self.chunks, embedding_index, query_sparse)
+
+    def _sparse_scores_for_items(
+        self,
+        items: list[dict[str, Any]],
+        embedding_index: EmbeddingIndex,
+        query_sparse: dict[str, float] | None,
+    ) -> dict[str, float]:
         scores: dict[str, float] = {}
         if not query_sparse:
             return scores
-        for chunk in self.chunks:
-            sparse_weights = embedding_index.get_sparse(chunk["chunk_id"])
+        for item in items:
+            sparse_weights = embedding_index.get_sparse(item["chunk_id"])
             score = sparse_dot(query_sparse, sparse_weights)
             if score > 0:
-                scores[chunk["chunk_id"]] = score
+                scores[item["chunk_id"]] = score
         return scores
 
     def _select_sources_vector(
@@ -1000,6 +1318,42 @@ def cap_per_source(items: list[RetrievedChunk], *, top_k: int, per_source_limit:
         if len(selected) >= top_k:
             break
     return selected
+
+
+def suppress_near_duplicate_chunks(items: list[RetrievedChunk], *, top_k: int) -> list[RetrievedChunk]:
+    selected: list[RetrievedChunk] = []
+    for item in items:
+        if any(text_overlap_ratio(item.chunk.get("text", ""), previous.chunk.get("text", "")) >= 0.80 for previous in selected):
+            continue
+        selected.append(item)
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
+def routes_overlap(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    if left.get("source_id") != right.get("source_id"):
+        return False
+    if left.get("route_type") != "section_window" or right.get("route_type") != "section_window":
+        return False
+    left_start = left.get("word_start")
+    left_end = left.get("word_end")
+    right_start = right.get("word_start")
+    right_end = right.get("word_end")
+    if None in {left_start, left_end, right_start, right_end}:
+        return False
+    overlap = max(0, min(left_end, right_end) - max(left_start, right_start))
+    shorter = min(left_end - left_start, right_end - right_start)
+    return shorter > 0 and overlap / shorter >= 0.10
+
+
+def text_overlap_ratio(left: str, right: str) -> float:
+    left_tokens = Counter(tokenize(left))
+    right_tokens = Counter(tokenize(right))
+    if not left_tokens or not right_tokens:
+        return 0.0
+    overlap = sum((left_tokens & right_tokens).values())
+    return overlap / min(sum(left_tokens.values()), sum(right_tokens.values()))
 
 
 def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:

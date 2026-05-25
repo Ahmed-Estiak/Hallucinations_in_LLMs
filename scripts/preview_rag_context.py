@@ -19,6 +19,7 @@ from src.rag.embeddings import (
     ensure_embedding_cache,
 )
 from src.rag.chunker import load_jsonl
+from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 
 
 DEFAULT_QUESTION_ID = 9
@@ -52,6 +53,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(PROJECT_ROOT / DEFAULT_OPENAI_EMBEDDINGS_PATH),
         help="Embedding JSONL path for explicit openai-embedding-rrf mode",
     )
+    parser.add_argument(
+        "--routing-units",
+        default=str(PROJECT_ROOT / DEFAULT_ROUTING_UNITS_PATH),
+        help="Routing-unit JSONL path for hierarchical-bge-m3-rrf retrieval",
+    )
+    parser.add_argument(
+        "--routing-embeddings",
+        default=str(PROJECT_ROOT / DEFAULT_ROUTING_EMBEDDINGS_PATH),
+        help="BGE-M3 routing embedding JSONL path for hierarchical retrieval",
+    )
     parser.add_argument("--top-n-sources", type=int, default=12)
     parser.add_argument("--max-chars", type=int, default=12000)
     parser.add_argument("--preview-chars", type=int, default=180)
@@ -77,6 +88,8 @@ def main() -> int:
         embeddings_path=args.embeddings,
         bge_base_embeddings_path=args.bge_base_embeddings,
         openai_embeddings_path=args.openai_embeddings,
+        routing_units_path=args.routing_units,
+        routing_embeddings_path=args.routing_embeddings,
     )
     result = retriever.retrieve_with_details(
         question,
@@ -89,13 +102,21 @@ def main() -> int:
     context = retriever.format_context(retrieved, max_chars=args.max_chars)
 
     print(f"Question: {question}")
-    print(f"Retrieval mode: {result.retrieval_mode}")
+    print(f"Requested mode: {result.requested_mode or args.retrieval_mode}")
+    print(f"Executed mode: {result.retrieval_mode}")
     if result.embedding_provider:
         print(f"Embedding provider: {result.embedding_provider}")
         print(f"Embedding model: {result.embedding_model}")
         print(f"Embeddings path: {result.embeddings_path}")
     if result.fallback_used:
         print(f"Fallback used: {result.fallback_reason}")
+    if result.routing_units_scored:
+        print(f"Routing units scored: {result.routing_units_scored}/{result.routing_units_total}")
+        print(f"Candidate chunks scored: {result.candidate_chunks_scored}")
+        print(f"Full-chunk baseline: {result.full_chunk_count}")
+        print(f"Comparison reduction vs full chunk scan: {result.comparison_reduction_percent:.2f}%")
+        print(f"ColBERT candidates: {result.colbert_candidates}")
+        print(f"Selected routes: {', '.join(result.selected_route_ids)}")
     print()
     if result.source_selection:
         print_source_selection(result.source_selection)
@@ -179,6 +200,24 @@ def maybe_build_missing_embeddings(args: argparse.Namespace) -> None:
         f"Embedding cache {status}: {result.path} "
         f"({result.total_chunks} chunks, provider={result.provider}, model={result.model})"
     )
+    if args.retrieval_mode == "hierarchical-bge-m3-rrf":
+        routing_units_path = Path(args.routing_units)
+        if not routing_units_path.exists():
+            raise FileNotFoundError(
+                f"Routing units not found: {routing_units_path}. "
+                "Run: python scripts\\build_rag_routing_index.py"
+            )
+        routing_result = ensure_embedding_cache(
+            load_jsonl(routing_units_path),
+            path=args.routing_embeddings,
+            provider="bge-m3",
+            batch_size=args.embedding_batch_size,
+        )
+        routing_status = "built/updated" if routing_result.built else "already complete"
+        print(
+            f"Routing embedding cache {routing_status}: {routing_result.path} "
+            f"({routing_result.total_chunks} routes)"
+        )
 
 
 def one_line(text: str, limit: int) -> str:

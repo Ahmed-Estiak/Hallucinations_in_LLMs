@@ -464,7 +464,7 @@ def embedding_cache_request_for_retrieval_mode(
     bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
     openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
 ) -> tuple[str, Path] | None:
-    if mode == "bge-m3-rrf":
+    if mode in {"hierarchical-bge-m3-rrf", "bge-m3-rrf"}:
         return "bge-m3", Path(embeddings_path)
     if mode == "bge-base-rrf":
         return "local", Path(bge_base_embeddings_path)

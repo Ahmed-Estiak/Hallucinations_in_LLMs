@@ -19,6 +19,7 @@ from src.rag.embeddings import (
     DEFAULT_OPENAI_EMBEDDINGS_PATH,
 )
 from src.rag.retriever import DEFAULT_RETRIEVAL_MODE, RagRetriever
+from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag
 
 
@@ -49,6 +50,8 @@ def run_rag_benchmark(
     embeddings_path: str | Path = DEFAULT_EMBEDDINGS_PATH,
     bge_base_embeddings_path: str | Path = DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
     openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
+    routing_units_path: str | Path = DEFAULT_ROUTING_UNITS_PATH,
+    routing_embeddings_path: str | Path = DEFAULT_ROUTING_EMBEDDINGS_PATH,
     output_path: str | Path = "results/results_rag_llm.csv",
     top_k: int = 12,
     per_source_limit: int = 4,
@@ -62,6 +65,8 @@ def run_rag_benchmark(
         embeddings_path=embeddings_path,
         bge_base_embeddings_path=bge_base_embeddings_path,
         openai_embeddings_path=openai_embeddings_path,
+        routing_units_path=routing_units_path,
+        routing_embeddings_path=routing_embeddings_path,
     )
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -106,11 +111,18 @@ def run_rag_benchmark(
             "type": question_row.get("type", ""),
             "ground_truth": _serialize_ground_truth(question_row["answer_spec"]),
             "retrieval_mode": retrieval_result.retrieval_mode,
+            "requested_retrieval_mode": retrieval_result.requested_mode,
             "embedding_provider": retrieval_result.embedding_provider,
             "embedding_model": retrieval_result.embedding_model,
             "embeddings_path": retrieval_result.embeddings_path,
             "fallback_used": retrieval_result.fallback_used,
             "fallback_reason": retrieval_result.fallback_reason,
+            "routing_units_scored": retrieval_result.routing_units_scored,
+            "selected_route_ids": json.dumps(retrieval_result.selected_route_ids, ensure_ascii=False),
+            "candidate_chunks_scored": retrieval_result.candidate_chunks_scored,
+            "full_chunk_count": retrieval_result.full_chunk_count,
+            "comparison_reduction_percent": retrieval_result.comparison_reduction_percent,
+            "colbert_candidates": retrieval_result.colbert_candidates,
             "selected_sources": json.dumps(
                 retrieval_result.source_selection.selected_source_ids if retrieval_result.source_selection else [],
                 ensure_ascii=False,
@@ -141,6 +153,12 @@ def run_rag_benchmark(
             f"  Retrieved chunks: {len(retrieved)} | Mode: {retrieval_result.retrieval_mode}"
             f"{fallback_note} | Timing: {elapsed:.2f}s"
         )
+        if retrieval_result.routing_units_scored:
+            print(
+                f"  Routing units: {retrieval_result.routing_units_scored} | "
+                f"Candidate chunks: {retrieval_result.candidate_chunks_scored} | "
+                f"Reduction: {retrieval_result.comparison_reduction_percent:.2f}%"
+            )
 
     df = pd.DataFrame(rows)
     df.to_csv(output_path, index=False)

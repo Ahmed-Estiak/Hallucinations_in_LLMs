@@ -49,7 +49,10 @@ Q9 RAG+LLM vertical slice:
 .\.venv\Scripts\python.exe scripts\ingest_rag_sources.py --sources data\rag_sources\sources_master.json
 .\.venv\Scripts\python.exe scripts\build_rag_index.py
 .\.venv\Scripts\python.exe scripts\build_rag_embeddings.py
+.\.venv\Scripts\python.exe scripts\build_rag_routing_index.py
+.\.venv\Scripts\python.exe scripts\build_rag_routing_embeddings.py --batch-size 16
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9
+.\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode hierarchical-bge-m3-rrf
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode bge-m3-rrf
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode bge-base-rrf
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode auto-source
@@ -72,10 +75,28 @@ This writes `data\rag_sources\rag_index\chunk_embeddings_bge_m3.jsonl` with
 dense vectors and sparse lexical weights. The first local run downloads the
 model; later runs reuse the local model cache and the chunk embedding cache.
 
-The default retrieval mode is `bge-m3-rrf`, which ranks by BGE-M3 dense,
-BGE-M3 sparse, and existing lexical heuristic signals, then reranks top
-candidates with BGE-M3 ColBERT scores. If the BGE-M3 cache/dependency is not
-available, it falls back to `bge-base-rrf`, then `auto-source`.
+The default retrieval mode is `hierarchical-bge-m3-rrf`. It searches a
+smaller routing-unit BGE-M3 dense+sparse+lexical index first, selects sources,
+then ranks only selected-source original chunks and reranks top candidates
+with BGE-M3 ColBERT scores. Routing units cover the original cleaned text with
+overlapping coarse windows, plus metadata and structured-fact routes.
+
+The automatic fallback order is:
+
+```text
+hierarchical-bge-m3-rrf
+ -> bge-m3-rrf
+ -> bge-base-rrf
+ -> openai-embedding-rrf
+ -> auto-source
+ -> global
+```
+
+`bge-m3-rrf` is the full-chunk BGE-M3 baseline. Hierarchical retrieval falls
+back to it when routing is unavailable, evidence is weak, or the candidate
+reduction is below 10 percent. When automatic fallback reaches
+`openai-embedding-rrf`, it prints a warning, builds any missing OpenAI cache
+records, and sends query embeddings to the OpenAI API.
 
 Build the first local fallback cache:
 
@@ -98,8 +119,20 @@ Or let the selected retrieval command build the missing cache explicitly:
 .\.venv\Scripts\python.exe main_rag.py --ids 9 11 15 --retrieval-mode openai-embedding-rrf --build-missing-embeddings
 ```
 
-The OpenAI cache is not built silently because that would call the OpenAI
-embeddings API from a command that may otherwise be only a retrieval preview.
+The explicit command is useful for preparing the paid OpenAI cache before a
+benchmark. Automatic fallback also builds it if the preceding local retrieval
+methods cannot supply adequate evidence, and prints a cost warning first.
+
+To build or refresh the hierarchical routing files:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_rag_routing_index.py
+.\.venv\Scripts\python.exe scripts\build_rag_routing_embeddings.py --batch-size 16
+```
+
+Preview output reports routing units scored, selected-source candidate chunks,
+full-chunk baseline count, comparison reduction, selected routes, and any
+fallback reason.
 
 For satellite discovery tables, the index builder adds structured count fact
 chunks such as `As of November 2021, Saturn had 83 confirmed moons...` from the
