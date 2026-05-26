@@ -58,8 +58,11 @@ DENSE_LEXICAL_CHUNK_RRF_WEIGHTS = {"dense": 0.50, "lexical": 0.50}
 COLBERT_RERANK_CANDIDATES = 80
 ROUTE_RRF_WEIGHTS = {"dense": 0.35, "sparse": 0.40, "lexical": 0.25}
 ROUTE_SOURCE_HIT_WEIGHTS = (1.0, 0.50, 0.25)
-ROUTE_METADATA_PRIOR_WEIGHT = 0.10
-ROUTE_METADATA_PRIOR_CAP = 2.0
+ROUTE_IDENTITY_PRIOR_WEIGHT = 0.40
+ROUTE_IDENTITY_PRIOR_CAP = 8.0
+ROUTE_CATALOG_PRIOR_WEIGHT = 0.10
+ROUTE_CATALOG_PRIOR_CAP = 2.0
+ROUTE_IDENTITY_GUARD_SOURCES = 2
 AUTOMATIC_FALLBACK_CHAIN = [
     "hierarchical-bge-m3-rrf",
     "bge-m3-rrf",
@@ -493,11 +496,17 @@ class RagRetriever:
         top_n_sources: int,
     ) -> tuple[SourceSelection, list[str]]:
         content_by_source: dict[str, list[RetrievedChunk]] = defaultdict(list)
-        metadata_by_source: dict[str, RetrievedChunk] = {}
+        identity_by_source: dict[str, RetrievedChunk] = {}
+        catalog_by_source: dict[str, RetrievedChunk] = {}
         for item in route_items:
             source_id = item.chunk["source_id"]
-            if item.chunk.get("route_type") == "metadata":
-                metadata_by_source.setdefault(source_id, item)
+            route_type = item.chunk.get("route_type")
+            if route_type == "source_identity":
+                identity_by_source.setdefault(source_id, item)
+                continue
+            if route_type in {"source_catalog", "metadata"}:
+                # Treat pre-split metadata indexes as low-weight catalog routes.
+                catalog_by_source.setdefault(source_id, item)
                 continue
             existing = content_by_source[source_id]
             if any(routes_overlap(item.chunk, previous.chunk) for previous in existing):
@@ -505,21 +514,28 @@ class RagRetriever:
             existing.append(item)
 
         scores: list[SourceScore] = []
-        for source_id in sorted(set(content_by_source) | set(metadata_by_source)):
+        for source_id in sorted(set(content_by_source) | set(identity_by_source) | set(catalog_by_source)):
             items = content_by_source.get(source_id, [])
             best_items = items[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
             content_score = sum(
                 weight * item.score
                 for weight, item in zip(ROUTE_SOURCE_HIT_WEIGHTS, best_items)
             )
-            metadata_item = metadata_by_source.get(source_id)
-            metadata_prior = (
-                min(ROUTE_METADATA_PRIOR_CAP, metadata_item.score * ROUTE_METADATA_PRIOR_WEIGHT)
-                if metadata_item
+            identity_item = identity_by_source.get(source_id)
+            identity_prior = (
+                min(ROUTE_IDENTITY_PRIOR_CAP, identity_item.score * ROUTE_IDENTITY_PRIOR_WEIGHT)
+                if identity_item
                 else 0.0
             )
-            score = content_score + metadata_prior
-            best = (best_items[0] if best_items else metadata_item).chunk
+            catalog_item = catalog_by_source.get(source_id)
+            catalog_prior = (
+                min(ROUTE_CATALOG_PRIOR_CAP, catalog_item.score * ROUTE_CATALOG_PRIOR_WEIGHT)
+                if catalog_item
+                else 0.0
+            )
+            score = content_score + identity_prior + catalog_prior
+            best_item = best_items[0] if best_items else identity_item or catalog_item
+            best = best_item.chunk
             source_chunks = [chunk for chunk in self.chunks if chunk["source_id"] == source_id]
             reasons = [
                 f"content_route_weighted_score:{content_score:.4f}",
@@ -528,9 +544,13 @@ class RagRetriever:
                     for index, item in enumerate(best_items, start=1)
                 ],
             ]
-            if metadata_item:
+            if identity_item:
                 reasons.append(
-                    f"metadata_prior:{metadata_item.chunk['route_id']}:{metadata_prior:.4f}"
+                    f"identity_prior:{identity_item.chunk['route_id']}:{identity_prior:.4f}"
+                )
+            if catalog_item:
+                reasons.append(
+                    f"catalog_prior:{catalog_item.chunk['route_id']}:{catalog_prior:.4f}"
                 )
             scores.append(SourceScore(
                 source_id=source_id,
@@ -547,18 +567,24 @@ class RagRetriever:
         guard_sources = []
         content_route_items = [
             item for item in route_items
-            if item.chunk.get("route_type") != "metadata"
+            if item.chunk.get("route_type") not in {"source_identity", "source_catalog", "metadata"}
         ]
-        guard_candidates = content_route_items + [
-            item for item in route_items
-            if item.chunk.get("route_type") == "metadata"
-            and item.chunk["source_id"] not in content_by_source
-        ]
-        for item in guard_candidates[: max(3, budget)]:
+        for item in content_route_items[: max(3, budget)]:
             source_id = item.chunk["source_id"]
             if source_id not in guard_sources:
                 guard_sources.append(source_id)
             if len(guard_sources) >= min(2, budget):
+                break
+        identity_scan_limit = max(12, budget * 4)
+        top_identity_candidates = [
+            item for item in route_items[:identity_scan_limit]
+            if item.chunk.get("route_type") == "source_identity"
+        ][:ROUTE_IDENTITY_GUARD_SOURCES]
+        for item in top_identity_candidates:
+            source_id = item.chunk["source_id"]
+            if source_id not in guard_sources:
+                guard_sources.append(source_id)
+            if len(guard_sources) >= budget:
                 break
         selected = list(guard_sources)
         for source_score in scores:
@@ -572,9 +598,14 @@ class RagRetriever:
             for item in content_by_source.get(source_id, [])[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
         ]
         selected_route_items.extend(
-            metadata_by_source[source_id]
+            identity_by_source[source_id]
             for source_id in selected
-            if source_id in metadata_by_source
+            if source_id in identity_by_source
+        )
+        selected_route_items.extend(
+            catalog_by_source[source_id]
+            for source_id in selected
+            if source_id in catalog_by_source
         )
         selected_route_items.sort(key=lambda item: item.score, reverse=True)
         selected_routes = [

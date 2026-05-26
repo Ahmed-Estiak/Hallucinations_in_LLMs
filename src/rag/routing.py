@@ -41,7 +41,8 @@ def build_routing_units(
         title = document.get("title", source_id)
         url = document.get("url", "")
 
-        units.append(build_metadata_route(
+        units.append(build_source_identity_route(document))
+        units.append(build_source_catalog_route(
             document,
             sections=sections,
             source_chunks=source_chunks,
@@ -99,14 +100,43 @@ def build_routing_units(
     return units
 
 
-def build_metadata_route(
+def build_source_identity_route(document: dict[str, Any]) -> dict[str, Any]:
+    """Build a precise source locator from title and normalized URL topics."""
+    source_id = document["source_id"]
+    title = document.get("title", source_id)
+    url = document.get("url", "")
+    url_topics = url_topics_from_url(url)
+    identity_text = "\n".join([
+        f"URL topics: {url_topics}",
+        f"Source type: {document.get('trust_level', '')}",
+    ])
+    identity_input = f"{title}\n{url_topics}"
+    route_id = f"{source_id}__identity"
+    return {
+        "route_id": route_id,
+        "chunk_id": route_id,
+        "document_id": document["document_id"],
+        "source_id": source_id,
+        "route_type": "source_identity",
+        "url": url,
+        "title": title,
+        "section": "Source Identity",
+        "text": identity_text,
+        "entities": detect_entities(identity_input),
+        "predicate_hints": detect_predicate_hints(identity_input),
+        "child_chunk_ids": [],
+        "tokens_estimate": max(1, len(identity_text.split())),
+        "trust_level": document.get("trust_level", ""),
+    }
+
+
+def build_source_catalog_route(
     document: dict[str, Any],
     *,
     sections: list[Any],
     source_chunks: list[dict[str, Any]],
 ) -> dict[str, Any]:
     source_id = document["source_id"]
-    title = document.get("title", source_id)
     url = document.get("url", "")
     headings = list(dict.fromkeys(section.heading for section in sections))
     entities = list(dict.fromkeys(
@@ -119,30 +149,27 @@ def build_metadata_route(
         for chunk in source_chunks
         for predicate in chunk.get("predicate_hints", [])
     ))
-    url_topics = url_topics_from_url(url)
-    metadata_text = "\n".join([
-        f"Title: {title}",
-        f"URL topics: {url_topics}",
+    catalog_text = "\n".join([
         f"Sections: {', '.join(headings)}",
         f"Entities: {', '.join(entities)}",
         f"Predicates: {', '.join(predicates)}",
-        f"Source type: {document.get('trust_level', '')}",
     ])
-    route_id = f"{source_id}__metadata"
+    route_id = f"{source_id}__catalog"
     return {
         "route_id": route_id,
         "chunk_id": route_id,
         "document_id": document["document_id"],
         "source_id": source_id,
-        "route_type": "metadata",
+        "route_type": "source_catalog",
         "url": url,
-        "title": title,
-        "section": "Source Metadata",
-        "text": metadata_text,
+        # The title belongs to source_identity; omit it here to avoid counting it twice.
+        "title": "",
+        "section": "Source Catalog",
+        "text": catalog_text,
         "entities": entities,
         "predicate_hints": predicates,
         "child_chunk_ids": [],
-        "tokens_estimate": max(1, len(metadata_text.split())),
+        "tokens_estimate": max(1, len(catalog_text.split())),
         "trust_level": document.get("trust_level", ""),
     }
 

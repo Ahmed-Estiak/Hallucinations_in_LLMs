@@ -79,11 +79,13 @@ The default retrieval mode is `hierarchical-bge-m3-rrf`. It searches a
 smaller routing-unit BGE-M3 dense+sparse+lexical index first, selects sources,
 then ranks only selected-source original chunks and reranks top candidates
 with BGE-M3 ColBERT scores. Routing units cover the original cleaned text with
-overlapping coarse windows, plus metadata and structured-fact routes. Metadata
-routes contribute only a capped source-routing prior; content and structured
-fact routes supply the primary source score. Lexical filter, ordering, and
-target-class bonuses are derived from parsed query intent, so an unrelated
-location or ordering attribute does not receive a question-specific boost.
+overlapping coarse windows, source-identity routes, source-catalog routes, and
+structured-fact routes. Title and normalized URL topics form a stronger capped
+identity prior; aggregated headings, entities, and predicates form a small
+capped catalog prior. Content and structured-fact routes supply the primary
+source score. Lexical filter, ordering, and target-class bonuses are derived
+from parsed query intent, so an unrelated location or ordering attribute does
+not receive a question-specific boost.
 
 The automatic fallback order is:
 

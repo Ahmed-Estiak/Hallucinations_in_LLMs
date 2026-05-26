@@ -94,7 +94,7 @@ class GenericScoringTests(unittest.TestCase):
                 self.assertEqual(reasons, [f"target_class:{target_class}"])
 
 
-class MetadataRoutingTests(unittest.TestCase):
+class SourceRoutingTests(unittest.TestCase):
     @staticmethod
     def route(source_id: str, route_id: str, route_type: str, score: float) -> RetrievedChunk:
         return RetrievedChunk(
@@ -113,12 +113,12 @@ class MetadataRoutingTests(unittest.TestCase):
             reasons=[],
         )
 
-    def test_metadata_route_is_capped_prior_not_primary_content_hit(self) -> None:
+    def test_catalog_route_is_capped_prior_not_primary_content_hit(self) -> None:
         retriever = object.__new__(RagRetriever)
         retriever.chunks = []
         retriever.question_classifier = QuestionClassifier()
         route_items = [
-            self.route("broad", "broad__metadata", "metadata", 100.0),
+            self.route("broad", "broad__catalog", "source_catalog", 100.0),
             self.route("focused", "focused__section_0000", "section_window", 5.0),
             self.route("broad", "broad__section_0000", "section_window", 1.0),
         ]
@@ -132,7 +132,27 @@ class MetadataRoutingTests(unittest.TestCase):
         self.assertEqual(selection.scores[0].source_id, "focused")
         self.assertEqual(selection.selected_source_ids[0], "focused")
         broad_score = next(score for score in selection.scores if score.source_id == "broad")
-        self.assertIn("metadata_prior:broad__metadata:2.0000", broad_score.reasons)
+        self.assertIn("catalog_prior:broad__catalog:2.0000", broad_score.reasons)
+
+    def test_precise_identity_route_can_recover_a_source_with_weaker_content(self) -> None:
+        retriever = object.__new__(RagRetriever)
+        retriever.chunks = []
+        retriever.question_classifier = QuestionClassifier()
+        route_items = [
+            self.route("precise", "precise__identity", "source_identity", 20.0),
+            self.route("broad", "broad__section_0000", "section_window", 8.0),
+            self.route("precise", "precise__section_0000", "section_window", 2.0),
+        ]
+
+        selection, _ = retriever._select_sources_from_routes(
+            "How many moons does Pluto have?",
+            route_items=route_items,
+            top_n_sources=2,
+        )
+
+        self.assertEqual(selection.scores[0].source_id, "precise")
+        precise_score = next(score for score in selection.scores if score.source_id == "precise")
+        self.assertIn("identity_prior:precise__identity:8.0000", precise_score.reasons)
 
 
 if __name__ == "__main__":
