@@ -45,7 +45,7 @@ QUERY_EXPANSIONS = {
     "confirmed": ["confirmed", "officially recognized", "known"],
     "discovered": ["discovered", "discovery", "found", "first observed"],
     "dwarf": ["dwarf", "dwarf planet", "dwarf planets", "minor planet", "minor planets"],
-    "fewer": ["fewer", "less", "moon", "moons", "satellite", "satellites"],
+    "fewer": ["fewer", "less than"],
     "jupiter": ["jupiter", "jovian"],
     "kuiper": ["kuiper", "kuiper belt", "trans-neptunian", "beyond neptune"],
     "located": ["located", "location", "region", "belt"],
@@ -60,8 +60,16 @@ QUERY_EXPANSIONS = {
     "saturn": ["saturn", "saturnian"],
 }
 
+ATTRIBUTE_QUERY_EXPANSIONS = {
+    "distance_from_sun": ["orbit", "orbital", "distance", "distance from the sun", "semi-major axis"],
+    "moon_count": ["moon", "moons", "satellite", "satellites"],
+    "ring_count": ["ring", "rings"],
+    "mass": ["mass", "massive"],
+    "size": ["size", "diameter", "radius"],
+}
 
-def build_query_terms(question: str) -> list[str]:
+
+def build_query_terms(question: str, *, predicate_terms: list[str] | None = None) -> list[str]:
     terms = tokenize(question)
     expanded = []
     for term in terms:
@@ -69,6 +77,8 @@ def build_query_terms(question: str) -> list[str]:
             continue
         expanded.append(term)
         expanded.extend(QUERY_EXPANSIONS.get(term, []))
+    for predicate in predicate_terms or []:
+        expanded.extend(ATTRIBUTE_QUERY_EXPANSIONS.get(predicate, []))
     return list(dict.fromkeys(expanded))
 
 
@@ -77,6 +87,8 @@ def infer_query_predicates(question: str) -> list[str]:
     predicates = []
     if re.search(r"\b(?:moon|moons|satellite|satellites|fewer\s+moons|more\s+moons)\b", question_lower):
         predicates.append("moon_count")
+    if re.search(r"\b(?:ring|rings|fewer\s+rings|more\s+rings)\b", question_lower):
+        predicates.append("ring_count")
     if re.search(r"\b(?:orbit|orbits|beyond|farther|closer|distance|from the sun)\b", question_lower):
         predicates.append("distance_from_sun")
     if re.search(r"\b(?:dwarf planet|classified|classification|recognized as)\b", question_lower):

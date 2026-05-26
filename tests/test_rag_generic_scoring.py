@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import unittest
 
 from src.question_classifier import QuestionClassifier
-from src.rag.retrieval_intent import build_retrieval_intent, score_target_class_evidence
-from src.rag.retriever import RagRetriever, RetrievedChunk
+from src.rag.retrieval_intent import build_retrieval_intent, score_filter_evidence, score_target_class_evidence
+from src.rag.retriever import (
+    RagRetriever,
+    RetrievedChunk,
+    cap_per_source,
+    score_orbit_order_context,
+    suppress_near_duplicate_chunks,
+)
+from src.rag.source_selector import SourceProfile, apply_constraint_coverage
 
 
 EMPTY_TIME_CONSTRAINTS = {"phrases": [], "years": [], "months": []}
@@ -93,6 +101,82 @@ class GenericScoringTests(unittest.TestCase):
                 self.assertEqual(score, 2.0)
                 self.assertEqual(reasons, [f"target_class:{target_class}"])
 
+    def test_relational_filters_preserve_attribute_and_reference_entity(self) -> None:
+        q11 = "Which planets orbit beyond Earth yet have fewer moons than Jupiter?"
+        conditions = build_retrieval_intent(q11).filter_conditions
+        self.assertIn(
+            {"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"},
+            conditions,
+        )
+        self.assertIn(
+            {"operator": "<", "attribute": "moon_count", "reference_entity": "Jupiter"},
+            conditions,
+        )
+
+        counterfactual = "Which planets orbit beyond Mars yet have fewer moons than Saturn?"
+        counterfactual_conditions = build_retrieval_intent(counterfactual).filter_conditions
+        self.assertIn(
+            {"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Mars"},
+            counterfactual_conditions,
+        )
+        self.assertIn(
+            {"operator": "<", "attribute": "moon_count", "reference_entity": "Saturn"},
+            counterfactual_conditions,
+        )
+
+        single_relation_conditions = build_retrieval_intent(
+            "Which planets have fewer moons than Saturn?"
+        ).filter_conditions
+        self.assertIn(
+            {"operator": "<", "attribute": "moon_count", "reference_entity": "Saturn"},
+            single_relation_conditions,
+        )
+
+    def test_comparison_terms_are_expanded_from_the_attribute(self) -> None:
+        intent = build_retrieval_intent(
+            "Which planets orbit beyond Earth yet have fewer rings than Jupiter?"
+        )
+        self.assertIn("ring_count", intent.predicate_terms)
+        self.assertIn("rings", intent.query_terms)
+        self.assertNotIn("moons", intent.query_terms)
+        self.assertNotIn("satellites", intent.query_terms)
+
+    def test_filter_scoring_distinguishes_constraint_reference_from_candidate(self) -> None:
+        conditions = [{"operator": "<", "attribute": "moon_count", "reference_entity": "Jupiter"}]
+        _, reference_reasons = score_filter_evidence(
+            "jupiter has 95 moons.",
+            {"moon_count"},
+            conditions,
+            weight=2.5,
+        )
+        _, candidate_reasons = score_filter_evidence(
+            "mars has 2 moons.",
+            {"moon_count"},
+            conditions,
+            weight=2.5,
+        )
+        self.assertIn("constraint_reference:moon_count:jupiter", reference_reasons)
+        self.assertIn("constraint_candidate:moon_count", candidate_reasons)
+        self.assertNotIn("constraint_reference:moon_count:jupiter", candidate_reasons)
+
+    def test_orbital_ordinal_evidence_is_symmetric(self) -> None:
+        scores = []
+        for planet, ordinal in [
+            ("Mars", "fourth"),
+            ("Jupiter", "fifth"),
+            ("Saturn", "sixth"),
+            ("Uranus", "seventh"),
+            ("Neptune", "eighth"),
+        ]:
+            with self.subTest(planet=planet):
+                score, reasons = score_orbit_order_context(
+                    {"title": planet, "section": "Facts"},
+                    f"{planet.lower()} is the {ordinal} planet from the sun.",
+                )
+                self.assertIn("planet_orbit_context", reasons)
+                scores.append(score)
+        self.assertEqual(len(set(scores)), 1)
+
 
 class SourceRoutingTests(unittest.TestCase):
     @staticmethod
@@ -153,6 +237,85 @@ class SourceRoutingTests(unittest.TestCase):
         self.assertEqual(selection.scores[0].source_id, "precise")
         precise_score = next(score for score in selection.scores if score.source_id == "precise")
         self.assertIn("identity_prior:precise__identity:8.0000", precise_score.reasons)
+
+    @staticmethod
+    def profile(source_id: str, title: str, text: str, entities: set[str]) -> SourceProfile:
+        return SourceProfile(
+            source_id=source_id,
+            title=title,
+            url="",
+            cleaner="",
+            trust_level="reference",
+            char_count=len(text),
+            chunk_count=1,
+            text=text,
+            tokens=Counter(text.split()),
+            entities=entities,
+            predicates={"moon_count", "distance_from_sun"},
+        )
+
+    def test_relational_candidate_coverage_uses_class_evidence_not_planet_whitelist(self) -> None:
+        profiles = {
+            "summary": self.profile(
+                "summary",
+                "Solar System",
+                "the solar system contains planets and orbit data with moons.",
+                {"Solar System"},
+            ),
+            "mars": self.profile("mars", "Mars", "mars is a planet and has moons in its orbit.", {"Mars"}),
+            "saturn": self.profile("saturn", "Saturn", "saturn is a planet and has moons in its orbit.", {"Saturn"}),
+            "kepler": self.profile("kepler", "Kepler-186f", "kepler-186f is a planet and has moons in its orbit.", {"Kepler-186f"}),
+        }
+        intent = build_retrieval_intent(
+            "Which planets orbit beyond Mars yet have fewer moons than Saturn?"
+        )
+        expanded, added, reasons = apply_constraint_coverage(["summary"], profiles, intent)
+
+        self.assertIn("mars", expanded)
+        self.assertIn("saturn", expanded)
+        self.assertIn("kepler", expanded)
+        self.assertNotIn("summary", added)
+        self.assertIn("reference_coverage:distance_from_sun:mars", reasons)
+        self.assertIn("reference_coverage:moon_count:saturn", reasons)
+        self.assertTrue(any(reason.startswith("candidate_coverage:kepler-186f:") for reason in reasons))
+
+    def test_constraint_coverage_tracks_already_ranked_evidence_sources(self) -> None:
+        profiles = {
+            "mars": self.profile("mars", "Mars", "mars is a planet and has moons in its orbit.", {"Mars"}),
+            "saturn": self.profile("saturn", "Saturn", "saturn is a planet and has moons in its orbit.", {"Saturn"}),
+        }
+        intent = build_retrieval_intent(
+            "Which planets orbit beyond Mars yet have fewer moons than Saturn?"
+        )
+        _, coverage_sources, _ = apply_constraint_coverage(["mars", "saturn"], profiles, intent)
+        self.assertEqual(set(coverage_sources), {"mars", "saturn"})
+
+    def test_final_chunk_selection_preserves_required_evidence_sources(self) -> None:
+        items = [
+            self.route("summary", "summary_1", "section_window", 12.0),
+            self.route("summary", "summary_2", "section_window", 11.0),
+            self.route("candidate", "candidate_1", "section_window", 1.0),
+        ]
+        selected = cap_per_source(
+            items,
+            top_k=2,
+            per_source_limit=2,
+            required_source_ids=["candidate"],
+        )
+        self.assertEqual([item.chunk["source_id"] for item in selected], ["summary", "candidate"])
+
+    def test_duplicate_suppression_preserves_required_evidence_sources(self) -> None:
+        items = [
+            self.route("summary", "summary_1", "section_window", 12.0),
+            self.route("summary", "summary_2", "section_window", 11.0),
+            self.route("candidate", "candidate_1", "section_window", 1.0),
+        ]
+        selected = suppress_near_duplicate_chunks(
+            items,
+            top_k=2,
+            required_source_ids=["candidate"],
+        )
+        self.assertEqual([item.chunk["source_id"] for item in selected], ["summary", "candidate"])
 
 
 if __name__ == "__main__":

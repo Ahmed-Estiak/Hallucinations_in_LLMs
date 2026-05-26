@@ -6,7 +6,7 @@ import json
 import math
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
@@ -14,6 +14,7 @@ from urllib.parse import unquote, urlparse
 from src.question_classifier import QuestionClassifier
 from src.rag.retrieval_intent import (
     RetrievalIntent,
+    TARGET_CLASS_ALIASES,
     build_retrieval_intent,
     score_filter_evidence,
     score_ordering_evidence,
@@ -58,6 +59,8 @@ class SourceSelection:
     scores: list[SourceScore]
     fallback_used: bool = False
     fallback_reason: str = ""
+    coverage_source_ids: list[str] = field(default_factory=list)
+    coverage_reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -66,6 +69,8 @@ class SourceSelection:
             "scores": [score.to_dict() for score in self.scores],
             "fallback_used": self.fallback_used,
             "fallback_reason": self.fallback_reason,
+            "coverage_source_ids": self.coverage_source_ids,
+            "coverage_reasons": self.coverage_reasons,
         }
 
 
@@ -103,9 +108,6 @@ class SourceSelector:
         top_n_sources: int = 5,
         min_score: float = 8.0,
     ) -> SourceSelection:
-        planet_list_question = bool(re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()))
-        if planet_list_question:
-            top_n_sources = max(top_n_sources, 12)
         intent = build_retrieval_intent(question, classifier=self.question_classifier)
 
         scores = []
@@ -127,14 +129,17 @@ class SourceSelector:
 
         scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in scores if score.score >= min_score][:top_n_sources]
-        if planet_list_question:
-            selected = append_major_planet_sources(selected, self.profiles)
         fallback_used = False
         fallback_reason = ""
         if len(selected) < 2 and scores:
             selected = [score.source_id for score in scores[:top_n_sources]]
             fallback_used = True
             fallback_reason = "source_score_threshold_too_strict"
+        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+            selected,
+            self.profiles,
+            intent,
+        )
 
         return SourceSelection(
             mode="auto-source",
@@ -142,6 +147,8 @@ class SourceSelector:
             scores=scores,
             fallback_used=fallback_used,
             fallback_reason=fallback_reason,
+            coverage_source_ids=coverage_source_ids,
+            coverage_reasons=coverage_reasons,
         )
 
 
@@ -331,16 +338,95 @@ def infer_trust_level(url: str) -> str:
     return "article"
 
 
-def append_major_planet_sources(selected: list[str], profiles: dict[str, SourceProfile]) -> list[str]:
+def apply_constraint_coverage(
+    selected: list[str],
+    profiles: dict[str, SourceProfile],
+    intent: RetrievalIntent,
+) -> tuple[list[str], list[str], list[str]]:
+    """Add relational baseline and candidate evidence sources without answer-specific lists."""
     expanded = list(selected)
-    for source_id, profile in profiles.items():
-        if normalize_planet_title(profile.title) and source_id not in expanded:
+    coverage_sources: list[str] = []
+    reasons: list[str] = []
+    relational_conditions = [
+        condition
+        for condition in intent.filter_conditions
+        if condition.get("operator") in {"<", ">"} and condition.get("attribute") not in {None, "", "unknown"}
+    ]
+    if not intent.target_class or not relational_conditions:
+        return expanded, coverage_sources, reasons
+
+    required_attributes = {
+        str(condition["attribute"])
+        for condition in relational_conditions
+    }
+
+    def add_source(source_id: str, reason: str) -> None:
+        if source_id not in coverage_sources:
+            coverage_sources.append(source_id)
+        if reason not in reasons:
+            reasons.append(reason)
+        if source_id not in expanded:
             expanded.append(source_id)
-    return expanded
+
+    for condition in relational_conditions:
+        reference = str(condition.get("reference_entity", "")).strip()
+        if not reference:
+            continue
+        source_id = find_named_source(reference, profiles)
+        if source_id:
+            add_source(
+                source_id,
+                f"reference_coverage:{condition['attribute']}:{reference.lower()}",
+            )
+
+    for source_id, profile in profiles.items():
+        entity = source_target_entity(profile, intent.target_class)
+        if not entity:
+            continue
+        attributes = sorted(required_attributes & profile.predicates)
+        if not attributes:
+            continue
+        add_source(
+            source_id,
+            f"candidate_coverage:{entity.lower()}:{','.join(attributes)}",
+        )
+    return expanded, coverage_sources, reasons
 
 
-def normalize_planet_title(title: str) -> str:
-    normalized = title.lower().replace(" (planet)", "").strip()
-    if normalized in {"mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"}:
-        return normalized
+def find_named_source(entity: str, profiles: dict[str, SourceProfile]) -> str:
+    normalized_entity = normalize_title(entity)
+    for source_id, profile in profiles.items():
+        if normalize_title(profile.title) == normalized_entity:
+            return source_id
     return ""
+
+
+def source_target_entity(profile: SourceProfile, target_class: str) -> str:
+    normalized_title = normalize_title(profile.title)
+    matched_entity = next(
+        (
+            entity
+            for entity in profile.entities
+            if normalize_title(entity) == normalized_title
+        ),
+        "",
+    )
+    if not matched_entity:
+        return ""
+
+    aliases = TARGET_CLASS_ALIASES.get(target_class, (target_class.replace("_", " "),))
+    singular_aliases = {alias.rstrip("s") for alias in aliases}
+    identity_text = profile.text[:2000]
+    for alias in singular_aliases:
+        if re.search(
+            rf"(?<!\w){re.escape(normalized_title)}(?!\w).{{0,80}}\b(?:is|was)\b.{{0,60}}(?<!\w){re.escape(alias)}(?!\w)",
+            identity_text,
+        ):
+            return matched_entity
+        if has_phrase(normalized_title, alias):
+            return matched_entity
+    return ""
+
+
+def normalize_title(title: str) -> str:
+    return re.sub(r"\s*\([^)]*\)\s*$", "", title.lower()).strip()

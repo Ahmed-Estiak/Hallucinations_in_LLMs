@@ -31,6 +31,7 @@ ORDERING_EVIDENCE = {
     "size": ("size", "diameter", "radius"),
     "mass": ("mass", "massive", "heavier", "lighter"),
     "moon_count": ("moon", "moons", "satellite", "satellites"),
+    "ring_count": ("ring", "rings"),
     "distance_from_sun": ("orbit", "distance from the sun", "semi-major axis"),
 }
 
@@ -65,13 +66,17 @@ def build_retrieval_intent(
         if LogicalModifier.FILTER in modifiers
         else []
     )
+    for condition in conditions:
+        attribute = condition.get("attribute")
+        if attribute and attribute != "unknown" and attribute not in predicates:
+            predicates.append(attribute)
     ordering_attribute = (
         normalize_attribute(classified.ordering_attribute)
         if LogicalModifier.ORDERING in modifiers
         else None
     )
     return RetrievalIntent(
-        query_terms=build_query_terms(question),
+        query_terms=build_query_terms(question, predicate_terms=predicates),
         entity_terms=[
             entity.lower()
             for entity in parsed["entities"] + classified.major_entities
@@ -119,20 +124,15 @@ def score_filter_evidence(
         elif attribute == "planet_type" and operator == "==" and value and has_phrase(text, value):
             score += weight
             reasons.append(f"filter:planet_type:{slug(value)}")
-        elif attribute == "moon_count" and operator in {"<", ">", "=="}:
-            if "moon_count" in predicate_hints or contains_any(text, TARGET_CLASS_ALIASES["moons"]):
+        elif attribute in ORDERING_EVIDENCE and operator in {"<", ">", "=="}:
+            if attribute in predicate_hints or contains_any(text, ORDERING_EVIDENCE[attribute]):
                 score += weight * 0.65
-                reasons.append("filter:moon_count")
+                reasons.append(f"constraint_evidence:{attribute}")
                 if reference and has_phrase(text, reference):
                     score += weight * 0.35
-                    reasons.append(f"filter_reference:{slug(reference)}")
-        elif attribute == "distance_from_sun" and operator in {"<", ">", "=="}:
-            if "distance_from_sun" in predicate_hints or contains_any(text, ORDERING_EVIDENCE["distance_from_sun"]):
-                score += weight * 0.65
-                reasons.append("filter:distance_from_sun")
-                if reference and has_phrase(text, reference):
-                    score += weight * 0.35
-                    reasons.append(f"filter_reference:{slug(reference)}")
+                    reasons.append(f"constraint_reference:{attribute}:{slug(reference)}")
+                else:
+                    reasons.append(f"constraint_candidate:{attribute}")
         elif value and has_phrase(text, value):
             score += weight * 0.5
             reasons.append(f"filter:{slug(attribute or 'value')}:{slug(value)}")

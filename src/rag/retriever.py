@@ -31,7 +31,7 @@ from src.rag.retrieval_intent import (
 )
 from src.rag.retriever_terms import tokenize
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
-from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, append_major_planet_sources
+from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, apply_constraint_coverage
 
 
 RETRIEVAL_MODES = {
@@ -238,12 +238,18 @@ class RagRetriever:
             chunk for chunk in self.chunks
             if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
         ]
+        coverage_source_ids = (
+            source_selection.coverage_source_ids
+            if source_selection
+            else []
+        )
         if mode == "vector":
             retrieved = self._retrieve_from_chunks_vector(
                 candidate_chunks,
                 vector_scores=vector_scores or {},
                 top_k=top_k,
                 per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
             )
         elif mode == "hybrid":
             retrieved = self._retrieve_from_chunks_hybrid(
@@ -252,6 +258,7 @@ class RagRetriever:
                 vector_scores=vector_scores or {},
                 top_k=top_k,
                 per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
             )
         else:
             retrieved = self._retrieve_from_chunks(
@@ -259,6 +266,7 @@ class RagRetriever:
                 chunks=candidate_chunks,
                 top_k=top_k,
                 per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
             )
 
         if mode == "auto-source" and is_weak_retrieval(retrieved):
@@ -269,6 +277,7 @@ class RagRetriever:
                 chunks=self.chunks,
                 top_k=top_k,
                 per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
             )
         if mode in {"vector", "hybrid"} and is_weak_retrieval(retrieved):
             fallback_used = True
@@ -279,6 +288,7 @@ class RagRetriever:
                     vector_scores=vector_scores or {},
                     top_k=top_k,
                     per_source_limit=effective_per_source_limit,
+                    required_source_ids=coverage_source_ids,
                 )
             else:
                 retrieved = self._retrieve_from_chunks_hybrid(
@@ -287,6 +297,7 @@ class RagRetriever:
                     vector_scores=vector_scores or {},
                     top_k=top_k,
                     per_source_limit=effective_per_source_limit,
+                    required_source_ids=coverage_source_ids,
                 )
 
         if source_selection and source_selection.fallback_used:
@@ -427,8 +438,13 @@ class RagRetriever:
             embedding_index=chunk_index,
             top_k=top_k * 2,
             per_source_limit=self._effective_per_source_limit(question, per_source_limit),
+            required_source_ids=source_selection.coverage_source_ids,
         )
-        retrieved = suppress_near_duplicate_chunks(retrieved, top_k=top_k)
+        retrieved = suppress_near_duplicate_chunks(
+            retrieved,
+            top_k=top_k,
+            required_source_ids=source_selection.coverage_source_ids,
+        )
         evidence_gap = self._hierarchical_evidence_gap(question, retrieved)
         if evidence_gap:
             raise RuntimeError(evidence_gap)
@@ -592,6 +608,20 @@ class RagRetriever:
                 selected.append(source_score.source_id)
             if len(selected) >= budget:
                 break
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        relational_coverage_needed = bool(
+            intent.target_class
+            and any(
+                condition.get("operator") in {"<", ">"}
+                and condition.get("attribute") not in {None, "", "unknown"}
+                for condition in intent.filter_conditions
+            )
+        )
+        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+            selected,
+            self.source_selector.profiles if relational_coverage_needed else {},
+            intent,
+        )
         selected_route_items = [
             item
             for source_id in selected
@@ -616,6 +646,8 @@ class RagRetriever:
             mode="hierarchical-bge-m3-rrf",
             selected_source_ids=selected,
             scores=scores,
+            coverage_source_ids=coverage_source_ids,
+            coverage_reasons=coverage_reasons,
         ), selected_routes
 
     def _hierarchical_source_budget(self, question: str, maximum: int) -> int:
@@ -679,6 +711,7 @@ class RagRetriever:
             embedding_index=embedding_index,
             top_k=top_k,
             per_source_limit=self._effective_per_source_limit(question, per_source_limit),
+            required_source_ids=source_selection.coverage_source_ids,
         )
         return RagRetrievalResult(
             retrieved_chunks=retrieved,
@@ -714,9 +747,15 @@ class RagRetriever:
         chunks: list[dict[str, Any]],
         top_k: int,
         per_source_limit: int,
+        required_source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         scored = self._score_chunks_lexical(question, chunks=chunks)
-        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+        return cap_per_source(
+            scored,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            required_source_ids=required_source_ids,
+        )
 
     def _score_chunks_lexical(
         self,
@@ -840,10 +879,17 @@ class RagRetriever:
         source_scores = self._aggregate_vector_source_scores(vector_scores)
         source_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in source_scores[:top_n_sources]]
+        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+            selected,
+            self.source_selector.profiles,
+            build_retrieval_intent(question, classifier=self.question_classifier),
+        )
         return SourceSelection(
             mode="vector",
             selected_source_ids=selected,
             scores=source_scores,
+            coverage_source_ids=coverage_source_ids,
+            coverage_reasons=coverage_reasons,
         )
 
     def _select_sources_hybrid(
@@ -895,12 +941,17 @@ class RagRetriever:
 
         hybrid_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in hybrid_scores[:top_n_sources]]
-        if re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()):
-            selected = append_major_planet_sources(selected, self.source_selector.profiles)
+        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+            selected,
+            self.source_selector.profiles,
+            build_retrieval_intent(question, classifier=self.question_classifier),
+        )
         return SourceSelection(
             mode="hybrid",
             selected_source_ids=selected,
             scores=hybrid_scores,
+            coverage_source_ids=coverage_source_ids,
+            coverage_reasons=coverage_reasons,
         )
 
     def _select_sources_rrf(
@@ -966,12 +1017,17 @@ class RagRetriever:
 
         rrf_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in rrf_scores[:top_n_sources]]
-        if re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()):
-            selected = append_major_planet_sources(selected, self.source_selector.profiles)
+        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+            selected,
+            self.source_selector.profiles,
+            build_retrieval_intent(question, classifier=self.question_classifier),
+        )
         return SourceSelection(
             mode=mode,
             selected_source_ids=selected,
             scores=rrf_scores,
+            coverage_source_ids=coverage_source_ids,
+            coverage_reasons=coverage_reasons,
         )
 
     def _aggregate_vector_source_scores(self, vector_scores: dict[str, float]) -> list[SourceScore]:
@@ -1043,6 +1099,7 @@ class RagRetriever:
         vector_scores: dict[str, float],
         top_k: int,
         per_source_limit: int,
+        required_source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         scored = []
         for chunk in chunks:
@@ -1055,7 +1112,12 @@ class RagRetriever:
                 reasons=[f"vector_similarity:{similarity:.4f}"],
             ))
         scored.sort(key=lambda item: item.score, reverse=True)
-        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+        return cap_per_source(
+            scored,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            required_source_ids=required_source_ids,
+        )
 
     def _retrieve_from_chunks_hybrid(
         self,
@@ -1065,6 +1127,7 @@ class RagRetriever:
         vector_scores: dict[str, float],
         top_k: int,
         per_source_limit: int,
+        required_source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         intent = build_retrieval_intent(question, classifier=self.question_classifier)
         time_constraints = extract_time_constraints(question)
@@ -1093,7 +1156,12 @@ class RagRetriever:
             scored.append(RetrievedChunk(chunk=chunk, score=score, reasons=reasons))
 
         scored.sort(key=lambda item: item.score, reverse=True)
-        return cap_per_source(scored, top_k=top_k, per_source_limit=per_source_limit)
+        return cap_per_source(
+            scored,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            required_source_ids=required_source_ids,
+        )
 
     def _retrieve_from_chunks_rrf(
         self,
@@ -1106,6 +1174,7 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         top_k: int,
         per_source_limit: int,
+        required_source_ids: list[str] | None = None,
     ) -> list[RetrievedChunk]:
         lexical_items = self._score_chunks_lexical(question, chunks=chunks)
         chunk_ids = {chunk["chunk_id"] for chunk in chunks}
@@ -1150,9 +1219,19 @@ class RagRetriever:
         )
         initial_items.sort(key=lambda item: item.score, reverse=True)
         if mode != "bge-m3-rrf":
-            return cap_per_source(initial_items, top_k=top_k, per_source_limit=per_source_limit)
+            return cap_per_source(
+                initial_items,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                required_source_ids=required_source_ids,
+            )
 
-        rerank_candidates = initial_items[: max(COLBERT_RERANK_CANDIDATES, top_k)]
+        rerank_candidates = cap_per_source(
+            initial_items,
+            top_k=max(COLBERT_RERANK_CANDIDATES, top_k),
+            per_source_limit=max(COLBERT_RERANK_CANDIDATES, top_k),
+            required_source_ids=required_source_ids,
+        )
         colbert_scores = bge_m3_colbert_scores(
             question,
             [embedding_text_for_chunk(item.chunk) for item in rerank_candidates],
@@ -1176,7 +1255,12 @@ class RagRetriever:
             weights=BGE_M3_FINAL_RRF_WEIGHTS,
         )
         final_items.sort(key=lambda item: item.score, reverse=True)
-        return cap_per_source(final_items, top_k=top_k, per_source_limit=per_source_limit)
+        return cap_per_source(
+            final_items,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            required_source_ids=required_source_ids,
+        )
 
     def format_context(self, retrieved_chunks: list[RetrievedChunk], *, max_chars: int = 12000) -> str:
         parts = []
@@ -1340,28 +1424,83 @@ def combine_chunk_rrf(
     return combined
 
 
-def cap_per_source(items: list[RetrievedChunk], *, top_k: int, per_source_limit: int) -> list[RetrievedChunk]:
+def cap_per_source(
+    items: list[RetrievedChunk],
+    *,
+    top_k: int,
+    per_source_limit: int,
+    required_source_ids: list[str] | None = None,
+) -> list[RetrievedChunk]:
+    required = set(required_source_ids or [])
     counts: dict[str, int] = defaultdict(int)
-    selected = []
+    selected: list[RetrievedChunk] = []
+    selected_chunk_ids: set[str] = set()
+
+    # Relational list questions need at least one available evidence chunk for
+    # each candidate/baseline source before the remaining ranked slots are filled.
     for item in items:
         source_id = item.chunk.get("source_id", "")
+        if source_id not in required or counts[source_id]:
+            continue
+        selected.append(item)
+        selected_chunk_ids.add(item.chunk.get("chunk_id", ""))
+        counts[source_id] += 1
+        if len(selected) >= top_k:
+            break
+
+    for item in items:
+        if len(selected) >= top_k:
+            break
+        source_id = item.chunk.get("source_id", "")
+        if item.chunk.get("chunk_id", "") in selected_chunk_ids:
+            continue
         if counts[source_id] >= per_source_limit:
             continue
         selected.append(item)
         counts[source_id] += 1
         if len(selected) >= top_k:
             break
+    rank = {
+        item.chunk.get("chunk_id", ""): index
+        for index, item in enumerate(items)
+    }
+    selected.sort(key=lambda item: rank.get(item.chunk.get("chunk_id", ""), len(items)))
     return selected
 
 
-def suppress_near_duplicate_chunks(items: list[RetrievedChunk], *, top_k: int) -> list[RetrievedChunk]:
+def suppress_near_duplicate_chunks(
+    items: list[RetrievedChunk],
+    *,
+    top_k: int,
+    required_source_ids: list[str] | None = None,
+) -> list[RetrievedChunk]:
+    required = set(required_source_ids or [])
     selected: list[RetrievedChunk] = []
+    selected_ids: set[str] = set()
+    represented_sources: set[str] = set()
     for item in items:
+        source_id = item.chunk.get("source_id", "")
+        if source_id not in required or source_id in represented_sources:
+            continue
+        selected.append(item)
+        selected_ids.add(item.chunk.get("chunk_id", ""))
+        represented_sources.add(source_id)
+        if len(selected) >= top_k:
+            break
+
+    for item in items:
+        if len(selected) >= top_k:
+            break
+        if item.chunk.get("chunk_id", "") in selected_ids:
+            continue
         if any(text_overlap_ratio(item.chunk.get("text", ""), previous.chunk.get("text", "")) >= 0.80 for previous in selected):
             continue
         selected.append(item)
-        if len(selected) >= top_k:
-            break
+    rank = {
+        item.chunk.get("chunk_id", ""): index
+        for index, item in enumerate(items)
+    }
+    selected.sort(key=lambda item: rank.get(item.chunk.get("chunk_id", ""), len(items)))
     return selected
 
 
@@ -1473,7 +1612,6 @@ def score_moon_count_context(chunk: dict[str, Any], text: str) -> tuple[float, l
     score = 0.0
     reasons: list[str] = []
     section = str(chunk.get("section", "")).lower()
-    title = str(chunk.get("title", "")).lower()
 
     if "moon" in section or "satellite" in section:
         score += 5.0
@@ -1484,9 +1622,6 @@ def score_moon_count_context(chunk: dict[str, Any], text: str) -> tuple[float, l
     if re_moon_count_claim(text):
         score += 8.0
         reasons.append("moon_count_claim")
-    if title_is_planet(title) and any(word in text for word in ("moon", "moons", "satellite", "satellites")):
-        score += 4.0
-        reasons.append("planet_moon_context")
     return score, reasons
 
 
@@ -1502,7 +1637,13 @@ def score_orbit_order_context(chunk: dict[str, Any], text: str) -> tuple[float, 
     if title == "solar system" and any(value in text for value in ("inner planets", "outer planets", "au)", "from the sun")):
         score += 4.0
         reasons.append("solar_system_order_context")
-    if title_is_planet(title) and any(value in text for value in ("from the sun", "au", "orbit", "fifth planet", "seventh planet", "eighth planet", "fourth planet")):
+    if (
+        re.search(
+            r"\b(?:(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d+(?:st|nd|rd|th))\s+planet|orbit(?:s|al|ing)?|semi-major\s+axis|distance\s+from\s+(?:the\s+)?sun)\b",
+            text,
+        )
+        or re.search(r"\b\d+(?:\.\d+)?\s*au\b", text)
+    ):
         score += 3.0
         reasons.append("planet_orbit_context")
     return score, reasons
@@ -1521,29 +1662,9 @@ def re_moon_count_claim(text: str) -> bool:
             text,
         )
         or re.search(
-            r"\b(?:mercury|venus|earth|mars|jupiter|saturn|uranus|neptune)'?s\s+"
-            r"(?:\d+|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred)\s+"
+            r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3}'s\s+"
+            r"(?:\d[\d,]*|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred)\s+"
             r"(?:\w+\s+){0,4}(?:moon|moons|satellite|satellites)\b",
             text,
         )
-        or re.search(
-            r"\b(?:mercury|venus|earth|mars|jupiter|saturn|uranus|neptune)\s+has\s+"
-            r"(?:\d+|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred).{0,90}?"
-            r"\b(?:moon|moons|satellite|satellites)\b",
-            text,
-        )
     )
-
-
-def title_is_planet(title: str) -> bool:
-    normalized = title.replace(" (planet)", "")
-    return normalized in {
-        "mercury",
-        "venus",
-        "earth",
-        "mars",
-        "jupiter",
-        "saturn",
-        "uranus",
-        "neptune",
-    }

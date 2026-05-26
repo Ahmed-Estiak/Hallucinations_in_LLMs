@@ -41,6 +41,7 @@ PREDICATE_HINT_PATTERNS = {
     "discovered_on": r"\b(?:discovered|discovery|found|first observed|year)\b",
     "discovered_by": r"\b(?:discovered by|discoverer|found by|clyde tombaugh)\b",
     "moon_count": r"\b(?:moon|moons|satellite|satellites)\b",
+    "ring_count": r"\b(?:ring|rings)\b",
     "mass": r"\b(?:mass|massive|heavier|lighter)\b",
     "distance_from_sun": r"\b(?:distance from the sun|farther from the sun|semi-major axis|orbit)\b",
 }

@@ -87,6 +87,15 @@ source score. Lexical filter, ordering, and target-class bonuses are derived
 from parsed query intent, so an unrelated location or ordering attribute does
 not receive a question-specific boost.
 
+Relational filters retain both their attribute and named baseline, for example
+`moon_count < Jupiter` and `distance_from_sun > Earth`. For target-class list
+questions, source selection can append pages that provide evidence for that
+class and those parsed attributes, plus explicitly named baseline pages. This
+coverage step also reserves one available final-context chunk per required
+evidence source when the context budget permits. It does not encode which
+entities satisfy the filter; the retrieved evidence and the LLM must still
+resolve the comparison.
+
 The automatic fallback order is:
 
 ```text

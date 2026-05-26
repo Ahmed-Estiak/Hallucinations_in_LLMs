@@ -169,23 +169,22 @@ class QuestionClassifier:
     COMPARISON_PATTERNS = [
         r"\bbetween\b.*\bwhich\b",
         r"\bcompared\s+to\b",
-        r"\b(?:greater|less|more|fewer|larger|smaller|heavier|lighter|farther|closer)\s+than\b",
+        r"\b(?:greater|less|more|fewer|larger|smaller|heavier|lighter|farther|closer)\b.*\bthan\b",
         r"\bwhich\s+(?:is|planet\s+is|one\s+is)\s+(?:greater|larger|smaller|heavier|lighter|farther|closer)\b",
     ]
 
     FILTER_PATTERNS = [
-        r"\bfewer\s+than\b",
-        r"\bmore\s+than\b",
-        r"\bless\s+than\b",
-        r"\bgreater\s+than\b",
-        r"\bcloser\s+than\b",
-        r"\bfarther\s+than\b",
+        r"\bfewer\b.*\bthan\b",
+        r"\bmore\b.*\bthan\b",
+        r"\bless\b.*\bthan\b",
+        r"\bgreater\b.*\bthan\b",
+        r"\bcloser\b.*\bthan\b",
+        r"\bfarther\b.*\bthan\b",
         r"\blocated\s+in\b",
         r"\bfound\s+in\b",
         r"\bin\s+the\s+kuiper\s+belt\b",
         r"\bin\s+the\s+asteroid\s+belt\b",
         r"\borbit(?:s|ing)?\s+beyond\b",
-        r"\bbeyond\s+earth\b",
     ]
 
     ORDERING_KEYWORDS = {
@@ -202,6 +201,21 @@ class QuestionClassifier:
         "<": ["fewer", "smaller", "lighter", "closer"],
         "==": ["same", "equal", "equal to", "same as"],
     }
+    FILTER_COMPARISON_PATTERNS = [
+        ("moon_count", "<", r"\b(?:fewer|less)\s+(?:confirmed\s+|known\s+)?(?:moons|satellites)\s+than\b"),
+        ("moon_count", ">", r"\b(?:more|greater)\s+(?:confirmed\s+|known\s+)?(?:moons|satellites)\s+than\b"),
+        ("ring_count", "<", r"\b(?:fewer|less)\s+(?:known\s+)?rings\s+than\b"),
+        ("ring_count", ">", r"\b(?:more|greater)\s+(?:known\s+)?rings\s+than\b"),
+        ("mass", "<", r"\b(?:less|smaller)\s+mass\s+than\b|\blighter\s+than\b"),
+        ("mass", ">", r"\b(?:more|greater)\s+mass\s+than\b|\bheavier\s+than\b"),
+        ("size", "<", r"\bsmaller\s+(?:in\s+size\s+)?than\b"),
+        ("size", ">", r"\blarger\s+(?:in\s+size\s+)?than\b"),
+    ]
+    DISTANCE_RELATION_PATTERNS = [
+        (">", r"\borbit(?:s|ing)?\s+beyond\b"),
+        (">", r"\bfarther\s+from\s+(?:the\s+)?sun\s+than\b"),
+        ("<", r"\bcloser\s+to\s+(?:the\s+)?sun\s+than\b"),
+    ]
 
     BOOLEAN_VALUES = ["yes", "no", "true", "false"]
     MULTI_FIELD_EXCLUDED_PREDICATES = {"ordering", "comparison"}
@@ -606,16 +620,39 @@ class QuestionClassifier:
 
     def _detect_list_filter_conditions(self, question: str, result: ClassifiedQuestion) -> None:
         if LogicalModifier.FILTER in result.logical_modifiers:
-            if re.search(r"\bfewer\b.*\bthan\b", question) or re.search(r"\bless\b.*\bthan\b", question):
-                result.entity_filter_conditions.append({"operator": "<", "attribute": result.ordering_attribute or "unknown"})
-            elif re.search(r"\bmore\b.*\bthan\b", question) or re.search(r"\bgreater\b.*\bthan\b", question):
-                result.entity_filter_conditions.append({"operator": ">", "attribute": result.ordering_attribute or "unknown"})
+            comparative_match_found = False
+            for attribute, operator, pattern in self.FILTER_COMPARISON_PATTERNS:
+                match = re.search(pattern, question)
+                if not match:
+                    continue
+                comparative_match_found = True
+                condition = {"operator": operator, "attribute": attribute}
+                reference_entity = self._first_entity_after(question, match.end())
+                if reference_entity:
+                    condition["reference_entity"] = reference_entity
+                result.entity_filter_conditions.append(condition)
 
-            reference_entity = result.helper_entities[0] if result.helper_entities else None
-            if re.search(r"\bfarther\b.*\bthan\b", question) and reference_entity:
-                result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": reference_entity})
-            elif re.search(r"\bcloser\b.*\bthan\b", question) and reference_entity:
-                result.entity_filter_conditions.append({"operator": "<", "attribute": "distance_from_sun", "reference_entity": reference_entity})
+            if not comparative_match_found:
+                match = re.search(r"\b(?:fewer|less|more|greater)\b.*\bthan\b", question)
+                if match:
+                    operator = "<" if re.search(r"\b(?:fewer|less)\b", match.group()) else ">"
+                    condition = {"operator": operator, "attribute": result.ordering_attribute or "unknown"}
+                    reference_entity = self._first_entity_after(question, match.end())
+                    if reference_entity:
+                        condition["reference_entity"] = reference_entity
+                    result.entity_filter_conditions.append(condition)
+
+            for operator, pattern in self.DISTANCE_RELATION_PATTERNS:
+                match = re.search(pattern, question)
+                if not match:
+                    continue
+                reference_entity = self._first_entity_after(question, match.end())
+                if reference_entity:
+                    result.entity_filter_conditions.append({
+                        "operator": operator,
+                        "attribute": "distance_from_sun",
+                        "reference_entity": reference_entity,
+                    })
 
         if re.search(r"\bterrestrial\b", question):
             result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "terrestrial"})
@@ -627,8 +664,20 @@ class QuestionClassifier:
             result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Kuiper Belt"})
         if re.search(r"\bin\s+the\s+asteroid\s+belt\b", question):
             result.entity_filter_conditions.append({"operator": "==", "attribute": "location", "value": "Asteroid Belt"})
-        if re.search(r"\bbeyond\s+earth\b", question):
-            result.entity_filter_conditions.append({"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"})
+        result.entity_filter_conditions = self._dedupe_conditions(result.entity_filter_conditions)
+
+    @staticmethod
+    def _first_entity_after(question: str, start: int) -> Optional[str]:
+        entities = extract_entities(question[start:])
+        return entities[0] if entities else None
+
+    @staticmethod
+    def _dedupe_conditions(conditions: List[Dict]) -> List[Dict]:
+        deduped: List[Dict] = []
+        for condition in conditions:
+            if condition not in deduped:
+                deduped.append(condition)
+        return deduped
 
     def _finalize(self, result: ClassifiedQuestion) -> None:
         result.secondary_types = self._dedupe_secondary_types(result.secondary_types, result.primary_type)
