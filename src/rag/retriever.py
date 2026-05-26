@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 from src.question_classifier import LogicalModifier, QuestionClassifier
-from src.question_parser import parse_question
 from src.rag.embeddings import (
     DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
     DEFAULT_EMBEDDINGS_PATH,
@@ -23,7 +22,14 @@ from src.rag.embeddings import (
     ensure_embedding_cache,
     sparse_dot,
 )
-from src.rag.retriever_terms import build_query_terms, infer_query_predicates, tokenize
+from src.rag.retrieval_intent import (
+    RetrievalIntent,
+    build_retrieval_intent,
+    score_filter_evidence,
+    score_ordering_evidence,
+    score_target_class_evidence,
+)
+from src.rag.retriever_terms import tokenize
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, append_major_planet_sources
 
@@ -52,6 +58,8 @@ DENSE_LEXICAL_CHUNK_RRF_WEIGHTS = {"dense": 0.50, "lexical": 0.50}
 COLBERT_RERANK_CANDIDATES = 80
 ROUTE_RRF_WEIGHTS = {"dense": 0.35, "sparse": 0.40, "lexical": 0.25}
 ROUTE_SOURCE_HIT_WEIGHTS = (1.0, 0.50, 0.25)
+ROUTE_METADATA_PRIOR_WEIGHT = 0.10
+ROUTE_METADATA_PRIOR_CAP = 2.0
 AUTOMATIC_FALLBACK_CHAIN = [
     "hierarchical-bge-m3-rrf",
     "bge-m3-rrf",
@@ -484,29 +492,46 @@ class RagRetriever:
         route_items: list[RetrievedChunk],
         top_n_sources: int,
     ) -> tuple[SourceSelection, list[str]]:
-        distinct_by_source: dict[str, list[RetrievedChunk]] = defaultdict(list)
+        content_by_source: dict[str, list[RetrievedChunk]] = defaultdict(list)
+        metadata_by_source: dict[str, RetrievedChunk] = {}
         for item in route_items:
-            existing = distinct_by_source[item.chunk["source_id"]]
+            source_id = item.chunk["source_id"]
+            if item.chunk.get("route_type") == "metadata":
+                metadata_by_source.setdefault(source_id, item)
+                continue
+            existing = content_by_source[source_id]
             if any(routes_overlap(item.chunk, previous.chunk) for previous in existing):
                 continue
             existing.append(item)
 
         scores: list[SourceScore] = []
-        for source_id, items in distinct_by_source.items():
+        for source_id in sorted(set(content_by_source) | set(metadata_by_source)):
+            items = content_by_source.get(source_id, [])
             best_items = items[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
-            score = sum(
+            content_score = sum(
                 weight * item.score
                 for weight, item in zip(ROUTE_SOURCE_HIT_WEIGHTS, best_items)
             )
-            best = best_items[0].chunk
+            metadata_item = metadata_by_source.get(source_id)
+            metadata_prior = (
+                min(ROUTE_METADATA_PRIOR_CAP, metadata_item.score * ROUTE_METADATA_PRIOR_WEIGHT)
+                if metadata_item
+                else 0.0
+            )
+            score = content_score + metadata_prior
+            best = (best_items[0] if best_items else metadata_item).chunk
             source_chunks = [chunk for chunk in self.chunks if chunk["source_id"] == source_id]
             reasons = [
-                f"route_weighted_score:{score:.4f}",
+                f"content_route_weighted_score:{content_score:.4f}",
                 *[
                     f"route_hit_{index}:{item.chunk['route_id']}:{item.score:.4f}"
                     for index, item in enumerate(best_items, start=1)
                 ],
             ]
+            if metadata_item:
+                reasons.append(
+                    f"metadata_prior:{metadata_item.chunk['route_id']}:{metadata_prior:.4f}"
+                )
             scores.append(SourceScore(
                 source_id=source_id,
                 score=score,
@@ -520,7 +545,16 @@ class RagRetriever:
 
         budget = self._hierarchical_source_budget(question, top_n_sources)
         guard_sources = []
-        for item in route_items[: max(3, budget)]:
+        content_route_items = [
+            item for item in route_items
+            if item.chunk.get("route_type") != "metadata"
+        ]
+        guard_candidates = content_route_items + [
+            item for item in route_items
+            if item.chunk.get("route_type") == "metadata"
+            and item.chunk["source_id"] not in content_by_source
+        ]
+        for item in guard_candidates[: max(3, budget)]:
             source_id = item.chunk["source_id"]
             if source_id not in guard_sources:
                 guard_sources.append(source_id)
@@ -535,8 +569,13 @@ class RagRetriever:
         selected_route_items = [
             item
             for source_id in selected
-            for item in distinct_by_source.get(source_id, [])[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
+            for item in content_by_source.get(source_id, [])[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
         ]
+        selected_route_items.extend(
+            metadata_by_source[source_id]
+            for source_id in selected
+            if source_id in metadata_by_source
+        )
         selected_route_items.sort(key=lambda item: item.score, reverse=True)
         selected_routes = [
             item.chunk["route_id"]
@@ -654,27 +693,15 @@ class RagRetriever:
         *,
         chunks: list[dict[str, Any]],
     ) -> list[RetrievedChunk]:
-        parsed = parse_question(question)
-        classified = self.question_classifier.classify(question)
-        query_terms = build_query_terms(question)
-        entity_terms = [entity.lower() for entity in parsed["entities"] + classified.major_entities]
-        predicate_terms = list(dict.fromkeys(
-            parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
-        ))
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
         time_constraints = extract_time_constraints(question)
-        target_entity_class = classified.target_entity_class or classified.list_target
 
         scored: list[RetrievedChunk] = []
         for chunk in chunks:
             score, reasons = self._score_chunk(
                 chunk,
-                query_terms=query_terms,
-                entity_terms=entity_terms,
-                predicate_terms=predicate_terms,
+                intent=intent,
                 time_constraints=time_constraints,
-                target_entity_class=target_entity_class,
-                has_filter=LogicalModifier.FILTER in classified.logical_modifiers,
-                has_ordering=LogicalModifier.ORDERING in classified.logical_modifiers,
             )
             if score > 0:
                 scored.append(RetrievedChunk(chunk=chunk, score=score, reasons=reasons))
@@ -1008,27 +1035,15 @@ class RagRetriever:
         top_k: int,
         per_source_limit: int,
     ) -> list[RetrievedChunk]:
-        parsed = parse_question(question)
-        classified = self.question_classifier.classify(question)
-        query_terms = build_query_terms(question)
-        entity_terms = [entity.lower() for entity in parsed["entities"] + classified.major_entities]
-        predicate_terms = list(dict.fromkeys(
-            parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
-        ))
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
         time_constraints = extract_time_constraints(question)
-        target_entity_class = classified.target_entity_class or classified.list_target
 
         scored: list[RetrievedChunk] = []
         for chunk in chunks:
             lexical_score, lexical_reasons = self._score_chunk(
                 chunk,
-                query_terms=query_terms,
-                entity_terms=entity_terms,
-                predicate_terms=predicate_terms,
+                intent=intent,
                 time_constraints=time_constraints,
-                target_entity_class=target_entity_class,
-                has_filter=LogicalModifier.FILTER in classified.logical_modifiers,
-                has_ordering=LogicalModifier.ORDERING in classified.logical_modifiers,
             )
             vector_similarity = vector_scores.get(chunk["chunk_id"], 0.0)
             vector_score = vector_similarity * 100.0
@@ -1153,13 +1168,8 @@ class RagRetriever:
         self,
         chunk: dict[str, Any],
         *,
-        query_terms: list[str],
-        entity_terms: list[str],
-        predicate_terms: list[str],
+        intent: RetrievalIntent,
         time_constraints: dict[str, list[str]],
-        target_entity_class: str | None,
-        has_filter: bool,
-        has_ordering: bool,
     ) -> tuple[float, list[str]]:
         text = " ".join([
             chunk.get("title", ""),
@@ -1170,7 +1180,7 @@ class RagRetriever:
         score = 0.0
         reasons: list[str] = []
 
-        for term in query_terms:
+        for term in intent.query_terms:
             if " " in term:
                 if has_phrase(text, term):
                     score += 3.0
@@ -1178,26 +1188,28 @@ class RagRetriever:
             elif tokens.get(term):
                 score += 1.0 + math.log(tokens[term])
 
-        for entity in set(entity_terms):
+        for entity in set(intent.entity_terms):
             if entity and entity in text:
                 score += 5.0
                 reasons.append(f"entity:{entity}")
 
         predicate_hints = set(chunk.get("predicate_hints", []))
-        for predicate in predicate_terms:
+        for predicate in intent.predicate_terms:
             if predicate in predicate_hints:
                 score += 3.0
                 reasons.append(f"predicate:{predicate}")
 
-        if has_filter and any(value in text for value in ("kuiper belt", "trans-neptunian", "located")):
-            score += 2.5
-            reasons.append("filter_context")
-        if has_filter and any(value in text for value in ("fewer", "less than", "beyond earth", "orbit beyond", "moons")):
-            score += 2.5
-            reasons.append("comparative_filter_context")
-        entity_match_present = any(entity and entity in text for entity in set(entity_terms))
+        filter_score, filter_reasons = score_filter_evidence(
+            text,
+            predicate_hints,
+            intent.filter_conditions,
+            weight=2.5,
+        )
+        score += filter_score
+        reasons.extend(filter_reasons)
+        entity_match_present = any(entity and entity in text for entity in set(intent.entity_terms))
 
-        if "moon_count" in predicate_terms:
+        if "moon_count" in intent.predicate_terms:
             moon_score, moon_reasons = score_moon_count_context(chunk, text)
             score += moon_score
             reasons.extend(moon_reasons)
@@ -1208,26 +1220,25 @@ class RagRetriever:
         )
         score += time_score
         reasons.extend(time_reasons)
-        if "distance_from_sun" in predicate_terms:
+        if "distance_from_sun" in intent.predicate_terms:
             distance_score, distance_reasons = score_orbit_order_context(chunk, text)
             score += distance_score
             reasons.extend(distance_reasons)
-        if has_ordering and any(value in text for value in ("discovered", "discovery", "first observed")):
-            score += 2.5
-            reasons.append("ordering_context")
-        if has_ordering and "in order of discovery" in text:
-            score += 5.0
-            reasons.append("ordered_discovery_section")
-        if has_ordering and tokens.get("discovered", 0) >= 2:
-            score += 2.0 + math.log(tokens["discovered"])
-            reasons.append("multiple_discovery_mentions")
-        dwarf_score, dwarf_reasons = score_dwarf_planet_context(
+        ordering_score, ordering_reasons = score_ordering_evidence(
             text,
-            target_entity_class=target_entity_class,
-            query_terms=query_terms,
+            intent.ordering_attribute,
+            weight=2.5,
+            detailed=True,
         )
-        score += dwarf_score
-        reasons.extend(dwarf_reasons)
+        score += ordering_score
+        reasons.extend(ordering_reasons)
+        class_score, class_reasons = score_target_class_evidence(
+            text,
+            intent.target_class,
+            weight=2.0,
+        )
+        score += class_score
+        reasons.extend(class_reasons)
 
         return score, reasons
 
@@ -1354,31 +1365,6 @@ def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:
     if not items:
         return True
     return items[0].score < 8.0
-
-
-def score_dwarf_planet_context(
-    text: str,
-    *,
-    target_entity_class: str | None,
-    query_terms: list[str],
-) -> tuple[float, list[str]]:
-    if not re.search(r"\b(?:dwarf|minor)\s+planets?\b", text):
-        return 0.0, []
-
-    score = 0.0
-    reasons: list[str] = []
-    if has_dwarf_planet_query_intent(query_terms):
-        score += 2.0
-        reasons.append("dwarf_planet_query_context")
-    if target_entity_class == "dwarf_planets":
-        score += 1.0
-        reasons.append("target_class:dwarf_planets")
-    return score, reasons
-
-
-def has_dwarf_planet_query_intent(query_terms: list[str]) -> bool:
-    terms = set(query_terms)
-    return bool({"dwarf", "dwarf planet", "dwarf planets", "minor planet", "minor planets"} & terms)
 
 
 def has_phrase(text: str, phrase: str) -> bool:

@@ -11,9 +11,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from src.question_classifier import LogicalModifier, QuestionClassifier
-from src.question_parser import parse_question
-from src.rag.retriever_terms import build_query_terms, infer_query_predicates, tokenize
+from src.question_classifier import QuestionClassifier
+from src.rag.retrieval_intent import (
+    RetrievalIntent,
+    build_retrieval_intent,
+    score_filter_evidence,
+    score_ordering_evidence,
+    score_target_class_evidence,
+)
+from src.rag.retriever_terms import tokenize
 
 
 TRUST_BOOSTS = {
@@ -100,26 +106,13 @@ class SourceSelector:
         planet_list_question = bool(re.search(r"\bwhich\s+planets\b|\blist\s+(?:the\s+)?planets\b", question.lower()))
         if planet_list_question:
             top_n_sources = max(top_n_sources, 12)
-        parsed = parse_question(question)
-        classified = self.question_classifier.classify(question)
-        query_terms = build_query_terms(question)
-        entity_terms = [entity.lower() for entity in parsed["entities"] + classified.major_entities]
-        predicate_terms = list(dict.fromkeys(
-            parsed["predicates"] + classified.major_predicates + infer_query_predicates(question)
-        ))
-        target_class = classified.target_entity_class or classified.list_target
-        modifiers = set(classified.logical_modifiers)
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
 
         scores = []
         for profile in self.profiles.values():
             score, reasons = score_source(
                 profile,
-                question=question,
-                query_terms=query_terms,
-                entity_terms=entity_terms,
-                predicate_terms=predicate_terms,
-                target_entity_class=target_class,
-                modifiers=modifiers,
+                intent=intent,
             )
             if score > 0:
                 scores.append(SourceScore(
@@ -155,19 +148,14 @@ class SourceSelector:
 def score_source(
     profile: SourceProfile,
     *,
-    question: str,
-    query_terms: list[str],
-    entity_terms: list[str],
-    predicate_terms: list[str],
-    target_entity_class: str | None,
-    modifiers: set[LogicalModifier],
+    intent: RetrievalIntent,
 ) -> tuple[float, list[str]]:
     title_url = f"{profile.title} {profile.url} {slug_from_url(profile.url)}".lower()
     text = profile.text
     reasons: list[str] = []
     score = 0.0
 
-    for term in query_terms:
+    for term in intent.query_terms:
         if " " in term:
             if has_phrase(title_url, term):
                 score += 6.0
@@ -189,7 +177,7 @@ def score_source(
                 if density_score >= 1.0:
                     reasons.append(f"density_token:{term}:{density:.2f}")
 
-    for entity in set(entity_terms):
+    for entity in set(intent.entity_terms):
         if not entity:
             continue
         if entity in title_url:
@@ -202,29 +190,34 @@ def score_source(
             score += 3.0
             reasons.append(f"text_entity:{entity}")
 
-    for predicate in predicate_terms:
+    for predicate in intent.predicate_terms:
         if predicate in profile.predicates:
             score += 5.0
             reasons.append(f"predicate:{predicate}")
 
-    target_class_score, target_class_reasons = score_target_class_context(
-        profile,
-        title_url=title_url,
-        target_entity_class=target_entity_class,
-    )
+    target_class_score, target_class_reasons = score_target_class_context(profile, title_url=title_url, intent=intent)
     score += target_class_score
     reasons.extend(target_class_reasons)
 
-    if LogicalModifier.FILTER in modifiers and any(value in text for value in ("fewer than", "less than", "beyond", "located", "kuiper belt")):
-        score += 3.0
-        reasons.append("filter_support")
-    if LogicalModifier.ORDERING in modifiers and any(value in text for value in ("discovered", "discovery", "in order", "first")):
-        score += 3.0
-        reasons.append("ordering_support")
-    if LogicalModifier.COMPARISON in modifiers and any(value in text for value in ("greater", "less", "more", "fewer", "mass", "distance")):
+    filter_score, filter_reasons = score_filter_evidence(
+        text,
+        profile.predicates,
+        intent.filter_conditions,
+        weight=3.0,
+    )
+    score += filter_score
+    reasons.extend(filter_reasons)
+    ordering_score, ordering_reasons = score_ordering_evidence(
+        text,
+        intent.ordering_attribute,
+        weight=3.0,
+    )
+    score += ordering_score
+    reasons.extend(ordering_reasons)
+    if intent.has_comparison and any(value in text for value in ("greater", "less", "more", "fewer", "mass", "distance")):
         score += 3.0
         reasons.append("comparison_support")
-    if LogicalModifier.TIME_LOOKUP in modifiers and re.search(
+    if intent.has_time_lookup and re.search(
         r"\b(?:as of|by|before|after|in)\s+(?:[a-z]+\s+)?\d{4}\b",
         text,
     ):
@@ -249,28 +242,22 @@ def score_target_class_context(
     profile: SourceProfile,
     *,
     title_url: str,
-    target_entity_class: str | None,
+    intent: RetrievalIntent,
 ) -> tuple[float, list[str]]:
-    if target_entity_class != "dwarf_planets":
-        return 0.0, []
-
-    score = 0.0
-    reasons: list[str] = []
-    if has_dwarf_planet_text(title_url):
-        score += 3.0
-        reasons.append("target_class_title:dwarf_planets")
-    elif has_dwarf_planet_text(profile.text):
-        score += 1.5
-        reasons.append("target_class_text:dwarf_planets")
-
-    if "classification" in profile.predicates:
-        score += 1.0
-        reasons.append("target_class_predicate:classification")
-    return score, reasons
-
-
-def has_dwarf_planet_text(text: str) -> bool:
-    return bool(re.search(r"\b(?:dwarf|minor)\s+planets?\b", text))
+    title_score, title_reasons = score_target_class_evidence(
+        title_url,
+        intent.target_class,
+        weight=3.0,
+        reason_prefix="target_class_title",
+    )
+    if title_score:
+        return title_score, title_reasons
+    return score_target_class_evidence(
+        profile.text,
+        intent.target_class,
+        weight=1.5,
+        reason_prefix="target_class_text",
+    )
 
 
 def has_phrase(text: str, phrase: str) -> bool:
