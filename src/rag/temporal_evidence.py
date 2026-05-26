@@ -75,8 +75,6 @@ def current_fact_match_kind(fact: dict[str, Any], intent: Any) -> str:
         return ""
     if str(fact.get("subject", "")).lower() not in set(intent.entity_terms):
         return ""
-    if intent.required_claim and fact.get("claim_type") != intent.required_claim:
-        return ""
     evidence_type = fact.get("evidence_type")
     if evidence_type == "explicit_current_sentence":
         return "direct_current_assertion"

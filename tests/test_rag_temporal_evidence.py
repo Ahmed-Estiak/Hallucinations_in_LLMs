@@ -225,6 +225,18 @@ class CurrentCountResolutionTests(unittest.TestCase):
         )
         self.assertEqual([item[0]["temporal_fact"]["value"] for item in matches], [16])
 
+    def test_confirmed_wording_uses_same_current_count_family(self) -> None:
+        known = extract_explicit_current_count_facts("Saturn has 292 known moons.")[0]
+        older_confirmed = extract_explicit_current_count_facts(
+            "Saturn has 274 confirmed moons."
+        )[0]
+        intent = build_retrieval_intent("How many confirmed moons does Saturn have?")
+        matches = compatible_current_chunks(
+            [fact_chunk(known, "known"), fact_chunk(older_confirmed, "confirmed")],
+            intent,
+        )
+        self.assertEqual([item[0]["temporal_fact"]["value"] for item in matches], [292])
+
     def test_current_gate_removes_wrong_subject_numeric_answer_chunks(self) -> None:
         current = extract_explicit_current_count_facts("Neptune has 16 known moons.")[0]
         older_current = extract_explicit_current_count_facts("Neptune has 14 known moons.")[0]

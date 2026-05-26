@@ -167,4 +167,6 @@ dated/table-derived historical count for that subject. Among admissible
 official/reference assertions, retrieval sends only the highest value's
 structured evidence to the prompt and removes raw numeric count competitors.
 This monotonic-count resolution is not used for historical or comparison
-questions.
+questions. For present total-count retrieval, `known`, `confirmed`, and
+`listed satellites` are treated as wording variants of the same `moon_count`
+family rather than strict answer qualifiers.
