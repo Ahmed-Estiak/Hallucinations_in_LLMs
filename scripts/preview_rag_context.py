@@ -110,6 +110,9 @@ def main() -> int:
         print(f"Embeddings path: {result.embeddings_path}")
     if result.fallback_used:
         print(f"Fallback used: {result.fallback_reason}")
+    if result.temporal_evidence_status:
+        print(f"Temporal evidence status: {result.temporal_evidence_status}")
+        print(f"Temporal evidence reason: {result.temporal_evidence_reason}")
     if result.routing_units_scored:
         print(f"Routing units scored: {result.routing_units_scored}/{result.routing_units_total}")
         print(f"Candidate chunks scored: {result.candidate_chunks_scored}")

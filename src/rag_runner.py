@@ -90,7 +90,8 @@ def run_rag_benchmark(
         )
         retrieved = retrieval_result.retrieved_chunks
         rag_context = retriever.format_context(retrieved)
-        context_sufficient = len(retrieved) > 0 and len(rag_context) >= 200
+        temporal_blocked = retrieval_result.temporal_evidence_status in {"insufficient", "conflict"}
+        context_sufficient = len(retrieved) > 0 and len(rag_context) >= 200 and not temporal_blocked
 
         if context_sufficient:
             openai_answer = ask_openai_with_rag(question, rag_context)
@@ -123,6 +124,8 @@ def run_rag_benchmark(
             "full_chunk_count": retrieval_result.full_chunk_count,
             "comparison_reduction_percent": retrieval_result.comparison_reduction_percent,
             "colbert_candidates": retrieval_result.colbert_candidates,
+            "temporal_evidence_status": retrieval_result.temporal_evidence_status,
+            "temporal_evidence_reason": retrieval_result.temporal_evidence_reason,
             "selected_sources": json.dumps(
                 retrieval_result.source_selection.selected_source_ids if retrieval_result.source_selection else [],
                 ensure_ascii=False,

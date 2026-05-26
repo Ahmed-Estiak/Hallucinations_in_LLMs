@@ -58,6 +58,8 @@ QUERY_EXPANSIONS = {
     "planet": ["planet", "planets"],
     "planets": ["planet", "planets"],
     "saturn": ["saturn", "saturnian"],
+    "uranus": ["uranus", "uranian"],
+    "neptune": ["neptune", "neptunian"],
 }
 
 ATTRIBUTE_QUERY_EXPANSIONS = {

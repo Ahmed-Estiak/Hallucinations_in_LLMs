@@ -150,7 +150,12 @@ Preview output reports routing units scored, selected-source candidate chunks,
 full-chunk baseline count, comparison reduction, selected routes, and any
 fallback reason.
 
-For satellite discovery tables, the index builder adds structured count fact
-chunks such as `As of November 2021, Saturn had 83 confirmed moons...` from the
-flattened source table. This keeps temporal moon-count questions grounded
-without asking the LLM to count table rows itself.
+For temporal moon-count questions, the index builder first extracts explicit
+dated count statements as the strongest evidence type. For internally
+consistent satellite tables, it adds labelled table-derived event anchors and
+intervals only until the next validated recorded change. It does not assume a
+fixed one-year/18-month validity window or extend a last anchor indefinitely.
+Table sections whose parsed row total differs from the declared total are
+rejected. Retrieval modes require compatible validated temporal evidence before
+a date-sensitive moon-count context is considered answerable, and suppress
+unscoped current-count snippets for that same subject from the final prompt.

@@ -21,6 +21,11 @@ from src.rag.retrieval_intent import (
     score_target_class_evidence,
 )
 from src.rag.retriever_terms import tokenize
+from src.rag.temporal_evidence import (
+    is_temporal_count_intent,
+    temporal_fact_match_kind,
+    temporal_match_score,
+)
 
 
 TRUST_BOOSTS = {
@@ -87,6 +92,7 @@ class SourceProfile:
     tokens: Counter[str]
     entities: set[str]
     predicates: set[str]
+    temporal_facts: list[dict[str, Any]] = field(default_factory=list)
 
 
 class SourceSelector:
@@ -227,9 +233,19 @@ def score_source(
     if intent.has_time_lookup and re.search(
         r"\b(?:as of|by|before|after|in)\s+(?:[a-z]+\s+)?\d{4}\b",
         text,
-    ):
+    ) and not is_temporal_count_intent(intent):
         score += 3.0
         reasons.append("time_support")
+    if is_temporal_count_intent(intent):
+        matching_facts = [
+            (fact, temporal_fact_match_kind(fact, intent))
+            for fact in profile.temporal_facts
+        ]
+        matching_facts = [(fact, kind) for fact, kind in matching_facts if kind]
+        if matching_facts:
+            _fact, kind = max(matching_facts, key=lambda item: temporal_match_score(item[1]))
+            score += temporal_match_score(kind)
+            reasons.append(f"temporal_fact:{kind}")
 
     trust_boost = TRUST_BOOSTS.get(profile.trust_level, 0.5)
     score += trust_boost
@@ -304,9 +320,13 @@ def build_source_profiles(
         text = " ".join(chunk.get("text", "") for chunk in source_chunks).lower()
         entities = set()
         predicates = set()
+        temporal_facts = []
         for chunk in source_chunks:
             entities.update(chunk.get("entities", []))
             predicates.update(chunk.get("predicate_hints", []))
+            temporal_fact = chunk.get("temporal_fact")
+            if isinstance(temporal_fact, dict):
+                temporal_facts.append(temporal_fact)
         first_chunk = source_chunks[0]
         profiles[source_id] = SourceProfile(
             source_id=source_id,
@@ -320,6 +340,7 @@ def build_source_profiles(
             tokens=Counter(tokenize(text)),
             entities=entities,
             predicates=predicates,
+            temporal_facts=temporal_facts,
         )
     return profiles
 

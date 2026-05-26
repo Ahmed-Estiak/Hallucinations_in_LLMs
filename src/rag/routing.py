@@ -94,6 +94,7 @@ def build_routing_units(
                 "predicate_hints": chunk.get("predicate_hints", []),
                 "child_chunk_ids": [chunk["chunk_id"]],
                 "structured_fact_id": chunk.get("structured_fact_id", ""),
+                "temporal_fact": chunk.get("temporal_fact", {}),
                 "tokens_estimate": max(1, len(chunk["text"].split())),
                 "trust_level": document.get("trust_level", ""),
             })

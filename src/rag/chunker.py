@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from src.rag.structured_satellite_facts import extract_satellite_count_facts
+from src.rag.structured_satellite_facts import extract_temporal_count_facts
 
 
 ASTRONOMY_ENTITIES = [
@@ -103,7 +103,7 @@ def build_chunks_from_documents(
                     "content_type": "text",
                 })
                 chunk_index += 1
-        for fact in extract_satellite_count_facts(text):
+        for fact in extract_temporal_count_facts(text):
             chunk_id = f"{document['source_id']}_fact_{chunk_index:04d}"
             predicate_hints = detect_predicate_hints(fact.text)
             if "moon_count" not in predicate_hints:
@@ -123,6 +123,7 @@ def build_chunks_from_documents(
                 "tokens_estimate": max(1, len(fact.text.split())),
                 "content_type": "structured_fact",
                 "structured_fact_id": fact.fact_id,
+                "temporal_fact": fact.metadata(),
             })
             chunk_index += 1
     return chunks

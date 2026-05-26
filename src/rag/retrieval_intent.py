@@ -48,6 +48,9 @@ class RetrievalIntent:
     ordering_attribute: str | None
     has_comparison: bool
     has_time_lookup: bool
+    time_value: str | None
+    time_semantic: str
+    required_claim: str | None
 
 
 def build_retrieval_intent(
@@ -87,6 +90,9 @@ def build_retrieval_intent(
         ordering_attribute=ordering_attribute,
         has_comparison=LogicalModifier.COMPARISON in modifiers,
         has_time_lookup=LogicalModifier.TIME_LOOKUP in modifiers,
+        time_value=classified.time_value,
+        time_semantic=classified.time_semantic.value,
+        required_claim=("confirmed_moons" if "confirmed" in question.lower() and "moon_count" in predicates else None),
     )
 
 
