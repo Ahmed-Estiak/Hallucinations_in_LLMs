@@ -100,6 +100,7 @@ def build_chunks_from_documents(
                     "entities": detect_entities(chunk_text),
                     "predicate_hints": detect_predicate_hints(chunk_text),
                     "tokens_estimate": max(1, len(chunk_text.split())),
+                    "trust_level": document.get("trust_level", ""),
                     "content_type": "text",
                 })
                 chunk_index += 1
@@ -121,6 +122,7 @@ def build_chunks_from_documents(
                 "entities": detect_entities(fact.text),
                 "predicate_hints": predicate_hints,
                 "tokens_estimate": max(1, len(fact.text.split())),
+                "trust_level": document.get("trust_level", ""),
                 "content_type": "structured_fact",
                 "structured_fact_id": fact.fact_id,
                 "temporal_fact": fact.metadata(),

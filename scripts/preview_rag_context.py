@@ -113,6 +113,9 @@ def main() -> int:
     if result.temporal_evidence_status:
         print(f"Temporal evidence status: {result.temporal_evidence_status}")
         print(f"Temporal evidence reason: {result.temporal_evidence_reason}")
+    if result.current_evidence_status:
+        print(f"Current count evidence status: {result.current_evidence_status}")
+        print(f"Current count evidence reason: {result.current_evidence_reason}")
     if result.routing_units_scored:
         print(f"Routing units scored: {result.routing_units_scored}/{result.routing_units_total}")
         print(f"Candidate chunks scored: {result.candidate_chunks_scored}")

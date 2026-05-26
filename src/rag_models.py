@@ -18,6 +18,8 @@ Rules:
 - Do not treat a current count or an unrelated dated count as support for an earlier
   requested date.
 - If temporal evidence is labelled conflicting or insufficient, answer exactly: insufficient context
+- For a present moon-count question, use the resolved direct-current or validated
+  current-table fact supplied in context; do not substitute other planets' counts.
 - If the retrieved context is insufficient, answer exactly: insufficient context
 - Do not invent unsupported facts.
 - Output only the final answer.

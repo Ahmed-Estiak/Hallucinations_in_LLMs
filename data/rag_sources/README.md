@@ -159,3 +159,12 @@ Table sections whose parsed row total differs from the declared total are
 rejected. Retrieval modes require compatible validated temporal evidence before
 a date-sensitive moon-count context is considered answerable, and suppress
 unscoped current-count snippets for that same subject from the final prompt.
+
+For a non-temporal single-planet moon-count question, direct undated assertions
+such as `Neptune has 16 known moons` are indexed as current assertions. A
+current assertion is admissible only if its count is not below the largest
+dated/table-derived historical count for that subject. Among admissible
+official/reference assertions, retrieval sends only the highest value's
+structured evidence to the prompt and removes raw numeric count competitors.
+This monotonic-count resolution is not used for historical or comparison
+questions.

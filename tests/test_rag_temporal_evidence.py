@@ -9,10 +9,11 @@ from src.rag.retrieval_intent import build_retrieval_intent
 from src.rag.retriever import RagRetrievalResult, RagRetriever, RetrievedChunk
 from src.rag.retriever_terms import build_query_terms
 from src.rag.structured_satellite_facts import (
+    extract_explicit_current_count_facts,
     extract_explicit_temporal_count_facts,
     extract_satellite_count_facts,
 )
-from src.rag.temporal_evidence import compatible_temporal_chunks
+from src.rag.temporal_evidence import compatible_current_chunks, compatible_temporal_chunks
 
 
 TABLE_TEXT = """
@@ -60,6 +61,7 @@ def fact_chunk(fact, chunk_id: str) -> dict:
         "section": fact.heading,
         "text": fact.text,
         "predicate_hints": ["moon_count"],
+        "trust_level": "reference",
         "temporal_fact": fact.metadata(),
     }
 
@@ -95,6 +97,15 @@ class TemporalFactExtractionTests(unittest.TestCase):
             "As of March 25, 2025, Saturn had 274 confirmed moons."
         )
         self.assertEqual(facts[0].observed_at, "2025-03-25")
+
+    def test_undated_direct_sentence_becomes_current_assertion_only(self) -> None:
+        facts = extract_explicit_current_count_facts(
+            "Neptune has 16 known moons. and has 5 moons. As of 2026, Saturn has 292 confirmed moons."
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Neptune")
+        self.assertEqual(facts[0].evidence_type, "explicit_current_sentence")
+        self.assertEqual(facts[0].claim_type, "known_moons")
 
 
 class TemporalCompatibilityTests(unittest.TestCase):
@@ -145,7 +156,7 @@ class TemporalCompatibilityTests(unittest.TestCase):
             ],
             retrieval_mode="global",
         )
-        gated = retriever._apply_temporal_validity_gate(
+        gated = retriever._apply_moon_count_evidence_gate(
             "As of November 2021, how many confirmed moons did Saturn have?",
             result,
             top_k=4,
@@ -174,7 +185,7 @@ class TemporalCompatibilityTests(unittest.TestCase):
             ],
             retrieval_mode="global",
         )
-        gated = retriever._apply_temporal_validity_gate(
+        gated = retriever._apply_moon_count_evidence_gate(
             "As of November 2021, how many confirmed moons did Saturn have?",
             result,
             top_k=4,
@@ -185,6 +196,70 @@ class TemporalCompatibilityTests(unittest.TestCase):
     def test_outer_planet_alias_expansion_is_symmetric(self) -> None:
         self.assertIn("uranian", build_query_terms("Uranus"))
         self.assertIn("neptunian", build_query_terms("Neptune"))
+
+
+class CurrentCountResolutionTests(unittest.TestCase):
+    def test_current_resolver_rejects_claim_below_validated_history(self) -> None:
+        timeline = extract_explicit_temporal_count_facts(
+            "As of 2026, Saturn had 292 confirmed moons."
+        )[0]
+        current = extract_explicit_current_count_facts(
+            "Saturn has 274 confirmed moons."
+        )[0]
+        intent = build_retrieval_intent("How many moons does Saturn have?")
+        self.assertEqual(
+            compatible_current_chunks(
+                [fact_chunk(timeline, "dated"), fact_chunk(current, "current")],
+                intent,
+            ),
+            [],
+        )
+
+    def test_current_resolver_selects_highest_admissible_claim(self) -> None:
+        older = extract_explicit_current_count_facts("Neptune has 14 known moons.")[0]
+        newer = extract_explicit_current_count_facts("Neptune has 16 known moons.")[0]
+        intent = build_retrieval_intent("How many moons does Neptune have?")
+        matches = compatible_current_chunks(
+            [fact_chunk(older, "older"), fact_chunk(newer, "newer")],
+            intent,
+        )
+        self.assertEqual([item[0]["temporal_fact"]["value"] for item in matches], [16])
+
+    def test_current_gate_removes_wrong_subject_numeric_answer_chunks(self) -> None:
+        current = extract_explicit_current_count_facts("Neptune has 16 known moons.")[0]
+        older_current = extract_explicit_current_count_facts("Neptune has 14 known moons.")[0]
+        uranus_raw = {
+            "chunk_id": "uranus_raw",
+            "source_id": "uranus_source",
+            "title": "Uranus",
+            "section": "Moons",
+            "text": "Uranus has 29 known natural satellites.",
+            "predicate_hints": ["moon_count"],
+        }
+        retriever = object.__new__(RagRetriever)
+        retriever.question_classifier = QuestionClassifier()
+        retriever.chunks = [
+            fact_chunk(current, "neptune_current"),
+            fact_chunk(older_current, "neptune_old"),
+            uranus_raw,
+        ]
+        result = RagRetrievalResult(
+            retrieved_chunks=[
+                RetrievedChunk(chunk=uranus_raw, score=20.0, reasons=[]),
+                RetrievedChunk(chunk=fact_chunk(older_current, "neptune_old"), score=19.0, reasons=[]),
+            ],
+            retrieval_mode="global",
+        )
+        gated = retriever._apply_moon_count_evidence_gate(
+            "How many moons does Neptune have?",
+            result,
+            top_k=4,
+        )
+        self.assertEqual(gated.current_evidence_status, "supported")
+        self.assertEqual(
+            [item.chunk["chunk_id"] for item in gated.retrieved_chunks],
+            ["neptune_current"],
+        )
 
 
 if __name__ == "__main__":

@@ -14,13 +14,21 @@ ROMAN_RE = re.compile(
 )
 SATELLITE_DESIGNATION_RE = re.compile(r"^S/\d{4}\s+[A-Z]\d+$")
 MPEC_RE = re.compile(r"\bMPEC\s+(\d{4})-([A-Z])\d+\b")
+DATE_TEXT_PATTERN = (
+    r"(?:January|February|March|April|May|June|July|August|September|October|"
+    r"November|December)(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}|\d{4}"
+)
 EXPLICIT_COUNT_RE = re.compile(
-    r"\bAs of\s+(?P<date>(?:January|February|March|April|May|June|July|August|"
-    r"September|October|November|December)(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}|\d{4})\s*,?\s*"
+    rf"\bAs of\s+(?P<date>{DATE_TEXT_PATTERN})\s*,?\s*"
     r"(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+(?:had|has)\s+"
     r"(?P<value>\d[\d,]*)\s+(?P<claim>(?:officially\s+)?confirmed|known)\s+"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
     re.IGNORECASE,
+)
+CURRENT_COUNT_RE = re.compile(
+    r"\b(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+(?:currently\s+)?(?:has|have)\s+"
+    r"(?P<value>\d[\d,]*)\s+(?:(?P<claim>(?:officially\s+)?confirmed|known)\s+)?"
+    r"(?:moon|moons|natural\s+satellites|satellites)\b",
 )
 
 MONTHS = {
@@ -95,6 +103,7 @@ class StructuredFact:
 def extract_temporal_count_facts(text: str) -> list[StructuredFact]:
     return dedupe_facts([
         *extract_explicit_temporal_count_facts(text),
+        *extract_explicit_current_count_facts(text),
         *extract_satellite_count_facts(text),
     ])
 
@@ -126,6 +135,39 @@ def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
             observed_at=observed_at,
         ))
     return facts
+
+
+def extract_explicit_current_count_facts(text: str) -> list[StructuredFact]:
+    facts = []
+    dated_prefix = re.compile(rf"\bAs of\s+(?:{DATE_TEXT_PATTERN})\s*,?\s*$", re.IGNORECASE)
+    for match in CURRENT_COUNT_RE.finditer(text):
+        prefix = text[max(0, match.start() - 60):match.start()]
+        if dated_prefix.search(prefix):
+            continue
+        subject = match.group("subject").strip()
+        value = int(match.group("value").replace(",", ""))
+        claim = (match.group("claim") or "").lower()
+        claim_type = (
+            "confirmed_moons" if "confirmed" in claim
+            else "known_moons" if claim
+            else "moon_count"
+        )
+        display_claim = f"{claim} " if claim else ""
+        facts.append(StructuredFact(
+            fact_id=f"{slug(subject)}_moon_count_current_assertion_{value}_{slug(claim_type)}",
+            heading=f"Current Moon Count Assertion - {subject}",
+            text=(
+                f"Direct current source assertion: {subject} has {value} "
+                f"{display_claim}moons."
+            ),
+            subject=subject,
+            predicate="moon_count",
+            value=value,
+            evidence_type="explicit_current_sentence",
+            validation_status="source_asserted",
+            claim_type=claim_type,
+        ))
+    return dedupe_facts(facts)
 
 
 def extract_satellite_count_facts(text: str) -> list[StructuredFact]:

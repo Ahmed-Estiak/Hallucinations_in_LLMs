@@ -33,8 +33,13 @@ from src.rag.retriever_terms import tokenize
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, apply_constraint_coverage
 from src.rag.temporal_evidence import (
+    compatible_current_chunks,
     compatible_temporal_chunks,
+    contains_numeric_moon_count_assertion,
     contains_target_count_assertion,
+    current_fact_match_kind,
+    current_match_score,
+    is_current_count_intent,
     is_temporal_count_intent,
     temporal_fact_match_kind,
     temporal_match_score,
@@ -113,6 +118,8 @@ class RagRetrievalResult:
     colbert_candidates: int = 0
     temporal_evidence_status: str = ""
     temporal_evidence_reason: str = ""
+    current_evidence_status: str = ""
+    current_evidence_reason: str = ""
 
 
 class RagRetriever:
@@ -324,7 +331,7 @@ class RagRetriever:
             embedding_model=embedding_model,
             embeddings_path=str(self.embeddings_path),
         )
-        return self._apply_temporal_validity_gate(question, result, top_k=top_k)
+        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
 
     def _retrieve_rrf_fallback_chain(
         self,
@@ -378,7 +385,10 @@ class RagRetriever:
                 failures.append(f"{mode}:{type(exc).__name__}:{exc}")
                 continue
 
-            if result.temporal_evidence_status in {"insufficient", "conflict"}:
+            if (
+                result.temporal_evidence_status in {"insufficient", "conflict"}
+                or result.current_evidence_status in {"insufficient", "conflict"}
+            ):
                 result.requested_mode = requested_mode
                 return result
             if not is_weak_retrieval(result.retrieved_chunks) or mode == modes[-1]:
@@ -474,7 +484,7 @@ class RagRetriever:
             comparison_reduction_percent=round(reduction_percent, 2),
             colbert_candidates=min(len(candidate_chunks), COLBERT_RERANK_CANDIDATES),
         )
-        return self._apply_temporal_validity_gate(question, result, top_k=top_k)
+        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
 
     def _rank_routing_units(
         self,
@@ -672,7 +682,7 @@ class RagRetriever:
             return min(maximum, 6)
         return min(maximum, 5)
 
-    def _apply_temporal_validity_gate(
+    def _apply_moon_count_evidence_gate(
         self,
         question: str,
         result: RagRetrievalResult,
@@ -680,6 +690,8 @@ class RagRetriever:
         top_k: int,
     ) -> RagRetrievalResult:
         intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        if is_current_count_intent(intent):
+            return self._apply_current_count_gate(intent, result, top_k=top_k)
         if not is_temporal_count_intent(intent):
             return result
 
@@ -723,6 +735,58 @@ class RagRetriever:
                     and not contains_target_count_assertion(item.chunk, intent)
                 )
                 or item.chunk["chunk_id"] in evidence_ids
+            )
+        ]
+        merged = sorted(
+            {item.chunk["chunk_id"]: item for item in [*retained, *evidence_items]}.values(),
+            key=lambda item: item.score,
+            reverse=True,
+        )
+        result.retrieved_chunks = merged[:top_k]
+        if result.source_selection:
+            for chunk, _kind in compatible:
+                source_id = chunk["source_id"]
+                if source_id not in result.source_selection.selected_source_ids:
+                    result.source_selection.selected_source_ids.append(source_id)
+        return result
+
+    def _apply_current_count_gate(
+        self,
+        intent: RetrievalIntent,
+        result: RagRetrievalResult,
+        *,
+        top_k: int,
+    ) -> RagRetrievalResult:
+        compatible = compatible_current_chunks(self.chunks, intent)
+        if not compatible:
+            result.retrieved_chunks = []
+            result.current_evidence_status = "insufficient"
+            result.current_evidence_reason = "no_admissible_current_count_assertion"
+            return result
+
+        result.current_evidence_status = "supported"
+        result.current_evidence_reason = "max_admissible_current_assertion"
+        evidence_items = []
+        for chunk, match_kind in compatible:
+            score, reasons = self._score_chunk(
+                chunk,
+                intent=intent,
+                time_constraints={"phrases": [], "years": [], "months": []},
+            )
+            evidence_items.append(RetrievedChunk(
+                chunk=chunk,
+                score=score,
+                reasons=[f"required_current_evidence:{match_kind}", *reasons],
+            ))
+        evidence_ids = {item.chunk["chunk_id"] for item in evidence_items}
+        retained = [
+            item for item in result.retrieved_chunks
+            if (
+                item.chunk["chunk_id"] in evidence_ids
+                or (
+                    not item.chunk.get("temporal_fact")
+                    and not contains_numeric_moon_count_assertion(item.chunk)
+                )
             )
         ]
         merged = sorted(
@@ -786,7 +850,7 @@ class RagRetriever:
             embedding_model=embedding_index.model,
             embeddings_path=str(embedding_index.path),
         )
-        return self._apply_temporal_validity_gate(question, result, top_k=top_k)
+        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
 
     def _ensure_openai_embedding_cache(self) -> None:
         result = ensure_embedding_cache(
@@ -1386,6 +1450,10 @@ class RagRetriever:
             if temporal_match:
                 score += temporal_match_score(temporal_match)
                 reasons.append(f"temporal_fact:{temporal_match}")
+            current_match = current_fact_match_kind(temporal_fact, intent)
+            if current_match:
+                score += current_match_score(current_match)
+                reasons.append(f"current_fact:{current_match}")
 
         filter_score, filter_reasons = score_filter_evidence(
             text,
