@@ -82,6 +82,7 @@ class ClassifiedQuestion:
     ordering_attribute: Optional[str] = None
     order_direction: str = "ascending"
     comparison_operator: Optional[str] = None
+    reference_entity: Optional[str] = None
     list_target: Optional[str] = None
     target_entity_class: Optional[str] = None
     entity_filter_conditions: List[Dict] = field(default_factory=list)
@@ -206,15 +207,19 @@ class QuestionClassifier:
         ("moon_count", ">", r"\b(?:more|greater)\s+(?:confirmed\s+|known\s+)?(?:moons|satellites)\s+than\b"),
         ("ring_count", "<", r"\b(?:fewer|less)\s+(?:known\s+)?rings\s+than\b"),
         ("ring_count", ">", r"\b(?:more|greater)\s+(?:known\s+)?rings\s+than\b"),
-        ("mass", "<", r"\b(?:less|smaller)\s+mass\s+than\b|\blighter\s+than\b"),
-        ("mass", ">", r"\b(?:more|greater)\s+mass\s+than\b|\bheavier\s+than\b"),
-        ("size", "<", r"\bsmaller\s+(?:in\s+size\s+)?than\b"),
-        ("size", ">", r"\blarger\s+(?:in\s+size\s+)?than\b"),
+        ("mass", "<", r"\b(?:less|smaller)\s+mass\s+than\b|\bless\s+massive\s+than\b|\blighter\s+than\b"),
+        ("mass", ">", r"\b(?:more|greater)\s+mass\s+than\b|\bmore\s+massive\s+than\b|\bheavier\s+than\b"),
+        ("size", "<", r"\bsmaller\s+(?:in\s+size\s+|diameter\s+)?than\b|\bsmaller\s+diameter\s+than\b"),
+        ("size", ">", r"\blarger\s+(?:in\s+size\s+|diameter\s+)?than\b|\blarger\s+diameter\s+than\b"),
     ]
     DISTANCE_RELATION_PATTERNS = [
         (">", r"\borbit(?:s|ing)?\s+beyond\b"),
+        (">", r"\blocated\s+beyond\b"),
         (">", r"\bfarther\s+from\s+(?:the\s+)?sun\s+than\b"),
         ("<", r"\bcloser\s+to\s+(?:the\s+)?sun\s+than\b"),
+    ]
+    HOST_RELATION_PATTERNS = [
+        ("==", r"\borbit(?:s|ing)?\b"),
     ]
 
     BOOLEAN_VALUES = ["yes", "no", "true", "false"]
@@ -323,7 +328,7 @@ class QuestionClassifier:
     def _assign_entity_roles(self, question: str, entities: List[str], major_predicates: List[str]) -> tuple[List[str], List[str]]:
         """Assign entity roles using current project heuristics."""
         if self._looks_like_list_target(question):
-            return [], entities[:]
+            return entities[:], []
 
         if self._looks_like_comparison(question) and len(entities) >= 2:
             return entities[:2], entities[2:]
@@ -528,12 +533,12 @@ class QuestionClassifier:
 
     def _detect_special_attributes(self, question: str, result: ClassifiedQuestion) -> None:
         self._detect_ordering_attributes(question, result)
-        self._detect_comparison_operator(question, result)
         self._detect_boolean_value(question, result)
         self._detect_target_entity_class(result, question)
         if self._supports_candidate_pool_reasoning(result):
             self._detect_list_target(result, question)
             self._detect_list_filter_conditions(question, result)
+        self._detect_comparison_operator(question, result)
 
     def _has_temporal_ordering_signal(self, question: str, predicates: List[str]) -> bool:
         if not any(predicate in self.TIME_ORDERABLE_PREDICATES for predicate in predicates):
@@ -561,6 +566,11 @@ class QuestionClassifier:
         return result.primary_type == QuestionType.LIST or result.target_entity_class is not None
 
     def _detect_ordering_attributes(self, question: str, result: ClassifiedQuestion) -> None:
+        has_explicit_ordering = any(re.search(pattern, question) for pattern in self.ORDERING_PATTERNS)
+        has_temporal_ordering = self._has_temporal_ordering_signal(question, result.major_predicates)
+        if not has_explicit_ordering and not has_temporal_ordering:
+            return
+
         temporal_predicate = self._first_time_orderable_predicate(result.major_predicates)
         if temporal_predicate and self._has_temporal_ordering_signal(question, result.major_predicates) and re.search(r"\b(?:first|earliest)\b", question):
             result.ordering_attribute = temporal_predicate
@@ -590,6 +600,11 @@ class QuestionClassifier:
                     break
             if result.comparison_operator:
                 break
+        for condition in result.entity_filter_conditions:
+            if condition.get("operator") in {"<", ">", "=="}:
+                result.comparison_operator = result.comparison_operator or condition.get("operator")
+                result.reference_entity = result.reference_entity or condition.get("reference_entity")
+                break
 
     def _detect_boolean_value(self, question: str, result: ClassifiedQuestion) -> None:
         for value in self.BOOLEAN_VALUES:
@@ -606,31 +621,30 @@ class QuestionClassifier:
             result.list_target = "moons"
 
     def _detect_target_entity_class(self, result: ClassifiedQuestion, question: str) -> None:
-        if result.primary_type != QuestionType.ENTITY:
+        if result.primary_type not in {QuestionType.ENTITY, QuestionType.LIST}:
             return
-        if self._looks_like_comparison(question) and len(result.major_entities) >= 2:
+        if result.primary_type == QuestionType.ENTITY and self._looks_like_comparison(question) and len(result.major_entities) >= 2:
             return
 
-        if re.search(r"\b(?:which|what)\s+dwarf\s+planet\b|\bname\s+(?:the|a)\s+dwarf\s+planet\b", question):
+        if re.search(r"\b(?:which|what|all|list|name)\s+(?:the\s+)?dwarf\s+planets?\b|\bdwarfs?\b", question):
             result.target_entity_class = "dwarf_planets"
-        elif re.search(r"\b(?:which|what)\s+planet\b|\bname\s+(?:the|a)\s+planet\b", question):
+        elif re.search(r"\b(?:which|what|all|list|name)\s+(?:the\s+)?planets?\b", question):
             result.target_entity_class = "planets"
-        elif re.search(r"\b(?:which|what)\s+(?:moon|satellite)\b|\bname\s+(?:the|a)\s+(?:moon|satellite)\b", question):
+        elif re.search(r"\b(?:which|what|all|list|name)\s+(?:the\s+)?(?:moons?|satellites?)\b", question):
             result.target_entity_class = "moons"
 
     def _detect_list_filter_conditions(self, question: str, result: ClassifiedQuestion) -> None:
         if LogicalModifier.FILTER in result.logical_modifiers:
             comparative_match_found = False
             for attribute, operator, pattern in self.FILTER_COMPARISON_PATTERNS:
-                match = re.search(pattern, question)
-                if not match:
-                    continue
-                comparative_match_found = True
-                condition = {"operator": operator, "attribute": attribute}
-                reference_entity = self._first_entity_after(question, match.end())
-                if reference_entity:
-                    condition["reference_entity"] = reference_entity
-                result.entity_filter_conditions.append(condition)
+                for match in re.finditer(pattern, question):
+                    comparative_match_found = True
+                    condition = {"operator": operator, "attribute": attribute}
+                    reference_entity = self._first_entity_after(question, match.end())
+                    if reference_entity:
+                        condition["reference_entity"] = reference_entity
+                        result.reference_entity = result.reference_entity or reference_entity
+                    result.entity_filter_conditions.append(condition)
 
             if not comparative_match_found:
                 match = re.search(r"\b(?:fewer|less|more|greater)\b.*\bthan\b", question)
@@ -643,16 +657,25 @@ class QuestionClassifier:
                     result.entity_filter_conditions.append(condition)
 
             for operator, pattern in self.DISTANCE_RELATION_PATTERNS:
-                match = re.search(pattern, question)
-                if not match:
-                    continue
-                reference_entity = self._first_entity_after(question, match.end())
-                if reference_entity:
-                    result.entity_filter_conditions.append({
-                        "operator": operator,
-                        "attribute": "distance_from_sun",
-                        "reference_entity": reference_entity,
-                    })
+                for match in re.finditer(pattern, question):
+                    reference_entity = self._first_entity_after(question, match.end())
+                    if reference_entity:
+                        result.entity_filter_conditions.append({
+                            "operator": operator,
+                            "attribute": "distance_from_sun",
+                            "reference_entity": reference_entity,
+                        })
+
+            if result.target_entity_class == "moons":
+                for operator, pattern in self.HOST_RELATION_PATTERNS:
+                    for match in re.finditer(pattern, question):
+                        reference_entity = self._first_entity_after(question, match.end())
+                        if reference_entity:
+                            result.entity_filter_conditions.append({
+                                "operator": operator,
+                                "attribute": "host_body",
+                                "reference_entity": reference_entity,
+                            })
 
         if re.search(r"\bterrestrial\b", question):
             result.entity_filter_conditions.append({"operator": "==", "attribute": "planet_type", "value": "terrestrial"})

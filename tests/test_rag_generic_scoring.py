@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import unittest
 
-from src.question_classifier import QuestionClassifier
+from src.question_classifier import LogicalModifier, QuestionClassifier
 from src.rag.retrieval_intent import build_retrieval_intent, score_filter_evidence, score_target_class_evidence
 from src.rag.retriever import (
     RagRetriever,
@@ -104,6 +104,13 @@ class GenericScoringTests(unittest.TestCase):
 
     def test_relational_filters_preserve_attribute_and_reference_entity(self) -> None:
         q11 = "Which planets orbit beyond Earth yet have fewer moons than Jupiter?"
+        classified = QuestionClassifier().classify(q11)
+        self.assertEqual(classified.target_entity_class, "planets")
+        self.assertEqual(classified.major_entities, ["Earth", "Jupiter"])
+        self.assertIsNone(classified.ordering_attribute)
+        self.assertEqual(classified.reference_entity, "Jupiter")
+        self.assertIn(LogicalModifier.COMPARISON, classified.logical_modifiers)
+        self.assertIn(LogicalModifier.FILTER, classified.logical_modifiers)
         conditions = build_retrieval_intent(q11).filter_conditions
         self.assertIn(
             {"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Earth"},
@@ -131,6 +138,57 @@ class GenericScoringTests(unittest.TestCase):
         self.assertIn(
             {"operator": "<", "attribute": "moon_count", "reference_entity": "Saturn"},
             single_relation_conditions,
+        )
+
+    def test_relational_filters_are_clause_order_independent(self) -> None:
+        questions = [
+            "Which planets orbit beyond Mars yet have fewer rings than Saturn?",
+            "Which planets have fewer rings than Saturn and orbit beyond Mars?",
+        ]
+        for question in questions:
+            with self.subTest(question=question):
+                classified = QuestionClassifier().classify(question)
+                self.assertEqual(classified.target_entity_class, "planets")
+                self.assertEqual(set(classified.major_entities), {"Mars", "Saturn"})
+                self.assertIsNone(classified.ordering_attribute)
+                self.assertEqual(classified.reference_entity, "Saturn")
+                conditions = build_retrieval_intent(question).filter_conditions
+                self.assertIn(
+                    {"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Mars"},
+                    conditions,
+                )
+                self.assertIn(
+                    {"operator": "<", "attribute": "ring_count", "reference_entity": "Saturn"},
+                    conditions,
+                )
+
+    def test_relational_filters_generalize_to_other_astronomy_attributes(self) -> None:
+        dwarf_question = "Which dwarf planets located beyond Neptune have more mass than Ceres?"
+        dwarf_classified = QuestionClassifier().classify(dwarf_question)
+        self.assertEqual(dwarf_classified.target_entity_class, "dwarf_planets")
+        self.assertEqual(dwarf_classified.major_entities, ["Neptune", "Ceres"])
+        dwarf_conditions = build_retrieval_intent(dwarf_question).filter_conditions
+        self.assertIn(
+            {"operator": ">", "attribute": "distance_from_sun", "reference_entity": "Neptune"},
+            dwarf_conditions,
+        )
+        self.assertIn(
+            {"operator": ">", "attribute": "mass", "reference_entity": "Ceres"},
+            dwarf_conditions,
+        )
+
+        moon_question = "Which moons orbit Jupiter and have larger diameter than Europa?"
+        moon_classified = QuestionClassifier().classify(moon_question)
+        self.assertEqual(moon_classified.target_entity_class, "moons")
+        self.assertEqual(moon_classified.major_entities, ["Jupiter", "Europa"])
+        moon_conditions = moon_classified.entity_filter_conditions
+        self.assertIn(
+            {"operator": "==", "attribute": "host_body", "reference_entity": "Jupiter"},
+            moon_conditions,
+        )
+        self.assertIn(
+            {"operator": ">", "attribute": "size", "reference_entity": "Europa"},
+            moon_conditions,
         )
 
     def test_comparison_terms_are_expanded_from_the_attribute(self) -> None:
