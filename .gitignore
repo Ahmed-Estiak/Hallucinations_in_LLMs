@@ -14,3 +14,4 @@ external/Wikipedia_text_extractor/
 data/rag_sources/docs_clean/**/*.txt
 data/rag_sources/web_raw/**/*.html
 data/rag_sources/rag_index/*.jsonl
+reports/rag_audit/
