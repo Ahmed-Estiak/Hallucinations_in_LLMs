@@ -89,7 +89,8 @@ def run_rag_benchmark(
             top_n_sources=top_n_sources,
         )
         retrieved = retrieval_result.retrieved_chunks
-        rag_context = retriever.format_context(retrieved)
+        rag_context = retriever.format_context_for_llm(retrieved)
+        rag_debug_context = retriever.format_context(retrieved)
         temporal_blocked = retrieval_result.temporal_evidence_status in {"insufficient", "conflict"}
         current_blocked = retrieval_result.current_evidence_status in {"insufficient", "conflict"}
         context_sufficient = (
@@ -148,6 +149,7 @@ def run_rag_benchmark(
             "retrieved_sources": json.dumps([item.chunk["source_id"] for item in retrieved], ensure_ascii=False),
             "retrieval_scores": json.dumps([round(item.score, 4) for item in retrieved], ensure_ascii=False),
             "rag_context_text": rag_context,
+            "rag_debug_context_text": rag_debug_context,
             "openai_rag_answer": openai_answer,
             "gemini_rag_answer": gemini_answer,
             "openai_rag_is_correct": openai_eval["is_correct"],

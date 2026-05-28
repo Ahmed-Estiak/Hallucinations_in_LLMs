@@ -99,7 +99,7 @@ def main() -> int:
         top_n_sources=args.top_n_sources,
     )
     retrieved = result.retrieved_chunks
-    context = retriever.format_context(retrieved, max_chars=args.max_chars)
+    context = retriever.format_context_for_llm(retrieved, max_chars=args.max_chars)
 
     print(f"Question: {question}")
     print(f"Requested mode: {result.requested_mode or args.retrieval_mode}")

@@ -1393,6 +1393,7 @@ class RagRetriever:
         )
 
     def format_context(self, retrieved_chunks: list[RetrievedChunk], *, max_chars: int = 12000) -> str:
+        """Format retrieved chunks with metadata for debugging and audit output."""
         parts = []
         current_chars = 0
         for index, item in enumerate(retrieved_chunks, start=1):
@@ -1408,6 +1409,18 @@ class RagRetriever:
             parts.append(block)
             current_chars += len(block)
         return "\n".join(parts).strip()
+
+    def format_context_for_llm(self, retrieved_chunks: list[RetrievedChunk], *, max_chars: int = 12000) -> str:
+        """Format only chunk text for the LLM prompt; metadata stays in debug fields."""
+        parts = []
+        current_chars = 0
+        for item in retrieved_chunks:
+            block = f"{item.chunk['text']}\n"
+            if current_chars + len(block) > max_chars:
+                break
+            parts.append(block)
+            current_chars += len(block)
+        return "\n\n".join(part.strip() for part in parts if part.strip()).strip()
 
     def _score_chunk(
         self,
