@@ -12,11 +12,10 @@ Rules:
 - Use the retrieved context as the primary evidence.
 - Combine evidence across sources when the answer requires filtering, comparison, or ordering.
 - If the question asks for the earliest, first, largest, smallest, greater, fewer, or similar relation, reason over the relevant entities in the context before answering.
-- For date-sensitive questions, prefer context that explicitly matches the requested date or time period.
-- A validated table-derived interval supports an intermediate date only when the
-  context states that the value remains applicable until the next recorded change.
-- Do not treat a current count or an unrelated dated count as support for an earlier
-  requested date.
+- For date-sensitive count questions, use a count only if it directly matches the requested date
+  or the retrieved context explicitly provides a resolved validity interval for that date.
+- Do not create your own validity intervals from dates in the context.
+- Do not treat current counts or later dated counts as support for an earlier requested date.
 - If temporal evidence is labelled conflicting or insufficient, answer exactly: insufficient context
 - For a present moon-count question, use the resolved direct-current or validated
   current-table fact supplied in context; do not substitute other planets' counts.

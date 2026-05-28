@@ -119,6 +119,7 @@ class TemporalCompatibilityTests(unittest.TestCase):
         )
         matches = compatible_temporal_chunks(self.chunks, intent)
         self.assertEqual([(chunk["temporal_fact"]["value"], kind) for chunk, kind in matches], [(2, "timeline_interval")])
+        self.assertIn("next known count change in May 2023", matches[0][0]["text"])
 
     def test_last_anchor_does_not_assume_future_validity(self) -> None:
         intent = build_retrieval_intent(
@@ -138,6 +139,34 @@ class TemporalCompatibilityTests(unittest.TestCase):
             intent,
         )
         self.assertEqual(matches[0][1], "explicit_exact")
+
+    def test_cross_source_timeline_clips_single_source_interval(self) -> None:
+        explicit = extract_explicit_temporal_count_facts(
+            "As of January 2022, Saturn had 3 confirmed moons."
+        )[0]
+        intent = build_retrieval_intent(
+            "As of February 2022, how many confirmed moons did Saturn have?"
+        )
+        matches = compatible_temporal_chunks(
+            [*self.chunks, fact_chunk(explicit, "explicit_jan_2022")],
+            intent,
+        )
+        self.assertEqual([(chunk["temporal_fact"]["value"], kind) for chunk, kind in matches], [(3, "timeline_interval")])
+        self.assertIn("next known count change in May 2023", matches[0][0]["text"])
+
+    def test_cross_source_timeline_keeps_earlier_value_before_intermediate_anchor(self) -> None:
+        explicit = extract_explicit_temporal_count_facts(
+            "As of January 2022, Saturn had 3 confirmed moons."
+        )[0]
+        intent = build_retrieval_intent(
+            "As of December 2021, how many confirmed moons did Saturn have?"
+        )
+        matches = compatible_temporal_chunks(
+            [*self.chunks, fact_chunk(explicit, "explicit_jan_2022")],
+            intent,
+        )
+        self.assertEqual([(chunk["temporal_fact"]["value"], kind) for chunk, kind in matches], [(2, "timeline_interval")])
+        self.assertIn("next known count change in January 2022", matches[0][0]["text"])
 
     def test_temporal_gate_blocks_conflicting_validated_facts(self) -> None:
         table_fact = next(
