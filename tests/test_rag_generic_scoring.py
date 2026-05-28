@@ -8,6 +8,7 @@ import unittest
 from src.question_classifier import LogicalModifier, QuestionClassifier
 from src.rag.retrieval_intent import build_retrieval_intent, score_filter_evidence, score_target_class_evidence
 from src.rag.retriever import (
+    RagRetrievalResult,
     RagRetriever,
     RetrievedChunk,
     cap_per_source,
@@ -247,6 +248,83 @@ class GenericScoringTests(unittest.TestCase):
     def test_moon_count_claim_rejects_nearby_non_count_numbers(self) -> None:
         self.assertFalse(re_moon_count_claim("Phobos rises in the west, sets in the east, and rises again in 11 hours."))
         self.assertFalse(re_moon_count_claim("Mars orbits the Sun every 687 days."))
+
+    @staticmethod
+    def moon_fact_chunk(subject: str, value: int) -> dict:
+        return {
+            "chunk_id": f"{subject.lower()}_current_fact",
+            "source_id": f"{subject.lower()}_source",
+            "title": subject,
+            "section": "Current Moon Count",
+            "text": f"Direct current source assertion: {subject} has {value} moons.",
+            "predicate_hints": ["moon_count"],
+            "trust_level": "reference",
+            "temporal_fact": {
+                "subject": subject,
+                "predicate": "moon_count",
+                "value": value,
+                "evidence_type": "explicit_current_sentence",
+                "validation_status": "source_asserted",
+                "claim_type": "moon_count",
+                "observed_at": "",
+                "valid_until_exclusive": "",
+                "interval_semantics": "",
+            },
+        }
+
+    def test_class_moon_count_coverage_injects_compact_fact_table(self) -> None:
+        retriever = object.__new__(RagRetriever)
+        retriever.question_classifier = QuestionClassifier()
+        retriever.chunks = [
+            self.moon_fact_chunk("Mars", 2),
+            self.moon_fact_chunk("Jupiter", 115),
+            self.moon_fact_chunk("Saturn", 292),
+            self.moon_fact_chunk("Uranus", 29),
+            self.moon_fact_chunk("Neptune", 16),
+            {
+                "chunk_id": "mercury_support",
+                "source_id": "mercury_source",
+                "title": "Mercury",
+                "section": "Moons",
+                "text": "Mercury has no natural satellites.",
+                "predicate_hints": ["moon_count"],
+                "trust_level": "reference",
+            },
+        ]
+        intent = build_retrieval_intent(
+            "Which planets orbit beyond Earth yet have fewer moons than Jupiter?",
+            classifier=retriever.question_classifier,
+        )
+        result = retriever._apply_class_moon_count_coverage(
+            "Which planets orbit beyond Earth yet have fewer moons than Jupiter?",
+            intent,
+            RagRetrievalResult(
+                retrieved_chunks=[
+                    RetrievedChunk(
+                        chunk={
+                            "chunk_id": f"context_{index}",
+                            "source_id": "context",
+                            "title": "Context",
+                            "section": "Orbit",
+                            "text": "Planet orbit context.",
+                            "predicate_hints": ["distance_from_sun"],
+                        },
+                        score=10.0,
+                        reasons=[],
+                    )
+                    for index in range(10)
+                ],
+                retrieval_mode="global",
+            ),
+        )
+
+        chunk_ids = [item.chunk["chunk_id"] for item in result.retrieved_chunks]
+        self.assertEqual(chunk_ids[0], "resolved_moon_count_facts_planets")
+        self.assertEqual(chunk_ids[1:9], [f"context_{index}" for index in range(8)])
+        table = next(item.chunk for item in result.retrieved_chunks if item.chunk["source_id"] == "resolved_moon_count_facts")
+        self.assertIn("Mars: 2 moons", table["text"])
+        self.assertIn("Jupiter: 115 moons", table["text"])
+        self.assertIn("Mercury: 0 moons", table["text"])
 
 
 class SourceRoutingTests(unittest.TestCase):
