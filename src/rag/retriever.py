@@ -285,37 +285,6 @@ class RagRetriever:
                 required_source_ids=coverage_source_ids,
             )
 
-        if mode == "auto-source" and is_weak_retrieval(retrieved):
-            fallback_used = True
-            fallback_reason = "weak_auto_source_chunks"
-            retrieved = self._retrieve_from_chunks(
-                question,
-                chunks=self.chunks,
-                top_k=top_k,
-                per_source_limit=effective_per_source_limit,
-                required_source_ids=coverage_source_ids,
-            )
-        if mode in {"vector", "hybrid"} and is_weak_retrieval(retrieved):
-            fallback_used = True
-            fallback_reason = "weak_vector_chunks"
-            if mode == "vector":
-                retrieved = self._retrieve_from_chunks_vector(
-                    self.chunks,
-                    vector_scores=vector_scores or {},
-                    top_k=top_k,
-                    per_source_limit=effective_per_source_limit,
-                    required_source_ids=coverage_source_ids,
-                )
-            else:
-                retrieved = self._retrieve_from_chunks_hybrid(
-                    question,
-                    chunks=self.chunks,
-                    vector_scores=vector_scores or {},
-                    top_k=top_k,
-                    per_source_limit=effective_per_source_limit,
-                    required_source_ids=coverage_source_ids,
-                )
-
         if source_selection and source_selection.fallback_used:
             fallback_used = True
             fallback_reason = fallback_reason or source_selection.fallback_reason
@@ -391,14 +360,12 @@ class RagRetriever:
             ):
                 result.requested_mode = requested_mode
                 return result
-            if not is_weak_retrieval(result.retrieved_chunks) or mode == modes[-1]:
-                result.requested_mode = requested_mode
-                if mode != requested_mode or failures:
-                    result.fallback_used = True
-                    reason_parts = failures + [f"selected:{mode}"]
-                    result.fallback_reason = "; ".join(reason_parts)
-                return result
-            failures.append(f"{mode}:weak_retrieval")
+            result.requested_mode = requested_mode
+            if mode != requested_mode or failures:
+                result.fallback_used = True
+                reason_parts = failures + [f"selected:{mode}"]
+                result.fallback_reason = "; ".join(reason_parts)
+            return result
 
         result = self.retrieve_with_details(
             question,
@@ -1681,14 +1648,6 @@ def text_overlap_ratio(left: str, right: str) -> float:
         return 0.0
     overlap = sum((left_tokens & right_tokens).values())
     return overlap / min(sum(left_tokens.values()), sum(right_tokens.values()))
-
-
-def is_weak_retrieval(items: list[RetrievedChunk]) -> bool:
-    if len(items) < 3:
-        return True
-    if not items:
-        return True
-    return items[0].score < 8.0
 
 
 def has_phrase(text: str, phrase: str) -> bool:
