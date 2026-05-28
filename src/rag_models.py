@@ -16,7 +16,6 @@ Rules:
   or the retrieved context explicitly provides a resolved validity interval for that date.
 - Do not create your own validity intervals from dates in the context.
 - Do not treat current counts or later dated counts as support for an earlier requested date.
-- If temporal evidence is labelled conflicting or insufficient, answer exactly: insufficient context
 - For a present moon-count question, use the resolved direct-current or validated
   current-table fact supplied in context; do not substitute other planets' counts.
 - If the retrieved context is insufficient, answer exactly: insufficient context
