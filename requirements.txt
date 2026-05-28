@@ -4,3 +4,4 @@ google-genai
 pandas
 sentence-transformers
 FlagEmbedding
+number-parser

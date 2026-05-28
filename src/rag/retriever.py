@@ -10,6 +10,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+try:
+    from number_parser import parse_number as parse_number_words
+except Exception:  # pragma: no cover - optional dependency fallback
+    parse_number_words = None
+
 from src.question_classifier import LogicalModifier, QuestionClassifier
 from src.rag.embeddings import (
     DEFAULT_BGE_BASE_EMBEDDINGS_PATH,
@@ -1729,7 +1734,16 @@ def score_moon_count_context(chunk: dict[str, Any], text: str) -> tuple[float, l
     if "moon" in section or "satellite" in section:
         score += 5.0
         reasons.append("moon_section")
-    if any(word in text for word in ("known moons", "confirmed moons", "natural satellites", "confirmed satellites")):
+    if any(
+        word in text
+        for word in (
+            "known moons",
+            "confirmed moons",
+            "natural satellites",
+            "known natural satellites",
+            "confirmed satellites",
+        )
+    ):
         score += 5.0
         reasons.append("moon_count_terms")
     if re_moon_count_claim(text):
@@ -1763,21 +1777,123 @@ def score_orbit_order_context(chunk: dict[str, Any], text: str) -> tuple[float, 
 
 
 def re_moon_count_claim(text: str) -> bool:
+    tokens = count_claim_tokens(text)
+    action_terms = {"has", "have", "had", "include", "includes", "included", "possess", "possesses"}
+    moon_terms = {"moon", "moons", "satellite", "satellites"}
+
+    for index, token in enumerate(tokens):
+        if token not in action_terms:
+            continue
+        window = tokens[index + 1:index + 15]
+        if _window_contains_count_before_moon(window, moon_terms):
+            return True
+
     return bool(
         re.search(
-            r"\b(?:has|have|had|includes?|possesses?)\s+(?:at\s+least\s+)?(?:\d+|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred)\s+"
-            r"(?:known\s+|confirmed\s+|natural\s+)?(?:moon|moons|satellite|satellites)\b",
-            text,
-        )
-        or re.search(
-            r"\b(?:\d+|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred)\s+"
-            r"(?:\w+\s+){0,4}(?:moon|moons|satellite|satellites)\b",
-            text,
-        )
-        or re.search(
-            r"\b[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,3}'s\s+"
-            r"(?:\d[\d,]*|one|two|three|four|five|sixteen|twenty[- ]?nine|hundred)\s+"
-            r"(?:\w+\s+){0,4}(?:moon|moons|satellite|satellites)\b",
+            r"\b[a-z][a-z0-9]*(?:\s+[a-z][a-z0-9]*){0,3}'s\s+"
+            r"(?:\d[\d,]*|[a-z]+(?:[-\s]+[a-z]+){0,5})\s+"
+            r"(?:\w+\s+){0,5}(?:moon|moons|satellite|satellites)\b",
             text,
         )
     )
+
+
+def count_claim_tokens(text: str) -> list[str]:
+    normalized = re.sub(r"[^a-z0-9, -]+", " ", text.lower())
+    normalized = normalized.replace("-", " ")
+    return re.findall(r"\d[\d,]*|[a-z]+", normalized)
+
+
+def _window_contains_count_before_moon(
+    tokens: list[str],
+    moon_terms: set[str],
+    *,
+    max_gap: int = 10,
+) -> bool:
+    for moon_index, token in enumerate(tokens):
+        if token not in moon_terms:
+            continue
+        start = max(0, moon_index - max_gap)
+        before_moon = tokens[start:moon_index]
+        for count_start in range(len(before_moon)):
+            for count_end in range(count_start + 1, min(len(before_moon), count_start + 6) + 1):
+                if parse_count_phrase(before_moon[count_start:count_end]) is not None:
+                    return True
+    return False
+
+
+def parse_count_phrase(tokens: list[str]) -> int | None:
+    if not tokens:
+        return None
+    phrase = " ".join(tokens)
+    if len(tokens) == 1 and re.fullmatch(r"\d[\d,]*", tokens[0]):
+        return int(tokens[0].replace(",", ""))
+    if any(re.fullmatch(r"\d[\d,]*", token) for token in tokens):
+        return None
+    if parse_number_words is not None:
+        try:
+            value = parse_number_words(phrase)
+            if isinstance(value, int) and value >= 0:
+                return value
+        except Exception:
+            pass
+    return fallback_parse_count_words(tokens)
+
+
+def fallback_parse_count_words(tokens: list[str]) -> int | None:
+    ones = {
+        "zero": 0,
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "eleven": 11,
+        "twelve": 12,
+        "thirteen": 13,
+        "fourteen": 14,
+        "fifteen": 15,
+        "sixteen": 16,
+        "seventeen": 17,
+        "eighteen": 18,
+        "nineteen": 19,
+    }
+    tens = {
+        "twenty": 20,
+        "thirty": 30,
+        "forty": 40,
+        "fifty": 50,
+        "sixty": 60,
+        "seventy": 70,
+        "eighty": 80,
+        "ninety": 90,
+    }
+    allowed = set(ones) | set(tens) | {"hundred", "and"}
+    if any(token not in allowed for token in tokens):
+        return None
+    total = 0
+    current = 0
+    used_number = False
+    for token in tokens:
+        if token == "and":
+            continue
+        if token in ones:
+            current += ones[token]
+            used_number = True
+        elif token in tens:
+            current += tens[token]
+            used_number = True
+        elif token == "hundred":
+            if current == 0:
+                current = 1
+            current *= 100
+            used_number = True
+    total += current
+    if not used_number or total > 999:
+        return None
+    return total

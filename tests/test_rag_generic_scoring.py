@@ -11,6 +11,7 @@ from src.rag.retriever import (
     RagRetriever,
     RetrievedChunk,
     cap_per_source,
+    re_moon_count_claim,
     score_orbit_order_context,
     suppress_near_duplicate_chunks,
 )
@@ -176,6 +177,18 @@ class GenericScoringTests(unittest.TestCase):
                 self.assertIn("planet_orbit_context", reasons)
                 scores.append(score)
         self.assertEqual(len(set(scores)), 1)
+
+    def test_moon_count_claim_accepts_descriptive_words_between_count_and_moons(self) -> None:
+        self.assertTrue(re_moon_count_claim("Mars has two relatively small natural moons, Phobos and Deimos."))
+        self.assertTrue(re_moon_count_claim("Neptune has 16 known moons."))
+        self.assertTrue(re_moon_count_claim("Saturn has 292 known moons."))
+        self.assertTrue(re_moon_count_claim("Jupiter has at least 115 moons."))
+        self.assertTrue(re_moon_count_claim("Uranus has twenty-nine known natural satellites."))
+        self.assertTrue(re_moon_count_claim("The planet has one hundred and fifteen confirmed moons."))
+
+    def test_moon_count_claim_rejects_nearby_non_count_numbers(self) -> None:
+        self.assertFalse(re_moon_count_claim("Phobos rises in the west, sets in the east, and rises again in 11 hours."))
+        self.assertFalse(re_moon_count_claim("Mars orbits the Sun every 687 days."))
 
 
 class SourceRoutingTests(unittest.TestCase):
