@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from src.rag.pdf_extractor import PAGE_MARKER_RE
 from src.rag.structured_satellite_facts import extract_temporal_count_facts
 
 
@@ -80,6 +81,14 @@ def build_chunks_from_documents(
     chunks: list[dict[str, Any]] = []
     for document in documents:
         text = Path(document["clean_text_path"]).read_text(encoding="utf-8")
+        if document.get("source_type") == "pdf":
+            chunks.extend(build_pdf_chunks_from_document(
+                document,
+                text,
+                words_per_chunk=words_per_chunk,
+                overlap_words=overlap_words,
+            ))
+            continue
         sections = split_sections(text, fallback_heading=document.get("title") or document["source_id"])
         chunk_index = 0
         for section in sections:
@@ -91,8 +100,10 @@ def build_chunks_from_documents(
                     "chunk_id": chunk_id,
                     "document_id": document["document_id"],
                     "source_id": document["source_id"],
+                    "source_type": document.get("source_type", "web"),
                     "url": document["url"],
                     "title": document.get("title", document["source_id"]),
+                    "file_path": document.get("file_path", ""),
                     "section": section.heading,
                     "text": chunk_text,
                     "target_questions": document.get("target_questions", []),
@@ -113,8 +124,10 @@ def build_chunks_from_documents(
                 "chunk_id": chunk_id,
                 "document_id": document["document_id"],
                 "source_id": document["source_id"],
+                "source_type": document.get("source_type", "web"),
                 "url": document["url"],
                 "title": document.get("title", document["source_id"]),
+                "file_path": document.get("file_path", ""),
                 "section": fact.heading,
                 "text": fact.text,
                 "target_questions": document.get("target_questions", []),
@@ -129,6 +142,128 @@ def build_chunks_from_documents(
             })
             chunk_index += 1
     return chunks
+
+
+def build_pdf_chunks_from_document(
+    document: dict[str, Any],
+    text: str,
+    *,
+    words_per_chunk: int,
+    overlap_words: int,
+) -> list[dict[str, Any]]:
+    """Build page-aware chunks for PDF documents without mixing with web sources."""
+
+    chunks: list[dict[str, Any]] = []
+    word_pages = pdf_word_pages(text)
+    chunk_index = 0
+    for chunk_words in split_word_pages(word_pages, words_per_chunk, overlap_words):
+        words = [word for word, _page in chunk_words]
+        chunk_text = " ".join(words)
+        if len(chunk_text) < 80:
+            continue
+        pages = [page for _word, page in chunk_words]
+        page_start = min(pages) if pages else ""
+        page_end = max(pages) if pages else ""
+        chunk_id = f"{document['source_id']}_{chunk_index:04d}"
+        chunks.append({
+            "chunk_id": chunk_id,
+            "document_id": document["document_id"],
+            "source_id": document["source_id"],
+            "source_type": "pdf",
+            "url": document.get("url", ""),
+            "title": document.get("title", document["source_id"]),
+            "file_path": document.get("file_path", ""),
+            "page_start": page_start,
+            "page_end": page_end,
+            "section": f"Pages {page_start}-{page_end}" if page_start != page_end else f"Page {page_start}",
+            "text": chunk_text,
+            "target_questions": document.get("target_questions", []),
+            "needed_evidence": document.get("needed_evidence", []),
+            "entities": detect_entities(chunk_text),
+            "predicate_hints": detect_predicate_hints(chunk_text),
+            "tokens_estimate": max(1, len(words)),
+            "trust_level": document.get("trust_level", ""),
+            "content_type": "text",
+            "layout_hint": "table_like" if looks_table_like(chunk_text) else "text",
+        })
+        chunk_index += 1
+
+    clean_text_without_markers = "\n".join(
+        line for line in text.splitlines()
+        if not PAGE_MARKER_RE.match(line.strip())
+    )
+    for fact in extract_temporal_count_facts(clean_text_without_markers):
+        chunk_id = f"{document['source_id']}_fact_{chunk_index:04d}"
+        predicate_hints = detect_predicate_hints(fact.text)
+        if "moon_count" not in predicate_hints:
+            predicate_hints.append("moon_count")
+        chunks.append({
+            "chunk_id": chunk_id,
+            "document_id": document["document_id"],
+            "source_id": document["source_id"],
+            "source_type": "pdf",
+            "url": document.get("url", ""),
+            "title": document.get("title", document["source_id"]),
+            "file_path": document.get("file_path", ""),
+            "page_start": "",
+            "page_end": "",
+            "section": fact.heading,
+            "text": fact.text,
+            "target_questions": document.get("target_questions", []),
+            "needed_evidence": document.get("needed_evidence", []),
+            "entities": detect_entities(fact.text),
+            "predicate_hints": predicate_hints,
+            "tokens_estimate": max(1, len(fact.text.split())),
+            "trust_level": document.get("trust_level", ""),
+            "content_type": "structured_fact",
+            "layout_hint": "table_like",
+            "structured_fact_id": fact.fact_id,
+            "temporal_fact": fact.metadata(),
+        })
+        chunk_index += 1
+    return chunks
+
+
+def pdf_word_pages(text: str) -> list[tuple[str, int]]:
+    page = 1
+    word_pages: list[tuple[str, int]] = []
+    for line in text.splitlines():
+        marker = PAGE_MARKER_RE.match(line.strip())
+        if marker:
+            page = int(marker.group(1))
+            continue
+        for word in line.split():
+            word_pages.append((word, page))
+    return word_pages
+
+
+def split_word_pages(
+    word_pages: list[tuple[str, int]],
+    words_per_chunk: int,
+    overlap_words: int,
+) -> list[list[tuple[str, int]]]:
+    if len(word_pages) <= words_per_chunk:
+        return [word_pages]
+    chunks = []
+    start = 0
+    step = max(1, words_per_chunk - overlap_words)
+    while start < len(word_pages):
+        end = min(len(word_pages), start + words_per_chunk)
+        chunks.append(word_pages[start:end])
+        if end == len(word_pages):
+            break
+        start += step
+    return chunks
+
+
+def looks_table_like(text: str) -> bool:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return False
+    digit_heavy = sum(1 for line in lines if len(re.findall(r"\b\d{2,4}\b", line)) >= 2)
+    if digit_heavy >= 2:
+        return True
+    return len(re.findall(r"\b\d{4}\b", text)) >= 4 and len(re.findall(r"\s{2,}", text)) >= 3
 
 
 def split_sections(text: str, fallback_heading: str) -> list[TextSection]:

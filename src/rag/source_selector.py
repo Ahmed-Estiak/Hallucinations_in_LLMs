@@ -93,6 +93,7 @@ class SourceProfile:
     entities: set[str]
     predicates: set[str]
     temporal_facts: list[dict[str, Any]] = field(default_factory=list)
+    source_type: str = "web"
 
 
 class SourceSelector:
@@ -141,11 +142,24 @@ class SourceSelector:
             selected = [score.source_id for score in scores[:top_n_sources]]
             fallback_used = True
             fallback_reason = "source_score_threshold_too_strict"
-        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+        pdf_only = profiles_are_pdf_only(self.profiles)
+        if pdf_only:
+            coverage_source_ids = []
+            coverage_reasons = []
+        else:
+            selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+                selected,
+                self.profiles,
+                intent,
+            )
+        selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
             selected,
             self.profiles,
+            scores,
             intent,
+            top_n_sources=top_n_sources,
         )
+        coverage_reasons.extend(pdf_reasons)
 
         return SourceSelection(
             mode="auto-source",
@@ -332,6 +346,7 @@ def build_source_profiles(
             source_id=source_id,
             title=document.get("title") or first_chunk.get("title", source_id),
             url=document.get("url") or first_chunk.get("url", ""),
+            source_type=document.get("source_type") or first_chunk.get("source_type", "web"),
             cleaner=document.get("cleaner", ""),
             trust_level=document.get("trust_level", infer_trust_level(document.get("url") or first_chunk.get("url", ""))),
             char_count=int(document.get("char_count") or sum(len(chunk.get("text", "")) for chunk in source_chunks)),
@@ -343,6 +358,95 @@ def build_source_profiles(
             temporal_facts=temporal_facts,
         )
     return profiles
+
+
+def apply_pdf_raw_frequency_safety_include(
+    selected: list[str],
+    profiles: dict[str, SourceProfile],
+    scores: list[SourceScore],
+    intent: RetrievalIntent,
+    *,
+    top_n_sources: int,
+) -> tuple[list[str], list[str]]:
+    """Force-include one PDF with the strongest raw meaningful term count.
+
+    PDF titles and headings can be weak or absent. For PDF-only corpora, this
+    keeps one broad but repeatedly relevant document from being missed by pure
+    normalized-density ranking. It is only active when every source is PDF.
+    """
+
+    if not profiles_are_pdf_only(profiles):
+        return selected, []
+
+    score_by_source = {score.source_id: score for score in scores}
+    raw_counts = [
+        (source_id, raw_meaningful_match_count(profile, intent))
+        for source_id, profile in profiles.items()
+    ]
+    raw_counts = [(source_id, count) for source_id, count in raw_counts if count >= 3]
+    if not raw_counts:
+        return selected, []
+
+    raw_counts.sort(
+        key=lambda item: (
+            item[1],
+            score_by_source.get(item[0], SourceScore(item[0], 0.0, [])).score,
+        ),
+        reverse=True,
+    )
+    raw_source_id, raw_count = raw_counts[0]
+    if raw_source_id in selected:
+        return selected, []
+
+    expanded = selected[:]
+    if len(expanded) >= top_n_sources + 1:
+        return expanded, []
+    expanded.append(raw_source_id)
+    return expanded, [f"pdf_raw_frequency_include:{raw_source_id}:{raw_count}"]
+
+
+GENERIC_LOW_VALUE_TERMS = {
+    "planet",
+    "planets",
+    "moon",
+    "moons",
+    "satellite",
+    "satellites",
+    "object",
+    "objects",
+    "body",
+    "bodies",
+}
+
+
+def raw_meaningful_match_count(profile: SourceProfile, intent: RetrievalIntent) -> int:
+    text = profile.text
+    count = 0
+    for term in set(intent.query_terms):
+        if term in GENERIC_LOW_VALUE_TERMS:
+            continue
+        if " " in term:
+            count += count_phrase_occurrences(text, term) * 3
+        else:
+            count += profile.tokens.get(term, 0)
+    for entity in set(intent.entity_terms):
+        if entity and entity not in GENERIC_LOW_VALUE_TERMS:
+            count += profile.tokens.get(entity, 0) * 2
+    for predicate in set(intent.predicate_terms):
+        if predicate in profile.predicates:
+            count += 2
+    for condition in intent.filter_conditions:
+        value = str(condition.get("value", "")).strip().lower()
+        reference = str(condition.get("reference_entity", "")).strip().lower()
+        if value:
+            count += count_phrase_occurrences(text, value) * 3
+        if reference:
+            count += profile.tokens.get(reference, 0) * 2
+    return count
+
+
+def profiles_are_pdf_only(profiles: dict[str, SourceProfile]) -> bool:
+    return bool(profiles) and all(profile.source_type == "pdf" for profile in profiles.values())
 
 
 def slug_from_url(url: str) -> str:

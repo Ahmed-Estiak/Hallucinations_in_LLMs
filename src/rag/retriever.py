@@ -37,7 +37,14 @@ from src.rag.retrieval_intent import (
 )
 from src.rag.retriever_terms import tokenize
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
-from src.rag.source_selector import SourceScore, SourceSelection, SourceSelector, apply_constraint_coverage
+from src.rag.source_selector import (
+    SourceScore,
+    SourceSelection,
+    SourceSelector,
+    apply_constraint_coverage,
+    apply_pdf_raw_frequency_safety_include,
+    profiles_are_pdf_only,
+)
 from src.rag.temporal_evidence import (
     compatible_current_chunks,
     compatible_temporal_chunks,
@@ -581,6 +588,49 @@ class RagRetriever:
         scores.sort(key=lambda item: item.score, reverse=True)
 
         budget = self._hierarchical_source_budget(question, top_n_sources)
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        profiles = self.source_selector.profiles if hasattr(self, "_source_selector") else {}
+        pdf_only = profiles_are_pdf_only(profiles)
+        if pdf_only:
+            selected = [score.source_id for score in scores[:budget]]
+            coverage_source_ids: list[str] = []
+            coverage_reasons: list[str] = []
+            selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
+                selected,
+                profiles,
+                scores,
+                intent,
+                top_n_sources=budget,
+            )
+            coverage_reasons.extend(pdf_reasons)
+            selected_route_items = [
+                item
+                for source_id in selected
+                for item in content_by_source.get(source_id, [])[: len(ROUTE_SOURCE_HIT_WEIGHTS)]
+            ]
+            selected_route_items.extend(
+                identity_by_source[source_id]
+                for source_id in selected
+                if source_id in identity_by_source
+            )
+            selected_route_items.extend(
+                catalog_by_source[source_id]
+                for source_id in selected
+                if source_id in catalog_by_source
+            )
+            selected_route_items.sort(key=lambda item: item.score, reverse=True)
+            selected_routes = [
+                item.chunk["route_id"]
+                for item in selected_route_items
+            ][: max(10, budget * 3)]
+            return SourceSelection(
+                mode="hierarchical-bge-m3-rrf",
+                selected_source_ids=selected,
+                scores=scores,
+                coverage_source_ids=coverage_source_ids,
+                coverage_reasons=coverage_reasons,
+            ), selected_routes
+
         guard_sources = []
         content_route_items = [
             item for item in route_items
@@ -609,7 +659,6 @@ class RagRetriever:
                 selected.append(source_score.source_id)
             if len(selected) >= budget:
                 break
-        intent = build_retrieval_intent(question, classifier=self.question_classifier)
         relational_coverage_needed = bool(
             intent.target_class
             and any(
@@ -620,9 +669,18 @@ class RagRetriever:
         )
         selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
             selected,
-            self.source_selector.profiles if relational_coverage_needed else {},
+            profiles if relational_coverage_needed else {},
             intent,
         )
+        if profiles:
+            selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
+                selected,
+                profiles,
+                scores,
+                intent,
+                top_n_sources=budget,
+            )
+            coverage_reasons.extend(pdf_reasons)
         selected_route_items = [
             item
             for source_id in selected
@@ -793,10 +851,16 @@ class RagRetriever:
         )
 
         existing_ids = {item.chunk["chunk_id"] for item in result.retrieved_chunks}
+        allowed_support_sources = None
+        if result.source_selection:
+            profiles = self.source_selector.profiles if hasattr(self, "_source_selector") else {}
+            if profiles_are_pdf_only(profiles):
+                allowed_support_sources = set(result.source_selection.selected_source_ids)
         support_items = self._missing_moon_count_support_chunks(
             missing_entities,
             intent=intent,
             existing_chunk_ids=existing_ids | {table_chunk["chunk_id"]},
+            allowed_source_ids=allowed_support_sources,
         )
         context_items = result.retrieved_chunks[:MOON_COUNT_CONTEXT_CHUNK_LIMIT]
         merged = {item.chunk["chunk_id"]: item for item in [table_item, *context_items, *support_items]}
@@ -902,6 +966,7 @@ class RagRetriever:
         *,
         intent: RetrievalIntent,
         existing_chunk_ids: set[str],
+        allowed_source_ids: set[str] | None = None,
     ) -> list[RetrievedChunk]:
         support_items: list[RetrievedChunk] = []
         time_constraints = {"phrases": [], "years": [], "months": []}
@@ -910,6 +975,8 @@ class RagRetriever:
             candidates = []
             for chunk in self.chunks:
                 if chunk["chunk_id"] in existing_chunk_ids:
+                    continue
+                if allowed_source_ids is not None and chunk.get("source_id") not in allowed_source_ids:
                     continue
                 text = " ".join([
                     chunk.get("title", ""),
@@ -1195,11 +1262,24 @@ class RagRetriever:
         source_scores = self._aggregate_vector_source_scores(vector_scores)
         source_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in source_scores[:top_n_sources]]
-        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        if profiles_are_pdf_only(self.source_selector.profiles):
+            coverage_source_ids = []
+            coverage_reasons = []
+        else:
+            selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+                selected,
+                self.source_selector.profiles,
+                intent,
+            )
+        selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
             selected,
             self.source_selector.profiles,
-            build_retrieval_intent(question, classifier=self.question_classifier),
+            source_scores,
+            intent,
+            top_n_sources=top_n_sources,
         )
+        coverage_reasons.extend(pdf_reasons)
         return SourceSelection(
             mode="vector",
             selected_source_ids=selected,
@@ -1257,11 +1337,24 @@ class RagRetriever:
 
         hybrid_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in hybrid_scores[:top_n_sources]]
-        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        if profiles_are_pdf_only(self.source_selector.profiles):
+            coverage_source_ids = []
+            coverage_reasons = []
+        else:
+            selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+                selected,
+                self.source_selector.profiles,
+                intent,
+            )
+        selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
             selected,
             self.source_selector.profiles,
-            build_retrieval_intent(question, classifier=self.question_classifier),
+            hybrid_scores,
+            intent,
+            top_n_sources=top_n_sources,
         )
+        coverage_reasons.extend(pdf_reasons)
         return SourceSelection(
             mode="hybrid",
             selected_source_ids=selected,
@@ -1333,11 +1426,24 @@ class RagRetriever:
 
         rrf_scores.sort(key=lambda item: item.score, reverse=True)
         selected = [score.source_id for score in rrf_scores[:top_n_sources]]
-        selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        if profiles_are_pdf_only(self.source_selector.profiles):
+            coverage_source_ids = []
+            coverage_reasons = []
+        else:
+            selected, coverage_source_ids, coverage_reasons = apply_constraint_coverage(
+                selected,
+                self.source_selector.profiles,
+                intent,
+            )
+        selected, pdf_reasons = apply_pdf_raw_frequency_safety_include(
             selected,
             self.source_selector.profiles,
-            build_retrieval_intent(question, classifier=self.question_classifier),
+            rrf_scores,
+            intent,
+            top_n_sources=top_n_sources,
         )
+        coverage_reasons.extend(pdf_reasons)
         return SourceSelection(
             mode=mode,
             selected_source_ids=selected,

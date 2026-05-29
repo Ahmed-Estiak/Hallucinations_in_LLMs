@@ -21,6 +21,15 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.rag.retriever import DEFAULT_RETRIEVAL_MODE, RagRetriever
+from src.rag.pdf_paths import (
+    PDF_BGE_BASE_EMBEDDINGS_PATH,
+    PDF_BGE_M3_EMBEDDINGS_PATH,
+    PDF_CHUNKS_PATH,
+    PDF_DOCUMENTS_PATH,
+    PDF_OPENAI_EMBEDDINGS_PATH,
+    PDF_ROUTING_EMBEDDINGS_PATH,
+    PDF_ROUTING_UNITS_PATH,
+)
 from src.rag_models import build_rag_prompt
 
 
@@ -93,8 +102,9 @@ def build_rows(
     methods: list[str],
     questions: dict[int, dict[str, Any]],
     max_chars: int,
+    source_set: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    retriever = RagRetriever()
+    retriever = build_retriever(source_set)
     run_rows: list[dict[str, Any]] = []
     chunk_rows: list[dict[str, Any]] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -230,6 +240,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate RAG retrieval and prompt-size audit CSVs.")
+    parser.add_argument("--source-set", choices=("web", "pdf"), default="web")
     parser.add_argument("--questions", nargs="+", type=int, default=DEFAULT_QUESTION_IDS)
     parser.add_argument("--methods", nargs="+", default=DEFAULT_METHODS)
     parser.add_argument("--include-legacy", action="store_true", help="Also run vector and hybrid modes.")
@@ -239,8 +250,24 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_retriever(source_set: str) -> RagRetriever:
+    if source_set != "pdf":
+        return RagRetriever()
+    return RagRetriever(
+        PROJECT_ROOT / PDF_CHUNKS_PATH,
+        documents_path=PROJECT_ROOT / PDF_DOCUMENTS_PATH,
+        embeddings_path=PROJECT_ROOT / PDF_BGE_M3_EMBEDDINGS_PATH,
+        bge_base_embeddings_path=PROJECT_ROOT / PDF_BGE_BASE_EMBEDDINGS_PATH,
+        openai_embeddings_path=PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH,
+        routing_units_path=PROJECT_ROOT / PDF_ROUTING_UNITS_PATH,
+        routing_embeddings_path=PROJECT_ROOT / PDF_ROUTING_EMBEDDINGS_PATH,
+    )
+
+
 def main() -> None:
     args = parse_args()
+    if args.source_set == "pdf" and args.output_dir == DEFAULT_OUTPUT_DIR:
+        args.output_dir = PROJECT_ROOT / "reports" / "rag_pdf_audit"
     methods = list(args.methods)
     if args.include_legacy:
         methods.extend(method for method in LEGACY_METHODS if method not in methods)
@@ -255,6 +282,7 @@ def main() -> None:
         methods=methods,
         questions=questions,
         max_chars=args.max_chars,
+        source_set=args.source_set,
     )
     runs_path = args.output_dir / "rag_method_prompt_token_audit.csv"
     chunks_path = args.output_dir / "rag_method_chunk_token_audit.csv"

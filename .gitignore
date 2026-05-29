@@ -16,4 +16,7 @@ data/rag_sources/web_raw/**/*.html
 data/rag_sources/rag_index/*.jsonl
 data/rag_pdf_sources/pdf_raw/*
 !data/rag_pdf_sources/pdf_raw/.gitkeep
+data/rag_pdf_sources/pdf_text/*.txt
+data/rag_pdf_sources/rag_index/*.jsonl
 reports/rag_audit/
+reports/rag_pdf_audit/

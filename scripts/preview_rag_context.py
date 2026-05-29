@@ -20,6 +20,15 @@ from src.rag.embeddings import (
 )
 from src.rag.chunker import load_jsonl
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
+from src.rag.pdf_paths import (
+    PDF_BGE_BASE_EMBEDDINGS_PATH,
+    PDF_BGE_M3_EMBEDDINGS_PATH,
+    PDF_CHUNKS_PATH,
+    PDF_DOCUMENTS_PATH,
+    PDF_OPENAI_EMBEDDINGS_PATH,
+    PDF_ROUTING_EMBEDDINGS_PATH,
+    PDF_ROUTING_UNITS_PATH,
+)
 
 
 DEFAULT_QUESTION_ID = 9
@@ -27,6 +36,12 @@ DEFAULT_QUESTION_ID = 9
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Preview the RAG context that would be sent to the LLM.")
+    parser.add_argument(
+        "--source-set",
+        choices=("web", "pdf"),
+        default="web",
+        help="Use default web or PDF-only RAG index paths.",
+    )
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--question", help="Question text to retrieve context for")
     source.add_argument("--id", type=int, default=DEFAULT_QUESTION_ID, help="Question id from data/qa_92.json")
@@ -34,6 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--chunks",
         default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "chunks.jsonl"),
         help="Chunk index JSONL path",
+    )
+    parser.add_argument(
+        "--documents",
+        default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "documents.jsonl"),
+        help="Document metadata JSONL path for source selection",
     )
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--per-source-limit", type=int, default=4)
@@ -80,11 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    apply_source_set_defaults(args)
     question = args.question or question_by_id(args.id)
     maybe_build_missing_embeddings(args)
 
     retriever = RagRetriever(
         args.chunks,
+        documents_path=args.documents,
         embeddings_path=args.embeddings,
         bge_base_embeddings_path=args.bge_base_embeddings,
         openai_embeddings_path=args.openai_embeddings,
@@ -147,6 +169,28 @@ def main() -> int:
     print("=" * 120)
     print(context)
     return 0
+
+
+def apply_source_set_defaults(args: argparse.Namespace) -> None:
+    if args.source_set != "pdf":
+        return
+    defaults = build_parser()
+    if args.chunks == defaults.get_default("chunks"):
+        args.chunks = str(PROJECT_ROOT / PDF_CHUNKS_PATH)
+    if args.documents == defaults.get_default("documents"):
+        args.documents = str(PROJECT_ROOT / PDF_DOCUMENTS_PATH)
+    if args.embeddings == defaults.get_default("embeddings"):
+        args.embeddings = str(PROJECT_ROOT / PDF_BGE_M3_EMBEDDINGS_PATH)
+    if args.bge_base_embeddings == defaults.get_default("bge_base_embeddings"):
+        args.bge_base_embeddings = str(PROJECT_ROOT / PDF_BGE_BASE_EMBEDDINGS_PATH)
+    if args.openai_embeddings == defaults.get_default("openai_embeddings"):
+        args.openai_embeddings = str(PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH)
+    if args.routing_units == defaults.get_default("routing_units"):
+        args.routing_units = str(PROJECT_ROOT / PDF_ROUTING_UNITS_PATH)
+    if args.routing_embeddings == defaults.get_default("routing_embeddings"):
+        args.routing_embeddings = str(PROJECT_ROOT / PDF_ROUTING_EMBEDDINGS_PATH)
+    if args.top_n_sources == defaults.get_default("top_n_sources"):
+        args.top_n_sources = 3
 
 
 def print_source_selection(source_selection) -> None:

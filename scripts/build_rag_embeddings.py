@@ -27,11 +27,23 @@ from src.rag.embeddings import (
     normalize_provider,
     write_embedding_records,
 )
+from src.rag.pdf_paths import (
+    PDF_BGE_BASE_EMBEDDINGS_PATH,
+    PDF_BGE_M3_EMBEDDINGS_PATH,
+    PDF_CHUNKS_PATH,
+    PDF_OPENAI_EMBEDDINGS_PATH,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Define the CLI used by both manual rebuilds and fallback cache setup."""
     parser = argparse.ArgumentParser(description="Build embedding cache for RAG chunks.")
+    parser.add_argument(
+        "--source-set",
+        choices=("web", "pdf"),
+        default="web",
+        help="Use default web or PDF-only chunk/embedding paths.",
+    )
     parser.add_argument(
         "--chunks",
         default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "chunks.jsonl"),
@@ -86,12 +98,22 @@ def main() -> int:
     # records are not interchangeable.
     provider = normalize_provider(args.provider)
     model = args.model or default_model_for_provider(provider)
+    chunks_path = Path(args.chunks)
     embeddings_path = args.embeddings or str(PROJECT_ROOT / default_embeddings_path_for_provider(provider))
+    if args.source_set == "pdf" and args.chunks == build_parser().get_default("chunks"):
+        chunks_path = PROJECT_ROOT / PDF_CHUNKS_PATH
+    if args.source_set == "pdf" and args.embeddings is None:
+        if provider == "bge-m3":
+            embeddings_path = str(PROJECT_ROOT / PDF_BGE_M3_EMBEDDINGS_PATH)
+        elif provider == "local":
+            embeddings_path = str(PROJECT_ROOT / PDF_BGE_BASE_EMBEDDINGS_PATH)
+        elif provider == "openai":
+            embeddings_path = str(PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH)
 
     # chunks.jsonl is the canonical retrieval surface. If source cleaning or
     # chunking changes, each chunk's embedding text hash changes and only those
     # affected records are rebuilt.
-    chunks = load_jsonl(args.chunks)
+    chunks = load_jsonl(chunks_path)
     existing_records = load_embedding_records(embeddings_path)
 
     # build_chunk_embedding_records preserves existing valid records and embeds

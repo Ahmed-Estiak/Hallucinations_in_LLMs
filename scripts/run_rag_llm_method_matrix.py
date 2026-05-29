@@ -21,6 +21,15 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.evaluator import evaluate_answer
+from src.rag.pdf_paths import (
+    PDF_BGE_BASE_EMBEDDINGS_PATH,
+    PDF_BGE_M3_EMBEDDINGS_PATH,
+    PDF_CHUNKS_PATH,
+    PDF_DOCUMENTS_PATH,
+    PDF_OPENAI_EMBEDDINGS_PATH,
+    PDF_ROUTING_EMBEDDINGS_PATH,
+    PDF_ROUTING_UNITS_PATH,
+)
 from src.rag.retriever import RagRetriever
 from src.rag_models import ask_gemini_with_rag, ask_openai_with_rag, build_rag_prompt
 
@@ -73,8 +82,9 @@ def run_matrix(
     methods: list[str],
     output: Path,
     max_chars: int,
+    source_set: str,
 ) -> list[dict[str, Any]]:
-    retriever = RagRetriever()
+    retriever = build_retriever(source_set)
     rows: list[dict[str, Any]] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -166,6 +176,7 @@ def run_matrix(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run RAG method matrix through OpenAI and Gemini.")
+    parser.add_argument("--source-set", choices=("web", "pdf"), default="web")
     parser.add_argument("--questions", nargs="+", type=int, default=DEFAULT_QUESTION_IDS)
     parser.add_argument("--methods", nargs="+", default=DEFAULT_METHODS)
     parser.add_argument("--questions-path", type=Path, default=PROJECT_ROOT / "data" / "qa_92.json")
@@ -174,14 +185,31 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_retriever(source_set: str) -> RagRetriever:
+    if source_set != "pdf":
+        return RagRetriever()
+    return RagRetriever(
+        PROJECT_ROOT / PDF_CHUNKS_PATH,
+        documents_path=PROJECT_ROOT / PDF_DOCUMENTS_PATH,
+        embeddings_path=PROJECT_ROOT / PDF_BGE_M3_EMBEDDINGS_PATH,
+        bge_base_embeddings_path=PROJECT_ROOT / PDF_BGE_BASE_EMBEDDINGS_PATH,
+        openai_embeddings_path=PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH,
+        routing_units_path=PROJECT_ROOT / PDF_ROUTING_UNITS_PATH,
+        routing_embeddings_path=PROJECT_ROOT / PDF_ROUTING_EMBEDDINGS_PATH,
+    )
+
+
 def main() -> None:
     args = parse_args()
+    if args.source_set == "pdf" and args.output == DEFAULT_OUTPUT:
+        args.output = PROJECT_ROOT / "reports" / "rag_pdf_audit" / "rag_llm_method_matrix.csv"
     questions = load_questions(args.questions_path, args.questions)
     rows = run_matrix(
         questions=questions,
         methods=args.methods,
         output=args.output,
         max_chars=args.max_chars,
+        source_set=args.source_set,
     )
     print(f"\nRows: {len(rows)}")
     print(f"Saved to: {args.output}")
