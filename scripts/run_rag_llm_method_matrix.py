@@ -95,7 +95,11 @@ def run_matrix(
             question = question_row["question"]
             truth = expected_answer(question_row)
             print(f"  Q{question_id}: retrieving...")
-            retrieval_result = retriever.retrieve_with_details(question, mode=method)
+            retrieval_result = retriever.retrieve_with_details(
+                question,
+                mode=method,
+                top_n_sources=3 if source_set == "pdf" else 12,
+            )
             context = retriever.format_context_for_llm(
                 retrieval_result.retrieved_chunks,
                 max_chars=max_chars,

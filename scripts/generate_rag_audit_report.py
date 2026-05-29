@@ -119,6 +119,7 @@ def build_rows(
                     question,
                     mode=method,
                     top_k=12,
+                    top_n_sources=3 if source_set == "pdf" else 12,
                 )
                 context_text = retriever.format_context_for_llm(
                     result.retrieved_chunks,
