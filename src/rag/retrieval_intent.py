@@ -156,17 +156,96 @@ def score_ordering_evidence(
     if not evidence_terms or not contains_any(text, evidence_terms):
         return 0.0, []
 
+    if attribute == "discovered_on":
+        return score_discovery_ordering_evidence(text, weight=weight, detailed=detailed)
+
     score = weight
     reasons = [f"ordering:{attribute}"]
-    if detailed and attribute == "discovered_on":
-        if "in order of discovery" in text:
-            score += 5.0
-            reasons.append("ordered_discovery_section")
-        discovered_count = len(re.findall(r"\bdiscovered\b", text))
-        if discovered_count >= 2:
-            score += 2.0 + math.log(discovered_count)
-            reasons.append("multiple_discovery_mentions")
     return score, reasons
+
+
+def score_discovery_ordering_evidence(
+    text: str,
+    *,
+    weight: float,
+    detailed: bool,
+) -> tuple[float, list[str]]:
+    """Score discovery ordering with stronger signals than plain word overlap."""
+
+    score = 0.0
+    reasons: list[str] = []
+    if has_date_near_discovery(text):
+        score += weight * 0.8
+        reasons.append("discovery_date_nearby")
+
+    if has_ordinal_discovery_evidence(text):
+        score += weight * 2.4
+        reasons.append("ordinal_discovery_evidence")
+        if "in order of discovery" in text or "order of discovery" in text:
+            reasons.append("ordered_discovery_section")
+
+    if detailed:
+        entities = discovered_entity_mentions(text)
+        if len(entities) >= 2:
+            score += weight * 0.7 + math.log(len(entities))
+            reasons.append("multiple_discovery_entities")
+
+    if score:
+        return score, ["ordering:discovered_on", *reasons]
+    return 0.0, []
+
+
+def has_date_near_discovery(text: str) -> bool:
+    date_pattern = r"(?:\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b(?:1[6-9]\d{2}|20\d{2})\b)"
+    discovery_pattern = r"\b(?:discovered|discovery|first observed)\b"
+    return bool(
+        re.search(rf"{date_pattern}.{{0,80}}{discovery_pattern}", text)
+        or re.search(rf"{discovery_pattern}.{{0,80}}{date_pattern}", text)
+    )
+
+
+def has_ordinal_discovery_evidence(text: str) -> bool:
+    ordinal_pattern = (
+        r"\b(?:first|earliest|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
+        r"\d+(?:st|nd|rd|th)|in\s+order|order\s+of)\b"
+    )
+    discovery_pattern = r"\b(?:discovered|discovery|first observed)\b"
+    return bool(
+        re.search(rf"{ordinal_pattern}.{{0,120}}{discovery_pattern}", text)
+        or re.search(rf"{discovery_pattern}.{{0,120}}{ordinal_pattern}", text)
+    )
+
+
+DISCOVERY_ENTITY_STOPWORDS = {
+    "astronomers",
+    "belt",
+    "body",
+    "bodies",
+    "candidate",
+    "candidates",
+    "existence",
+    "object",
+    "objects",
+    "planet",
+    "planets",
+    "world",
+}
+
+
+def discovered_entity_mentions(text: str) -> set[str]:
+    mentions: set[str] = set()
+    for match in re.finditer(
+        r"(?=\b([a-z][a-z0-9-]{2,})\b(?:\s+\w+){0,5}\s+was\b.{0,80}\bdiscovered\b)",
+        text,
+    ):
+        entity = match.group(1)
+        if entity not in DISCOVERY_ENTITY_STOPWORDS:
+            mentions.add(entity)
+    for match in re.finditer(r"\bdiscovery\s+of\s+([a-z][a-z0-9-]{2,})\b", text):
+        entity = match.group(1)
+        if entity not in DISCOVERY_ENTITY_STOPWORDS:
+            mentions.add(entity)
+    return mentions
 
 
 def score_target_class_evidence(

@@ -89,6 +89,38 @@ class GenericScoringTests(unittest.TestCase):
         self.assertIn("ordering:discovered_on", q9_reasons)
         self.assertIn("ordered_discovery_section", q9_reasons)
 
+    def test_discovery_ordering_uses_specific_evidence_not_plain_word_overlap(self) -> None:
+        q9 = "Which dwarf planet located in the Kuiper Belt was discovered first?"
+        _, plain_reasons = self.score_chunk(
+            q9,
+            "Astronomers discovered several icy objects in the Kuiper Belt.",
+            ["classification", "location", "discovered_on"],
+        )
+        self.assertNotIn("ordering:discovered_on", plain_reasons)
+
+        _, dated_reasons = self.score_chunk(
+            q9,
+            "Pluto was discovered in 1930 and is associated with the Kuiper Belt.",
+            ["classification", "location", "discovered_on"],
+        )
+        self.assertIn("ordering:discovered_on", dated_reasons)
+        self.assertIn("discovery_date_nearby", dated_reasons)
+
+        _, ordinal_reasons = self.score_chunk(
+            q9,
+            "Pluto was the first true Kuiper Belt Object to be discovered.",
+            ["classification", "location", "discovered_on"],
+        )
+        self.assertIn("ordering:discovered_on", ordinal_reasons)
+        self.assertIn("ordinal_discovery_evidence", ordinal_reasons)
+
+        _, comparison_reasons = self.score_chunk(
+            q9,
+            "Pluto was discovered in 1930, and Sedna was discovered much later.",
+            ["classification", "location", "discovered_on"],
+        )
+        self.assertIn("multiple_discovery_entities", comparison_reasons)
+
     def test_target_class_bonus_is_symmetric(self) -> None:
         cases = [
             ("dwarf_planets", "This is a dwarf planet."),
