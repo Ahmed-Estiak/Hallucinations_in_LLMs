@@ -18,6 +18,11 @@ Rules:
 - Do not treat current counts or later dated counts as support for an earlier requested date.
 - For a present moon-count question, use the resolved direct-current or validated
   current-table fact supplied in context; do not substitute other planets' counts.
+- For a non-temporal moon-count comparison/list question, treat a "Highest structured
+  moon-count claims" table as the highest structured count found in the provided
+  sources. If a retrieved chunk states a higher count for the same body, prefer
+  the higher chunk count. Do not replace a table count with a lower chunk count
+  unless the question asks about a specific past time.
 - If the retrieved context is insufficient, answer exactly: insufficient context
 - Do not invent unsupported facts.
 - Output only the final answer.

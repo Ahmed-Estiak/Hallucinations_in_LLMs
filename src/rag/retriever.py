@@ -93,8 +93,8 @@ CLASS_ENTITY_MEMBERS = {
     "dwarf_planets": ["Ceres", "Pluto", "Eris", "Haumea", "Makemake", "Quaoar", "Orcus", "Sedna", "Gonggong"],
 }
 MOON_COUNT_CONTEXT_CHUNK_LIMIT = 8
-MOON_COUNT_MISSING_SUPPORT_LIMIT = 12
-MOON_COUNT_MISSING_SUPPORT_PER_ENTITY = 3
+MOON_COUNT_SUPPORT_LIMIT = 16
+MOON_COUNT_SUPPORT_PER_ENTITY = 2
 AUTOMATIC_FALLBACK_CHAIN = [
     "hierarchical-bge-m3-rrf",
     "bge-m3-rrf",
@@ -810,6 +810,7 @@ class RagRetriever:
         resolved_lines: list[str] = []
         missing_entities: list[str] = []
         resolved_source_ids: list[str] = []
+        is_temporal_lookup = intent.has_time_lookup and bool(intent.time_value)
         for entity in entities:
             match = self._resolve_moon_count_for_entity(entity, intent)
             if match is None:
@@ -819,23 +820,39 @@ class RagRetriever:
             chunk, _match_kind = match
             fact = chunk["temporal_fact"]
             value = fact.get("value")
-            if intent.has_time_lookup and intent.time_value:
+            if is_temporal_lookup:
                 observed = fact.get("observed_at") or intent.time_value
                 valid_until = fact.get("valid_until_exclusive")
                 interval = f", valid until {valid_until}" if valid_until else ""
                 resolved_lines.append(f"- {entity}: {value} moons as of {observed}{interval}")
             else:
-                resolved_lines.append(f"- {entity}: {value} moons")
+                resolved_lines.append(
+                    f"- {entity}: {value} moons "
+                    f"(highest structured count found; source={chunk.get('source_id', '')})"
+                )
             resolved_source_ids.append(chunk.get("source_id", ""))
 
+        table_title = (
+            "Resolved temporal moon-count facts"
+            if is_temporal_lookup
+            else "Highest structured moon-count facts"
+        )
+        table_intro = (
+            "Resolved moon-count facts for the target class:"
+            if is_temporal_lookup
+            else (
+                "Highest structured moon-count claims found for the target class "
+                "(non-temporal retrieval summary):"
+            )
+        )
         table_chunk = {
             "chunk_id": f"resolved_moon_count_facts_{slug(intent.target_class or 'entities')}",
             "document_id": "resolved_moon_count_facts",
             "source_id": "resolved_moon_count_facts",
             "url": "",
-            "title": "Resolved moon-count facts",
-            "section": "Resolved moon-count facts",
-            "text": "\n".join(["Resolved moon-count facts for the target class:", *resolved_lines]),
+            "title": table_title,
+            "section": table_title,
+            "text": "\n".join([table_intro, *resolved_lines]),
             "target_questions": [],
             "needed_evidence": [],
             "entities": entities,
@@ -851,16 +868,12 @@ class RagRetriever:
         )
 
         existing_ids = {item.chunk["chunk_id"] for item in result.retrieved_chunks}
-        allowed_support_sources = None
-        if result.source_selection:
-            profiles = self.source_selector.profiles if hasattr(self, "_source_selector") else {}
-            if profiles_are_pdf_only(profiles):
-                allowed_support_sources = set(result.source_selection.selected_source_ids)
+        support_entities = missing_entities if is_temporal_lookup else entities
         support_items = self._missing_moon_count_support_chunks(
-            missing_entities,
+            support_entities,
             intent=intent,
             existing_chunk_ids=existing_ids | {table_chunk["chunk_id"]},
-            allowed_source_ids=allowed_support_sources,
+            allowed_source_ids=None,
         )
         context_items = result.retrieved_chunks[:MOON_COUNT_CONTEXT_CHUNK_LIMIT]
         merged = {item.chunk["chunk_id"]: item for item in [table_item, *context_items, *support_items]}
@@ -996,10 +1009,10 @@ class RagRetriever:
                     reasons=[f"missing_moon_count_support:{slug(entity)}", *reasons],
                 ))
             candidates.sort(key=lambda item: item.score, reverse=True)
-            for item in candidates[:MOON_COUNT_MISSING_SUPPORT_PER_ENTITY]:
+            for item in candidates[:MOON_COUNT_SUPPORT_PER_ENTITY]:
                 support_items.append(item)
                 existing_chunk_ids.add(item.chunk["chunk_id"])
-                if len(support_items) >= MOON_COUNT_MISSING_SUPPORT_LIMIT:
+                if len(support_items) >= MOON_COUNT_SUPPORT_LIMIT:
                     return support_items
         return support_items
 
