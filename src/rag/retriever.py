@@ -982,7 +982,6 @@ class RagRetriever:
         allowed_source_ids: set[str] | None = None,
     ) -> list[RetrievedChunk]:
         support_items: list[RetrievedChunk] = []
-        time_constraints = {"phrases": [], "years": [], "months": []}
         for entity in missing_entities:
             entity_lower = entity.lower()
             candidates = []
@@ -991,21 +990,13 @@ class RagRetriever:
                     continue
                 if allowed_source_ids is not None and chunk.get("source_id") not in allowed_source_ids:
                     continue
-                text = " ".join([
-                    chunk.get("title", ""),
-                    chunk.get("section", ""),
-                    chunk.get("text", ""),
-                ]).lower()
-                if entity_lower not in text:
+                support_score = score_moon_count_support_chunk(chunk, entity_lower)
+                if support_score is None:
                     continue
-                if "moon_count" not in set(chunk.get("predicate_hints", [])) and not any(
-                    value in text for value in ("moon", "moons", "satellite", "satellites")
-                ):
-                    continue
-                score, reasons = self._score_chunk(chunk, intent=intent, time_constraints=time_constraints)
+                score, reasons = support_score
                 candidates.append(RetrievedChunk(
                     chunk=chunk,
-                    score=score + 12.0,
+                    score=score,
                     reasons=[f"missing_moon_count_support:{slug(entity)}", *reasons],
                 ))
             candidates.sort(key=lambda item: item.score, reverse=True)
@@ -2133,6 +2124,112 @@ def re_moon_count_claim(text: str) -> bool:
             text,
         )
     )
+
+
+def score_moon_count_support_chunk(
+    chunk: dict[str, Any],
+    entity_lower: str,
+) -> tuple[float, list[str]] | None:
+    """Score direct moon-count support chunks for one target body.
+
+    This is intentionally evidence-focused rather than normal RAG scoring: the
+    chunk must mention the target body somewhere, and at least one sentence must
+    contain both a number/count word and a moon/satellite term in any order.
+    """
+
+    full_text = " ".join([
+        str(chunk.get("title", "")),
+        str(chunk.get("section", "")),
+        str(chunk.get("text", "")),
+    ])
+    if not re.search(rf"\b{re.escape(entity_lower)}\b", full_text.lower()):
+        return None
+
+    text = str(chunk.get("text", ""))
+    sentences = support_sentences(text)
+    count_sentence_indexes = [
+        index for index, sentence in enumerate(sentences)
+        if sentence_has_count_and_moon_term(sentence)
+    ]
+    if not count_sentence_indexes:
+        return None
+
+    entity_sentence_indexes = [
+        index for index, sentence in enumerate(sentences)
+        if re.search(rf"\b{re.escape(entity_lower)}\b", sentence.lower())
+    ]
+
+    score = 20.0
+    reasons = ["direct_moon_count_sentence"]
+    if entity_sentence_indexes:
+        best_pair = min(
+            (
+                (abs(entity_index - count_index), count_index)
+                for entity_index in entity_sentence_indexes
+                for count_index in count_sentence_indexes
+            ),
+            key=lambda item: item[0],
+        )
+        min_distance, best_count_index = best_pair
+        best_count_sentence_len = len(count_claim_tokens(sentences[best_count_index]))
+        if min_distance == 0:
+            if best_count_sentence_len <= 80:
+                score += 12.0
+                reasons.append("same_sentence_entity_count_moon")
+            else:
+                score += 5.0
+                reasons.append("wide_sentence_entity_count_moon")
+        elif min_distance == 1:
+            score += 7.0
+            reasons.append("adjacent_sentence_entity_count_moon")
+        else:
+            score += max(1.0, 5.0 - min_distance)
+            reasons.append("nearby_entity_count_moon")
+    else:
+        reasons.append("entity_in_title_or_section")
+
+    if re.search(rf"\b{re.escape(entity_lower)}\b", str(chunk.get("title", "")).lower()):
+        score += 2.0
+        reasons.append("entity_in_title")
+    if re.search(rf"\b{re.escape(entity_lower)}\b", str(chunk.get("section", "")).lower()):
+        score += 1.0
+        reasons.append("entity_in_section")
+    if chunk.get("content_type") == "structured_fact":
+        score += 6.0
+        reasons.append("structured_moon_count_fact")
+    if "current moon count assertion" in str(chunk.get("section", "")).lower():
+        score += 4.0
+        reasons.append("current_moon_count_assertion")
+
+    multiple_bonus = min(len(count_sentence_indexes), 3) * 0.5
+    score += multiple_bonus
+    if len(count_sentence_indexes) > 1:
+        reasons.append(f"multiple_moon_count_sentences:{len(count_sentence_indexes)}")
+
+    return score, reasons
+
+
+def support_sentences(text: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if not normalized:
+        return []
+    sentences = [
+        sentence.strip()
+        for sentence in re.split(r"(?<=[.!?])\s+", normalized)
+        if sentence.strip()
+    ]
+    return sentences or [normalized]
+
+
+def sentence_has_count_and_moon_term(sentence: str) -> bool:
+    tokens = count_claim_tokens(sentence)
+    if not any(token in {"moon", "moons", "satellite", "satellites"} for token in tokens):
+        return False
+    for start in range(len(tokens)):
+        for end in range(start + 1, min(len(tokens), start + 6) + 1):
+            if parse_count_phrase(tokens[start:end]) is not None:
+                return True
+    return False
 
 
 def count_claim_tokens(text: str) -> list[str]:

@@ -6,7 +6,12 @@ import unittest
 
 from src.question_classifier import QuestionClassifier
 from src.rag.retrieval_intent import build_retrieval_intent
-from src.rag.retriever import RagRetrievalResult, RagRetriever, RetrievedChunk
+from src.rag.retriever import (
+    RagRetrievalResult,
+    RagRetriever,
+    RetrievedChunk,
+    score_moon_count_support_chunk,
+)
 from src.rag.retriever_terms import build_query_terms
 from src.rag.structured_satellite_facts import (
     extract_explicit_current_count_facts,
@@ -301,6 +306,44 @@ class CurrentCountResolutionTests(unittest.TestCase):
             [item.chunk["chunk_id"] for item in gated.retrieved_chunks],
             ["neptune_current"],
         )
+
+    def test_moon_count_support_requires_number_and_moon_sentence(self) -> None:
+        weak = {
+            "chunk_id": "weak",
+            "title": "Mars",
+            "section": "Moons",
+            "text": "Mars is near Earth. Its small companions orbit close to the planet.",
+        }
+        self.assertIsNone(score_moon_count_support_chunk(weak, "mars"))
+
+    def test_moon_count_support_allows_pronoun_count_sentence(self) -> None:
+        pronoun = {
+            "chunk_id": "pronoun",
+            "title": "Mars",
+            "section": "Overview",
+            "text": "Mars is a terrestrial planet. It has two tiny moons, Phobos and Deimos.",
+        }
+        scored = score_moon_count_support_chunk(pronoun, "mars")
+        self.assertIsNotNone(scored)
+        _score, reasons = scored
+        self.assertIn("adjacent_sentence_entity_count_moon", reasons)
+
+    def test_moon_count_support_prefers_same_sentence_entity(self) -> None:
+        same = {
+            "chunk_id": "same",
+            "title": "",
+            "section": "",
+            "text": "Mars has two tiny moons, Phobos and Deimos.",
+        }
+        adjacent = {
+            "chunk_id": "adjacent",
+            "title": "",
+            "section": "",
+            "text": "Mars is a terrestrial planet. It has two tiny moons, Phobos and Deimos.",
+        }
+        same_score, _same_reasons = score_moon_count_support_chunk(same, "mars")
+        adjacent_score, _adjacent_reasons = score_moon_count_support_chunk(adjacent, "mars")
+        self.assertGreater(same_score, adjacent_score)
 
 
 if __name__ == "__main__":
