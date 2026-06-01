@@ -793,9 +793,13 @@ class RagRetriever:
 
         compatible = compatible_temporal_chunks(self.retrieval_chunks, intent)
         if not compatible:
-            result.retrieved_chunks = []
-            result.temporal_evidence_status = "insufficient"
-            result.temporal_evidence_reason = "no_validated_temporal_fact_covers_requested_time"
+            result.temporal_evidence_status = "unresolved"
+            result.temporal_evidence_reason = "no_validated_interval_covers_requested_time"
+            result.retrieved_chunks = self._merge_temporal_context_without_interval(
+                result.retrieved_chunks,
+                intent=intent,
+                top_k=top_k,
+            )
             return result
 
         values = {
@@ -845,6 +849,64 @@ class RagRetriever:
                 if source_id not in result.source_selection.selected_source_ids:
                     result.source_selection.selected_source_ids.append(source_id)
         return result
+
+    def _merge_temporal_context_without_interval(
+        self,
+        retrieved: list[RetrievedChunk],
+        *,
+        intent: RetrievalIntent,
+        top_k: int,
+    ) -> list[RetrievedChunk]:
+        """Keep ranked source chunks plus extracted date anchors for LLM review."""
+        context_items = retrieved[:MOON_COUNT_CONTEXT_CHUNK_LIMIT]
+        support_items = self._temporal_moon_count_support_items(
+            intent,
+            existing_chunk_ids={item.chunk["chunk_id"] for item in context_items},
+        )
+        merged = {
+            item.chunk["chunk_id"]: item
+            for item in [*support_items, *context_items]
+        }
+        return sorted(merged.values(), key=lambda item: item.score, reverse=True)[:top_k]
+
+    def _temporal_moon_count_support_items(
+        self,
+        intent: RetrievalIntent,
+        *,
+        existing_chunk_ids: set[str],
+    ) -> list[RetrievedChunk]:
+        items: list[RetrievedChunk] = []
+        subjects = set(intent.entity_terms)
+        for chunk in self.chunks:
+            if chunk.get("chunk_id") in existing_chunk_ids:
+                continue
+            fact = chunk.get("temporal_fact")
+            if not isinstance(fact, dict):
+                continue
+            if fact.get("predicate") != "moon_count":
+                continue
+            if str(fact.get("subject", "")).lower() not in subjects:
+                continue
+            if not fact.get("observed_at"):
+                continue
+            score, reasons = self._score_chunk(
+                chunk,
+                intent=intent,
+                time_constraints=extract_time_constraints(" ".join([intent.time_value or "", *intent.entity_terms])),
+            )
+            items.append(RetrievedChunk(
+                chunk=chunk,
+                score=max(score, 80.0),
+                reasons=["temporal_anchor_for_llm_review", *reasons],
+            ))
+        items.sort(
+            key=lambda item: (
+                item.chunk.get("temporal_fact", {}).get("observed_at", ""),
+                item.score,
+            ),
+            reverse=True,
+        )
+        return items[:MOON_COUNT_SUPPORT_PER_ENTITY]
 
     def _needs_class_moon_count_coverage(self, intent: RetrievalIntent) -> bool:
         return bool(

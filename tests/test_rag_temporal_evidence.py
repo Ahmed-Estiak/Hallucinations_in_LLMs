@@ -290,6 +290,39 @@ class TemporalCompatibilityTests(unittest.TestCase):
         self.assertEqual(gated.temporal_evidence_status, "supported")
         self.assertNotIn("raw_current", [item.chunk["chunk_id"] for item in gated.retrieved_chunks])
 
+    def test_temporal_gate_keeps_context_when_interval_is_unresolved(self) -> None:
+        dated = extract_explicit_temporal_count_facts(
+            "Updating the count of Saturn's moons in 2019, the planet now has 82 named moons."
+        )[0]
+        source_chunk = {
+            "chunk_id": "saturn_source",
+            "source_id": "notes",
+            "title": "Saturn notes",
+            "section": "Moons",
+            "text": "Updating the count of Saturn's moons in 2019, the planet now has 82 named moons.",
+            "entities": ["Saturn"],
+            "predicate_hints": ["moon_count"],
+        }
+        retriever = object.__new__(RagRetriever)
+        retriever.question_classifier = QuestionClassifier()
+        retriever.chunks = [fact_chunk(dated, "dated_anchor"), source_chunk]
+        result = RagRetrievalResult(
+            retrieved_chunks=[
+                RetrievedChunk(chunk=source_chunk, score=20.0, reasons=["ranked_source"]),
+            ],
+            retrieval_mode="global",
+        )
+        gated = retriever._apply_moon_count_evidence_gate(
+            "As of November 2021, how many confirmed moons did Saturn have?",
+            result,
+            top_k=4,
+        )
+        self.assertEqual(gated.temporal_evidence_status, "unresolved")
+        self.assertEqual(
+            {item.chunk["chunk_id"] for item in gated.retrieved_chunks},
+            {"saturn_source", "dated_anchor"},
+        )
+
     def test_outer_planet_alias_expansion_is_symmetric(self) -> None:
         self.assertIn("uranian", build_query_terms("Uranus"))
         self.assertIn("neptunian", build_query_terms("Neptune"))
