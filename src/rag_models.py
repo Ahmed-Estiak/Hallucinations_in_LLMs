@@ -11,6 +11,7 @@ Answer the astronomy question using the retrieved source context.
 Rules:
 - Use the retrieved context as the primary evidence.
 - Combine evidence across sources when the answer requires filtering, comparison, or ordering.
+- Use generated structured fact/table entries together with the raw retrieved chunks. If they refer to the same claim, treat the raw chunk as supporting evidence for the structured entry.
 - If the question asks for the earliest, first, largest, smallest, greater, fewer, or similar relation, reason over the relevant entities in the context before answering.
 - For date-sensitive count questions, use dated count anchors in the retrieved
   context. Treat each dated count as applying from its stated date until the next
