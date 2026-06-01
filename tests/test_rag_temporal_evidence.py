@@ -113,6 +113,16 @@ class TemporalFactExtractionTests(unittest.TestCase):
         self.assertEqual(facts[0].observed_at, "2019")
         self.assertEqual(facts[0].claim_type, "named_moons")
 
+    def test_dated_count_sentence_does_not_require_claim_wording(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "In 2024, Jupiter has 95 small outer moons."
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Jupiter")
+        self.assertEqual(facts[0].value, 95)
+        self.assertEqual(facts[0].observed_at, "2024")
+        self.assertEqual(facts[0].claim_type, "moon_count")
+
     def test_dated_count_sentence_accepts_generic_year_context(self) -> None:
         facts = extract_explicit_temporal_count_facts(
             "With 2024 observations, Jupiter has 95 known moons."
@@ -148,6 +158,22 @@ class TemporalFactExtractionTests(unittest.TestCase):
         self.assertEqual(facts[0].subject, "Neptune")
         self.assertEqual(facts[0].evidence_type, "explicit_current_sentence")
         self.assertEqual(facts[0].claim_type, "known_moons")
+
+    def test_undated_sentence_count_becomes_current_assertion_without_claim_wording(self) -> None:
+        facts = extract_explicit_current_count_facts(
+            "Saturn has 82 small outer moons."
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Saturn")
+        self.assertEqual(facts[0].value, 82)
+        self.assertEqual(facts[0].evidence_type, "explicit_current_sentence")
+        self.assertEqual(facts[0].claim_type, "moon_count")
+
+    def test_year_and_moon_without_count_phrase_is_not_a_fact(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "In 2019, Saturn's moons were studied by astronomers."
+        )
+        self.assertEqual(facts, [])
 
 
 class TemporalCompatibilityTests(unittest.TestCase):

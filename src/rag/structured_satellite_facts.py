@@ -25,21 +25,18 @@ EXPLICIT_COUNT_RE = re.compile(
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
     re.IGNORECASE,
 )
-CURRENT_COUNT_RE = re.compile(
-    r"\b(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+(?:currently\s+)?(?:has|have)\s+"
-    r"(?P<value>\d[\d,]*)\s+(?:(?P<claim>(?:officially\s+)?confirmed|known)\s+)?"
-    r"(?:moon|moons|natural\s+satellites|satellites)\b",
-)
 DIRECT_COUNT_CLAIM_RE = re.compile(
     r"\b(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+"
     r"(?:now\s+)?(?:has|have|had|includes?)\s+"
-    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)\s+"
+    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)"
+    r"(?:\s+[A-Za-z-]+){0,6}\s+"
     r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
 )
 COUNT_PHRASE_RE = re.compile(
     r"\b(?:now\s+)?(?:has|have|had|includes?)\s+"
-    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)\s+"
+    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)"
+    r"(?:\s+[A-Za-z-]+){0,6}\s+"
     r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
 )
@@ -173,7 +170,7 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
         dates = list(re.finditer(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE))
         if not dates:
             continue
-        for subject, count_match in dated_count_claims(sentence):
+        for subject, count_match in sentence_count_claims(sentence):
             observed_at = closest_observed_date(sentence, dates, count_match.start())
             if not observed_at or time_window(observed_at) is None:
                 continue
@@ -181,13 +178,13 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
                 subject=subject,
                 observed_at=observed_at,
                 value=int(count_match.group("value").replace(",", "")),
-                claim=(count_match.group("claim") or "").lower(),
+                claim=claim_from_count_match(count_match),
             ))
     return dedupe_facts(facts)
 
 
-def dated_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
-    """Return unambiguous subject/count pairs from one dated sentence."""
+def sentence_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
+    """Return unambiguous subject/count pairs from one sentence."""
     claims: list[tuple[str, re.Match[str]]] = []
     for match in DIRECT_COUNT_CLAIM_RE.finditer(sentence):
         subject = normalize_direct_subject(match.group("subject"))
@@ -213,13 +210,7 @@ def build_explicit_temporal_count_fact(
     value: int,
     claim: str,
 ) -> StructuredFact:
-    claim_type = (
-        "confirmed_moons" if "confirmed" in claim
-        else "known_moons" if "known" in claim
-        else "named_moons" if "named" in claim
-        else "listed_satellites" if "listed" in claim
-        else "moon_count"
-    )
+    claim_type = moon_count_claim_type(claim)
     return StructuredFact(
         fact_id=f"{slug(subject)}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
         heading=f"Explicit Temporal Moon Count - {subject}",
@@ -237,36 +228,59 @@ def build_explicit_temporal_count_fact(
     )
 
 
+def build_current_count_fact(*, subject: str, value: int, claim: str) -> StructuredFact:
+    claim_type = moon_count_claim_type(claim)
+    display_claim = f"{claim} " if claim else ""
+    return StructuredFact(
+        fact_id=f"{slug(subject)}_moon_count_current_assertion_{value}_{slug(claim_type)}",
+        heading=f"Current Moon Count Assertion - {subject}",
+        text=(
+            f"Direct current source assertion: {subject} has {value} "
+            f"{display_claim}moons."
+        ),
+        subject=subject,
+        predicate="moon_count",
+        value=value,
+        evidence_type="explicit_current_sentence",
+        validation_status="source_asserted",
+        claim_type=claim_type,
+    )
+
+
+def moon_count_claim_type(claim: str) -> str:
+    return (
+        "confirmed_moons" if "confirmed" in claim
+        else "known_moons" if "known" in claim
+        else "named_moons" if "named" in claim
+        else "listed_satellites" if "listed" in claim
+        else "moon_count"
+    )
+
+
+def claim_from_count_match(match: re.Match[str]) -> str:
+    text = match.group(0).lower()
+    if "confirmed" in text:
+        return "confirmed"
+    if "known" in text:
+        return "known"
+    if "named" in text:
+        return "named"
+    if "listed" in text:
+        return "listed"
+    return ""
+
+
 def extract_explicit_current_count_facts(text: str) -> list[StructuredFact]:
     facts = []
-    dated_prefix = re.compile(rf"\bAs of\s+(?:{DATE_TEXT_PATTERN})\s*,?\s*$", re.IGNORECASE)
-    for match in CURRENT_COUNT_RE.finditer(text):
-        prefix = text[max(0, match.start() - 60):match.start()]
-        if dated_prefix.search(prefix):
+    for sentence in iter_sentences(text):
+        if re.search(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE):
             continue
-        subject = match.group("subject").strip()
-        value = int(match.group("value").replace(",", ""))
-        claim = (match.group("claim") or "").lower()
-        claim_type = (
-            "confirmed_moons" if "confirmed" in claim
-            else "known_moons" if claim
-            else "moon_count"
-        )
-        display_claim = f"{claim} " if claim else ""
-        facts.append(StructuredFact(
-            fact_id=f"{slug(subject)}_moon_count_current_assertion_{value}_{slug(claim_type)}",
-            heading=f"Current Moon Count Assertion - {subject}",
-            text=(
-                f"Direct current source assertion: {subject} has {value} "
-                f"{display_claim}moons."
-            ),
-            subject=subject,
-            predicate="moon_count",
-            value=value,
-            evidence_type="explicit_current_sentence",
-            validation_status="source_asserted",
-            claim_type=claim_type,
-        ))
+        for subject, match in sentence_count_claims(sentence):
+            facts.append(build_current_count_fact(
+                subject=subject,
+                value=int(match.group("value").replace(",", "")),
+                claim=claim_from_count_match(match),
+            ))
     return dedupe_facts(facts)
 
 
