@@ -160,9 +160,12 @@ def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
         facts.append(StructuredFact(
             fact_id=f"{subject_slug}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
             heading=f"Explicit Temporal Moon Count - {subject}",
-            text=(
-                f"Explicit dated source claim: As of {display_date(observed_at, observed_at_text)}, "
-                f"{subject} had {value} {claim.replace('  ', ' ')} moons."
+            text=explicit_temporal_claim_text(
+                observed_at=observed_at,
+                observed_at_text=observed_at_text,
+                subject=subject,
+                value=value,
+                claim=f"{claim.replace('  ', ' ')} moons",
             ),
             subject=subject,
             predicate="moon_count",
@@ -258,8 +261,13 @@ def build_explicit_temporal_count_fact(
         fact_id=f"{slug(subject)}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
         heading=f"Explicit Temporal Moon Count - {subject}",
         text=(
-            f"Explicit dated source claim: As of {display_date(observed_at, observed_at_text)}, "
-            f"{subject} had {value} {claim_type.replace('_', ' ')}."
+            explicit_temporal_claim_text(
+                observed_at=observed_at,
+                observed_at_text=observed_at_text,
+                subject=subject,
+                value=value,
+                claim=claim_type.replace("_", " "),
+            )
         ),
         subject=subject,
         predicate="moon_count",
@@ -618,6 +626,19 @@ def display_date(value: str, observed_at_text: str = "") -> str:
     if len(date_parts) == 3:
         return f"{month_name} {int(date_parts[2])}, {year}"
     return f"{month_name} {year}"
+
+
+def explicit_temporal_claim_text(
+    *,
+    observed_at: str,
+    observed_at_text: str,
+    subject: str,
+    value: int,
+    claim: str,
+) -> str:
+    display = display_date(observed_at, observed_at_text)
+    prefix = "By" if observed_at_text.strip().lower().startswith("by ") else "As of"
+    return f"Explicit dated source claim: {prefix} {display}, {subject} had {value} {claim}."
 
 
 def parse_int(value: str) -> int | None:
