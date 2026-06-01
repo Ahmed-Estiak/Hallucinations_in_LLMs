@@ -103,6 +103,31 @@ class TemporalFactExtractionTests(unittest.TestCase):
         )
         self.assertEqual(facts[0].observed_at, "2025-03-25")
 
+    def test_dated_count_sentence_accepts_year_before_count(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "Updating the count of Saturn's moons in 2019, the planet now has 82 named moons."
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Saturn")
+        self.assertEqual(facts[0].value, 82)
+        self.assertEqual(facts[0].observed_at, "2019")
+        self.assertEqual(facts[0].claim_type, "named_moons")
+
+    def test_dated_count_sentence_accepts_generic_year_context(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "With 2024 observations, Jupiter has 95 known moons."
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Jupiter")
+        self.assertEqual(facts[0].observed_at, "2024")
+        self.assertEqual(facts[0].claim_type, "known_moons")
+
+    def test_dated_count_sentence_does_not_borrow_previous_sentence_date(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "The mission ended in 2017. Saturn has 82 known moons."
+        )
+        self.assertEqual(facts, [])
+
     def test_undated_direct_sentence_becomes_current_assertion_only(self) -> None:
         facts = extract_explicit_current_count_facts(
             "Neptune has 16 known moons. and has 5 moons. As of 2026, Saturn has 292 confirmed moons."
