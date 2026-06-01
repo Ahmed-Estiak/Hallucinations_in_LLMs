@@ -149,6 +149,9 @@ def main() -> int:
     if result.source_selection:
         print_source_selection(result.source_selection)
         print()
+    print_injected_support_chunks(retrieved, result.source_selection, preview_chars=args.preview_chars)
+    if any("temporal_anchor_for_llm_review" in item.reasons for item in retrieved):
+        print()
     print("Retrieved Chunk Summary")
     print("-" * 120)
     print(f"{'rank':>4}  {'source_id':<28}  {'chunk_id':<32}  {'score':>7}  {'chars':>6}  section")
@@ -209,6 +212,31 @@ def print_source_selection(source_selection) -> None:
         print(f"      reasons: {', '.join(source_score.reasons[:8])}")
     print("-" * 120)
     print(f"Selected sources: {', '.join(source_selection.selected_source_ids) or 'none'}")
+
+
+def print_injected_support_chunks(retrieved, source_selection, *, preview_chars: int) -> None:
+    selected_sources = set(source_selection.selected_source_ids) if source_selection else set()
+    injected = [
+        item for item in retrieved
+        if "temporal_anchor_for_llm_review" in item.reasons
+    ]
+    if not injected:
+        return
+
+    print("Injected Temporal Support Chunks")
+    print("-" * 120)
+    print(f"{'rank':>4}  {'source_id':<28}  {'chunk_id':<32}  {'score':>7}  {'selected?':>9}  reason")
+    print("-" * 120)
+    for rank, item in enumerate(injected, start=1):
+        chunk = item.chunk
+        source_id = chunk.get("source_id", "")
+        selected = "yes" if source_id in selected_sources else "no"
+        print(
+            f"{rank:>4}  {source_id:<28}  {chunk.get('chunk_id', ''):<32}  "
+            f"{item.score:>7.2f}  {selected:>9}  {', '.join(item.reasons[:6])}"
+        )
+        print(f"      preview: {one_line(chunk.get('text', ''), preview_chars)}")
+    print("-" * 120)
 
 
 def question_by_id(question_id: int) -> str:
