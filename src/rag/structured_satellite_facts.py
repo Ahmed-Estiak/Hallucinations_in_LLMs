@@ -30,15 +30,26 @@ CURRENT_COUNT_RE = re.compile(
     r"(?P<value>\d[\d,]*)\s+(?:(?P<claim>(?:officially\s+)?confirmed|known)\s+)?"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
 )
-COUNT_CLAIM_RE = re.compile(
-    r"\b(?P<subject>the\s+planet|it|[A-Z][A-Za-z0-9 -]{1,50}?)\s+"
-    r"(?:now\s+)?(?:has|have|had)\s+"
-    r"(?P<value>\d[\d,]*)\s+"
+DIRECT_COUNT_CLAIM_RE = re.compile(
+    r"\b(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+"
+    r"(?:now\s+)?(?:has|have|had|includes?)\s+"
+    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)\s+"
+    r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
+    r"(?:moon|moons|natural\s+satellites|satellites)\b",
+)
+COUNT_PHRASE_RE = re.compile(
+    r"\b(?:now\s+)?(?:has|have|had|includes?)\s+"
+    r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)\s+"
     r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
 )
 POSSESSIVE_MOONS_RE = re.compile(
     r"\b(?P<subject>[A-Z][A-Za-z0-9-]*(?:\s+[A-Z][A-Za-z0-9-]*){0,3})['’]s\s+"
+    r"(?:known\s+|confirmed\s+|named\s+|listed\s+)?(?:moon|moons|satellite|satellites)\b"
+)
+
+SUBJECT_MOONS_RE = re.compile(
+    r"\b(?P<subject>[A-Z][A-Za-z0-9-]*(?:\s+[A-Z][A-Za-z0-9-]*){0,3})['\u2019]s\s+"
     r"(?:known\s+|confirmed\s+|named\s+|listed\s+)?(?:moon|moons|satellite|satellites)\b"
 )
 
@@ -162,38 +173,68 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
         dates = list(re.finditer(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE))
         if not dates:
             continue
-        for count_match in COUNT_CLAIM_RE.finditer(sentence):
+        for subject, count_match in dated_count_claims(sentence):
             observed_at = closest_observed_date(sentence, dates, count_match.start())
             if not observed_at or time_window(observed_at) is None:
                 continue
-            subject = normalize_count_subject(count_match.group("subject"), sentence)
-            if not subject:
-                continue
-            value = int(count_match.group("value").replace(",", ""))
-            claim = (count_match.group("claim") or "").lower()
-            claim_type = (
-                "confirmed_moons" if "confirmed" in claim
-                else "known_moons" if "known" in claim
-                else "named_moons" if "named" in claim
-                else "listed_satellites" if "listed" in claim
-                else "moon_count"
-            )
-            facts.append(StructuredFact(
-                fact_id=f"{slug(subject)}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
-                heading=f"Explicit Temporal Moon Count - {subject}",
-                text=(
-                    f"Explicit dated source claim: As of {display_date(observed_at)}, "
-                    f"{subject} had {value} {claim_type.replace('_', ' ')}."
-                ),
+            facts.append(build_explicit_temporal_count_fact(
                 subject=subject,
-                predicate="moon_count",
-                value=value,
-                evidence_type="explicit_dated_sentence",
-                validation_status="validated",
-                claim_type=claim_type,
                 observed_at=observed_at,
+                value=int(count_match.group("value").replace(",", "")),
+                claim=(count_match.group("claim") or "").lower(),
             ))
     return dedupe_facts(facts)
+
+
+def dated_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
+    """Return unambiguous subject/count pairs from one dated sentence."""
+    claims: list[tuple[str, re.Match[str]]] = []
+    for match in DIRECT_COUNT_CLAIM_RE.finditer(sentence):
+        subject = normalize_direct_subject(match.group("subject"))
+        if subject:
+            claims.append((subject, match))
+    if claims:
+        return claims
+
+    count_matches = list(COUNT_PHRASE_RE.finditer(sentence))
+    subjects = unique_subjects(
+        match.group("subject").strip()
+        for match in SUBJECT_MOONS_RE.finditer(sentence)
+    )
+    if len(subjects) != 1:
+        return []
+    return [(subjects[0], match) for match in count_matches]
+
+
+def build_explicit_temporal_count_fact(
+    *,
+    subject: str,
+    observed_at: str,
+    value: int,
+    claim: str,
+) -> StructuredFact:
+    claim_type = (
+        "confirmed_moons" if "confirmed" in claim
+        else "known_moons" if "known" in claim
+        else "named_moons" if "named" in claim
+        else "listed_satellites" if "listed" in claim
+        else "moon_count"
+    )
+    return StructuredFact(
+        fact_id=f"{slug(subject)}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
+        heading=f"Explicit Temporal Moon Count - {subject}",
+        text=(
+            f"Explicit dated source claim: As of {display_date(observed_at)}, "
+            f"{subject} had {value} {claim_type.replace('_', ' ')}."
+        ),
+        subject=subject,
+        predicate="moon_count",
+        value=value,
+        evidence_type="explicit_dated_sentence",
+        validation_status="validated",
+        claim_type=claim_type,
+        observed_at=observed_at,
+    )
 
 
 def extract_explicit_current_count_facts(text: str) -> list[StructuredFact]:
@@ -412,14 +453,22 @@ def closest_observed_date(sentence: str, dates: list[re.Match[str]], position: i
     return normalize_date(closest.group(0))
 
 
-def normalize_count_subject(raw_subject: str, sentence: str) -> str:
+def normalize_direct_subject(raw_subject: str) -> str:
     subject = raw_subject.strip()
-    if subject.lower() in {"the planet", "it"} or " of " in subject.lower():
-        possessive = POSSESSIVE_MOONS_RE.search(sentence)
-        if not possessive:
-            return ""
-        subject = possessive.group("subject").strip()
+    if subject.lower() in {"the planet", "it"}:
+        return ""
+    if " of " in subject.lower():
+        return ""
     return re.sub(r"\s+", " ", subject)
+
+
+def unique_subjects(subjects: Any) -> list[str]:
+    unique: list[str] = []
+    for subject in subjects:
+        normalized = re.sub(r"\s+", " ", str(subject).strip())
+        if normalized and normalized not in unique:
+            unique.append(normalized)
+    return unique
 
 
 def normalize_date(value: str) -> str:

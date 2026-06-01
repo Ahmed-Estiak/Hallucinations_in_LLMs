@@ -128,6 +128,18 @@ class TemporalFactExtractionTests(unittest.TestCase):
         )
         self.assertEqual(facts, [])
 
+    def test_dated_count_sentence_skips_ambiguous_pronoun_subject(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "In 2024, the planet has 95 known moons."
+        )
+        self.assertEqual(facts, [])
+
+    def test_dated_count_sentence_skips_multiple_possessive_subjects(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "In 2024, Jupiter's moons and Saturn's moons are listed; the planet has 95 known moons."
+        )
+        self.assertEqual(facts, [])
+
     def test_undated_direct_sentence_becomes_current_assertion_only(self) -> None:
         facts = extract_explicit_current_count_facts(
             "Neptune has 16 known moons. and has 5 moons. As of 2026, Saturn has 292 confirmed moons."
