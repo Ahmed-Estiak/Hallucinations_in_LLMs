@@ -13,10 +13,16 @@ Rules:
 - Combine evidence across sources when the answer requires filtering, comparison, or ordering.
 - Use generated structured fact/table entries together with the raw retrieved chunks. If they refer to the same claim, treat the raw chunk as supporting evidence for the structured entry.
 - If the question asks for the earliest, first, largest, smallest, greater, fewer, or similar relation, reason over the relevant entities in the context before answering.
-- For date-sensitive count questions, use dated count anchors in the retrieved
-  context. Treat each dated count as applying from its stated date until the next
-  later dated count anchor for the same body in the retrieved context. If there
-  is no dated anchor at or before the requested date, answer insufficient context.
+- For date-sensitive count questions, build a timeline only from dated count
+  claims present in the retrieved context, including structured/resolved facts
+  and raw chunks. If raw chunks provide an additional dated count anchor between
+  two structured anchors, insert it into the timeline. Use the latest anchor on
+  or before the requested date only when a later dated anchor for the same body
+  and count type is also present in the context. If no later dated anchor is
+  present, do not infer that the older count remained valid.
+- If multiple count claims exist for the same body at the same date/time level,
+  prefer the highest count unless the context clearly marks the higher value as
+  speculative, pending, unconfirmed, or a different count type.
 - Do not treat current counts or later dated counts as support for an earlier requested date.
 - For a present moon-count question, use the resolved direct-current or validated
   current-table fact supplied in context; do not substitute other planets' counts.

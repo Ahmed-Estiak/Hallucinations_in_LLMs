@@ -256,16 +256,21 @@ def _resolved_temporal_chunk(chunk: dict[str, Any], *, match_kind: str, next_obs
     value = fact.get("value", "")
     observed_at = fact.get("observed_at", "")
     text = (
-        f"Resolved temporal fact: As of {_display_date(observed_at)}, {subject} had "
-        f"{value} moons."
+        "Resolved temporal fact:\n"
+        f"For {subject} moon count, use this extracted timeline anchor:\n"
+        f"- {_display_date(observed_at)}: {subject} had {value} moons."
     )
     if next_observed_at:
         text += (
-            " Across all extracted temporal evidence for this subject and count type, "
-            f"this value is used until the next known count change in {_display_date(next_observed_at)}."
+            "\n"
+            f"- Next later dated anchor: {_display_date(next_observed_at)} "
+            f"(next known count change in {_display_date(next_observed_at)}).\n"
+            f"Therefore, use {value} for dates after {_display_date(observed_at)} "
+            f"and before {_display_date(next_observed_at)}, unless a raw supporting "
+            "chunk provides a more specific intermediate dated count anchor."
         )
     elif match_kind == "timeline_interval":
-        text += " No later known count change is available, so this interval is not open-ended."
+        text += "\nNo later known count change is available, so this interval is not open-ended."
     resolved["text"] = text
     resolved["chunk_id"] = f"{resolved.get('chunk_id', 'temporal_fact')}__resolved_{match_kind}"
     return resolved

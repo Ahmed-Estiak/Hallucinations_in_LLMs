@@ -815,6 +815,7 @@ class RagRetriever:
 
         time_constraints = extract_time_constraints(question)
         evidence_items = []
+        anchor_items: list[RetrievedChunk] = []
         for chunk, match_kind in compatible:
             score, reasons = self._score_chunk(
                 chunk,
@@ -823,10 +824,12 @@ class RagRetriever:
             )
             evidence_items.append(RetrievedChunk(
                 chunk=chunk,
-                score=score,
+                score=max(score, 100.0),
                 reasons=[f"required_temporal_evidence:{match_kind}", *reasons],
             ))
+            anchor_items.extend(self._temporal_interval_anchor_items(chunk, intent))
         evidence_ids = {item.chunk["chunk_id"] for item in evidence_items}
+        anchor_ids = {item.chunk["chunk_id"] for item in anchor_items}
         retained = [
             item for item in result.retrieved_chunks
             if (
@@ -835,10 +838,14 @@ class RagRetriever:
                     and not contains_target_count_assertion(item.chunk, intent)
                 )
                 or item.chunk["chunk_id"] in evidence_ids
+                or item.chunk["chunk_id"] in anchor_ids
             )
         ]
         merged = sorted(
-            {item.chunk["chunk_id"]: item for item in [*retained, *evidence_items]}.values(),
+            {
+                item.chunk["chunk_id"]: item
+                for item in [*retained, *anchor_items, *evidence_items]
+            }.values(),
             key=lambda item: item.score,
             reverse=True,
         )
@@ -849,6 +856,57 @@ class RagRetriever:
                 if source_id not in result.source_selection.selected_source_ids:
                     result.source_selection.selected_source_ids.append(source_id)
         return result
+
+    def _temporal_interval_anchor_items(
+        self,
+        resolved_chunk: dict[str, Any],
+        intent: RetrievalIntent,
+    ) -> list[RetrievedChunk]:
+        """Return the real timeline anchors that justify one resolved fact.
+
+        The resolved chunk is compact, but the LLM should also see the supporting
+        previous and next dated claims when an as-of interval is used. These
+        anchor chunks are merged by chunk_id later, so duplicates are included
+        only once in the final prompt context.
+        """
+        fact = resolved_chunk.get("temporal_fact")
+        if not isinstance(fact, dict):
+            return []
+        if not fact.get("valid_until_exclusive"):
+            return []
+
+        subject = str(fact.get("subject", "")).lower()
+        observed_at = fact.get("observed_at")
+        valid_until = fact.get("valid_until_exclusive")
+        anchors: list[RetrievedChunk] = []
+        for chunk in self.retrieval_chunks:
+            anchor_fact = chunk.get("temporal_fact")
+            if not isinstance(anchor_fact, dict):
+                continue
+            if anchor_fact.get("predicate") != "moon_count":
+                continue
+            if str(anchor_fact.get("subject", "")).lower() != subject:
+                continue
+            if anchor_fact.get("observed_at") not in {observed_at, valid_until}:
+                continue
+            score, reasons = self._score_chunk(
+                chunk,
+                intent=intent,
+                time_constraints=extract_time_constraints(" ".join([intent.time_value or "", subject])),
+            )
+            anchors.append(RetrievedChunk(
+                chunk=chunk,
+                score=max(score, 82.0),
+                reasons=["supporting_temporal_anchor", *reasons],
+            ))
+        anchors.sort(
+            key=lambda item: (
+                item.chunk.get("temporal_fact", {}).get("observed_at", ""),
+                item.score,
+            ),
+            reverse=True,
+        )
+        return anchors
 
     def _merge_temporal_context_without_interval(
         self,
