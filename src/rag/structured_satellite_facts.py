@@ -15,8 +15,9 @@ ROMAN_RE = re.compile(
 SATELLITE_DESIGNATION_RE = re.compile(r"^S/\d{4}\s+[A-Z]\d+$")
 MPEC_RE = re.compile(r"\bMPEC\s+(\d{4})-([A-Z])\d+\b")
 DATE_TEXT_PATTERN = (
-    r"(?:January|February|March|April|May|June|July|August|September|October|"
-    r"November|December)(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}|\d{4}"
+    r"(?:(?:early|mid|late)\s+)?(?:January|February|March|April|May|June|July|August|September|October|"
+    r"November|December)(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}|"
+    r"(?:(?:early|mid|late)\s+)?\d{4}"
 )
 EXPLICIT_COUNT_RE = re.compile(
     rf"\bAs of\s+(?P<date>{DATE_TEXT_PATTERN})\s*,?\s*"
@@ -36,6 +37,13 @@ DIRECT_COUNT_CLAIM_RE = re.compile(
 COUNT_PHRASE_RE = re.compile(
     r"\b(?:now\s+)?(?:has|have|had|includes?)\s+"
     r"(?:at\s+least\s+)?(?P<value>\d[\d,]*)"
+    r"(?:\s+[A-Za-z-]+){0,6}\s+"
+    r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
+    r"(?:moon|moons|natural\s+satellites|satellites)\b",
+)
+COORDINATED_COUNT_RE = re.compile(
+    r"\band\s+(?P<subject>[A-Z][A-Za-z0-9 -]{1,50}?)\s+"
+    r"(?P<value>\d[\d,]*)"
     r"(?:\s+[A-Za-z-]+){0,6}\s+"
     r"(?:(?P<claim>(?:officially\s+)?confirmed|known|named|listed)\s+)?"
     r"(?:moon|moons|natural\s+satellites|satellites)\b",
@@ -120,6 +128,7 @@ class StructuredFact:
 
 
 def extract_temporal_count_facts(text: str) -> list[StructuredFact]:
+    text = normalize_ligatures(text)
     return dedupe_facts([
         *extract_explicit_temporal_count_facts(text),
         *extract_explicit_current_count_facts(text),
@@ -128,6 +137,7 @@ def extract_temporal_count_facts(text: str) -> list[StructuredFact]:
 
 
 def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
+    text = normalize_ligatures(text)
     facts = []
     for match in EXPLICIT_COUNT_RE.finditer(text):
         subject = match.group("subject").strip()
@@ -166,12 +176,19 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
     borrowing dates from unrelated nearby statements.
     """
     facts: list[StructuredFact] = []
+    previous_dates: list[re.Match[str]] = []
     for sentence in iter_sentences(text):
-        dates = list(re.finditer(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE))
+        sentence_dates = list(re.finditer(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE))
+        dates = sentence_dates or previous_dates if sentence_has_current_temporal_bridge(sentence) else sentence_dates
         if not dates:
+            previous_dates = sentence_dates
             continue
         for subject, count_match in sentence_count_claims(sentence):
-            observed_at = closest_observed_date(sentence, dates, count_match.start())
+            observed_at = (
+                closest_observed_date(sentence, dates, count_match.start())
+                if sentence_dates
+                else latest_observed_date(dates)
+            )
             if not observed_at or time_window(observed_at) is None:
                 continue
             facts.append(build_explicit_temporal_count_fact(
@@ -180,6 +197,7 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
                 value=int(count_match.group("value").replace(",", "")),
                 claim=claim_from_count_match(count_match),
             ))
+        previous_dates = sentence_dates
     return dedupe_facts(facts)
 
 
@@ -190,6 +208,7 @@ def sentence_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
         subject = normalize_direct_subject(match.group("subject"))
         if subject:
             claims.append((subject, match))
+    claims.extend(coordinated_count_claims(sentence))
     if claims:
         return claims
 
@@ -201,6 +220,15 @@ def sentence_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
     if len(subjects) != 1:
         return []
     return [(subjects[0], match) for match in count_matches]
+
+
+def coordinated_count_claims(sentence: str) -> list[tuple[str, re.Match[str]]]:
+    claims: list[tuple[str, re.Match[str]]] = []
+    for match in COORDINATED_COUNT_RE.finditer(sentence):
+        subject = normalize_direct_subject(match.group("subject"))
+        if subject:
+            claims.append((subject, match))
+    return claims
 
 
 def build_explicit_temporal_count_fact(
@@ -271,6 +299,7 @@ def claim_from_count_match(match: re.Match[str]) -> str:
 
 
 def extract_explicit_current_count_facts(text: str) -> list[StructuredFact]:
+    text = normalize_ligatures(text)
     facts = []
     for sentence in iter_sentences(text):
         if re.search(DATE_TEXT_PATTERN, sentence, flags=re.IGNORECASE):
@@ -460,11 +489,38 @@ def iter_sentences(text: str) -> list[str]:
     ]
 
 
+def normalize_ligatures(text: str) -> str:
+    return (
+        text.replace("\ufb00", "ff")
+        .replace("\ufb01", "fi")
+        .replace("\ufb02", "fl")
+        .replace("\ufb03", "ffi")
+        .replace("\ufb04", "ffl")
+    )
+
+
 def closest_observed_date(sentence: str, dates: list[re.Match[str]], position: int) -> str:
     preceding = [match for match in dates if match.start() <= position]
     candidates = preceding or dates
     closest = min(candidates, key=lambda match: abs(position - match.start()))
     return normalize_date(closest.group(0))
+
+
+def latest_observed_date(dates: list[re.Match[str]]) -> str:
+    normalized = [
+        value for match in dates
+        if (value := normalize_date(match.group(0))) and time_window(value) is not None
+    ]
+    if not normalized:
+        return ""
+    return max(normalized, key=lambda value: time_window(value)[0])
+
+
+def sentence_has_current_temporal_bridge(sentence: str) -> bool:
+    return bool(
+        re.search(r"\b(?:now|currently|presently|at\s+present)\b", sentence, flags=re.IGNORECASE)
+        and sentence_count_claims(sentence)
+    )
 
 
 def normalize_direct_subject(raw_subject: str) -> str:
@@ -487,6 +543,7 @@ def unique_subjects(subjects: Any) -> list[str]:
 
 def normalize_date(value: str) -> str:
     text = value.strip().lower().replace(",", "")
+    text = re.sub(r"^(?:early|mid|late)\s+", "", text)
     text = re.sub(r"(\d)(?:st|nd|rd|th)\b", r"\1", text)
     if text.isdigit() and len(text) == 4:
         return text

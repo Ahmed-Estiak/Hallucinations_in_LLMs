@@ -132,6 +132,23 @@ class TemporalFactExtractionTests(unittest.TestCase):
         self.assertEqual(facts[0].observed_at, "2024")
         self.assertEqual(facts[0].claim_type, "known_moons")
 
+    def test_adjacent_dated_context_supports_now_count_sentence(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "Tens of new moons around both Jupiter and Saturn have been announced in late 2022 and early 2023. "
+            "Jupiter now has 95 and Saturn 145 con\ufb01rmed moons."
+        )
+        saturn = [fact for fact in facts if fact.subject == "Saturn"]
+        self.assertEqual(len(saturn), 1)
+        self.assertEqual(saturn[0].value, 145)
+        self.assertEqual(saturn[0].observed_at, "2023")
+        self.assertEqual(saturn[0].claim_type, "confirmed_moons")
+
+    def test_adjacent_dated_context_requires_current_bridge_wording(self) -> None:
+        facts = extract_explicit_temporal_count_facts(
+            "The mission ended in 2017. Saturn has 82 known moons."
+        )
+        self.assertEqual(facts, [])
+
     def test_dated_count_sentence_does_not_borrow_previous_sentence_date(self) -> None:
         facts = extract_explicit_temporal_count_facts(
             "The mission ended in 2017. Saturn has 82 known moons."
