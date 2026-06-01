@@ -26,6 +26,8 @@ Rules:
 - If the retrieved context is insufficient, answer exactly: insufficient context
 - Do not invent unsupported facts.
 - Output only the final answer.
+- For list/entity-list answers, output only comma-separated entity names. Do not
+  include counts, numbers, parenthetical details, labels, or explanations.
 - Do not explain.
 - Do not add labels, quotation marks, bullets, or extra words.
 

@@ -870,7 +870,12 @@ class RagRetriever:
         for entity in entities:
             match = self._resolve_moon_count_for_entity(entity, intent)
             if match is None:
-                resolved_lines.append(f"- {entity}: missing")
+                if is_temporal_lookup:
+                    resolved_lines.append(f"- {entity}: missing")
+                else:
+                    resolved_lines.append(
+                        f"- {entity}: no structured count found; use retrieved text chunks if they state a count"
+                    )
                 missing_entities.append(entity)
                 continue
             chunk, _match_kind = match
