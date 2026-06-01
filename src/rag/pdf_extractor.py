@@ -21,6 +21,15 @@ class ExtractedPdf:
     repeated_lines_removed: int
 
 
+@dataclass(frozen=True)
+class PdfTextBlock:
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+    text: str
+
+
 def extract_pdf_text(path: str | Path) -> ExtractedPdf:
     """Extract text from a copyable PDF and apply conservative cleanup.
 
@@ -68,7 +77,7 @@ def _extract_pages(path: Path) -> list[str]:
         pages = []
         with fitz.open(path) as document:
             for page in document:
-                pages.append(page.get_text("text") or "")
+                pages.append(extract_page_text_with_layout(page))
         return pages
     except ImportError:
         pass
@@ -83,6 +92,119 @@ def _extract_pages(path: Path) -> list[str]:
             "PDF ingestion requires PyMuPDF or pypdf. Install one of them, "
             "for example: pip install pymupdf"
         ) from exc
+
+
+def extract_page_text_with_layout(page: object) -> str:
+    """Extract one PyMuPDF page with conservative two-column ordering.
+
+    PyMuPDF's plain text mode can interleave columns depending on the PDF text
+    layer. Blocks provide coordinates, so we can sort left-column blocks before
+    right-column blocks when a two-column body is detected.
+    """
+
+    blocks = page_text_blocks(page)
+    if not blocks:
+        get_text = getattr(page, "get_text")
+        return get_text("text") or ""
+    width = float(getattr(getattr(page, "rect", None), "width", 0.0) or 0.0)
+    ordered = order_page_blocks(blocks, width)
+    return "\n\n".join(block.text.strip() for block in ordered if block.text.strip())
+
+
+def page_text_blocks(page: object) -> list[PdfTextBlock]:
+    get_text = getattr(page, "get_text")
+    raw_blocks = get_text("blocks") or []
+    blocks: list[PdfTextBlock] = []
+    for raw in raw_blocks:
+        if len(raw) < 5:
+            continue
+        x0, y0, x1, y1, text = raw[:5]
+        if not isinstance(text, str) or not text.strip():
+            continue
+        block_type = raw[6] if len(raw) > 6 else 0
+        if block_type != 0:
+            continue
+        blocks.append(PdfTextBlock(
+            x0=float(x0),
+            y0=float(y0),
+            x1=float(x1),
+            y1=float(y1),
+            text=text.strip(),
+        ))
+    return blocks
+
+
+def order_page_blocks(blocks: list[PdfTextBlock], page_width: float) -> list[PdfTextBlock]:
+    """Return blocks in reading order, using left-then-right for two columns."""
+
+    if len(blocks) < 4 or page_width <= 0:
+        return sorted(blocks, key=lambda block: (block.y0, block.x0))
+
+    full_width, body = split_full_width_blocks(blocks, page_width)
+    columns = detect_two_columns(body, page_width)
+    if columns is None:
+        return sorted(blocks, key=lambda block: (block.y0, block.x0))
+
+    left, right = columns
+    column_top = min(block.y0 for block in [*left, *right])
+    column_bottom = max(block.y1 for block in [*left, *right])
+    before = [block for block in full_width if block.y1 <= column_top]
+    after = [block for block in full_width if block.y1 > column_top]
+
+    return [
+        *sorted(before, key=lambda block: (block.y0, block.x0)),
+        *sorted(left, key=lambda block: (block.y0, block.x0)),
+        *sorted(right, key=lambda block: (block.y0, block.x0)),
+        *sorted(after, key=lambda block: (block.y0, block.x0)),
+    ]
+
+
+def split_full_width_blocks(
+    blocks: list[PdfTextBlock],
+    page_width: float,
+) -> tuple[list[PdfTextBlock], list[PdfTextBlock]]:
+    full_width = []
+    body = []
+    for block in blocks:
+        block_width = block.x1 - block.x0
+        spans_page = block.x0 <= page_width * 0.20 and block.x1 >= page_width * 0.80
+        if block_width >= page_width * 0.65 or spans_page:
+            full_width.append(block)
+        else:
+            body.append(block)
+    return full_width, body
+
+
+def detect_two_columns(
+    blocks: list[PdfTextBlock],
+    page_width: float,
+) -> tuple[list[PdfTextBlock], list[PdfTextBlock]] | None:
+    if len(blocks) < 4:
+        return None
+
+    left = []
+    right = []
+    middle = []
+    for block in blocks:
+        center = (block.x0 + block.x1) / 2
+        if center < page_width * 0.47:
+            left.append(block)
+        elif center > page_width * 0.53:
+            right.append(block)
+        else:
+            middle.append(block)
+
+    if len(left) < 2 or len(right) < 2:
+        return None
+    if len(middle) > max(2, int(len(blocks) * 0.35)):
+        return None
+
+    left_right_edge = max(block.x1 for block in left)
+    right_left_edge = min(block.x0 for block in right)
+    if right_left_edge - left_right_edge < page_width * 0.04:
+        return None
+
+    return left + middle, right
 
 
 def _find_repeated_boilerplate(pages: list[str]) -> set[str]:
