@@ -141,7 +141,24 @@ class TemporalFactExtractionTests(unittest.TestCase):
         self.assertEqual(len(saturn), 1)
         self.assertEqual(saturn[0].value, 145)
         self.assertEqual(saturn[0].observed_at, "2023")
+        self.assertEqual(saturn[0].observed_at_text, "early 2023")
         self.assertEqual(saturn[0].claim_type, "confirmed_moons")
+        self.assertIn("early 2023", saturn[0].text)
+
+    def test_dated_count_preserves_safe_qualified_year_phrases(self) -> None:
+        cases = [
+            ("Saturn had 82 moons early in 2019.", "early in 2019"),
+            ("Saturn had 82 moons late in 2022.", "late in 2022"),
+            ("Saturn had 82 moons mid-2019.", "mid-2019"),
+            ("Saturn had 82 moons mid 2019.", "mid 2019"),
+            ("Saturn had 82 moons by 2021.", "by 2021"),
+        ]
+        for sentence, expected_text in cases:
+            with self.subTest(sentence=sentence):
+                facts = extract_explicit_temporal_count_facts(sentence)
+                self.assertEqual(len(facts), 1)
+                self.assertEqual(facts[0].observed_at_text, expected_text)
+                self.assertIn(expected_text, facts[0].text)
 
     def test_adjacent_dated_context_requires_current_bridge_wording(self) -> None:
         facts = extract_explicit_temporal_count_facts(

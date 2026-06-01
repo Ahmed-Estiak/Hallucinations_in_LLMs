@@ -14,10 +14,14 @@ ROMAN_RE = re.compile(
 )
 SATELLITE_DESIGNATION_RE = re.compile(r"^S/\d{4}\s+[A-Z]\d+$")
 MPEC_RE = re.compile(r"\bMPEC\s+(\d{4})-([A-Z])\d+\b")
+DATE_QUALIFIER_PATTERN = r"(?:early|mid|late)(?:\s+in\s+|\s+|-)"
 DATE_TEXT_PATTERN = (
-    r"(?:(?:early|mid|late)\s+)?(?:January|February|March|April|May|June|July|August|September|October|"
+    r"(?:by\s+)?"
+    rf"(?:{DATE_QUALIFIER_PATTERN})?"
+    r"(?:January|February|March|April|May|June|July|August|September|October|"
     r"November|December)(?:\s+\d{1,2}(?:st|nd|rd|th)?,?)?\s+\d{4}|"
-    r"(?:(?:early|mid|late)\s+)?\d{4}"
+    r"(?:by\s+)?"
+    rf"(?:{DATE_QUALIFIER_PATTERN})?\d{{4}}"
 )
 EXPLICIT_COUNT_RE = re.compile(
     rf"\bAs of\s+(?P<date>{DATE_TEXT_PATTERN})\s*,?\s*"
@@ -110,6 +114,8 @@ class StructuredFact:
     validation_status: str
     claim_type: str
     observed_at: str = ""
+    observed_at_text: str = ""
+    date_precision: str = ""
     valid_until_exclusive: str = ""
     interval_semantics: str = ""
 
@@ -122,6 +128,8 @@ class StructuredFact:
             "validation_status": self.validation_status,
             "claim_type": self.claim_type,
             "observed_at": self.observed_at,
+            "observed_at_text": self.observed_at_text,
+            "date_precision": self.date_precision,
             "valid_until_exclusive": self.valid_until_exclusive,
             "interval_semantics": self.interval_semantics,
         }
@@ -144,6 +152,7 @@ def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
         observed_at = normalize_date(match.group("date"))
         if not observed_at or time_window(observed_at) is None:
             continue
+        observed_at_text = normalize_date_text(match.group("date"))
         value = int(match.group("value").replace(",", ""))
         claim = match.group("claim").lower()
         claim_type = "confirmed_moons" if "confirmed" in claim else "known_moons"
@@ -152,7 +161,7 @@ def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
             fact_id=f"{subject_slug}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
             heading=f"Explicit Temporal Moon Count - {subject}",
             text=(
-                f"Explicit dated source claim: As of {display_date(observed_at)}, "
+                f"Explicit dated source claim: As of {display_date(observed_at, observed_at_text)}, "
                 f"{subject} had {value} {claim.replace('  ', ' ')} moons."
             ),
             subject=subject,
@@ -162,6 +171,8 @@ def extract_explicit_temporal_count_facts(text: str) -> list[StructuredFact]:
             validation_status="validated",
             claim_type=claim_type,
             observed_at=observed_at,
+            observed_at_text=observed_at_text,
+            date_precision=date_precision(match.group("date")),
         ))
     facts.extend(extract_dated_sentence_count_facts(text))
     return dedupe_facts(facts)
@@ -184,16 +195,18 @@ def extract_dated_sentence_count_facts(text: str) -> list[StructuredFact]:
             previous_dates = sentence_dates
             continue
         for subject, count_match in sentence_count_claims(sentence):
-            observed_at = (
-                closest_observed_date(sentence, dates, count_match.start())
+            observed_at, observed_at_text, precision = (
+                closest_observed_date_anchor(sentence, dates, count_match.start())
                 if sentence_dates
-                else latest_observed_date(dates)
+                else latest_observed_date_anchor(dates)
             )
             if not observed_at or time_window(observed_at) is None:
                 continue
             facts.append(build_explicit_temporal_count_fact(
                 subject=subject,
                 observed_at=observed_at,
+                observed_at_text=observed_at_text,
+                date_precision=precision,
                 value=int(count_match.group("value").replace(",", "")),
                 claim=claim_from_count_match(count_match),
             ))
@@ -235,6 +248,8 @@ def build_explicit_temporal_count_fact(
     *,
     subject: str,
     observed_at: str,
+    observed_at_text: str = "",
+    date_precision: str = "",
     value: int,
     claim: str,
 ) -> StructuredFact:
@@ -243,7 +258,7 @@ def build_explicit_temporal_count_fact(
         fact_id=f"{slug(subject)}_moon_count_explicit_{observed_at.replace('-', '_')}_{value}",
         heading=f"Explicit Temporal Moon Count - {subject}",
         text=(
-            f"Explicit dated source claim: As of {display_date(observed_at)}, "
+            f"Explicit dated source claim: As of {display_date(observed_at, observed_at_text)}, "
             f"{subject} had {value} {claim_type.replace('_', ' ')}."
         ),
         subject=subject,
@@ -253,6 +268,8 @@ def build_explicit_temporal_count_fact(
         validation_status="validated",
         claim_type=claim_type,
         observed_at=observed_at,
+        observed_at_text=observed_at_text,
+        date_precision=date_precision,
     )
 
 
@@ -499,21 +516,21 @@ def normalize_ligatures(text: str) -> str:
     )
 
 
-def closest_observed_date(sentence: str, dates: list[re.Match[str]], position: int) -> str:
+def closest_observed_date_anchor(sentence: str, dates: list[re.Match[str]], position: int) -> tuple[str, str, str]:
     preceding = [match for match in dates if match.start() <= position]
     candidates = preceding or dates
     closest = min(candidates, key=lambda match: abs(position - match.start()))
-    return normalize_date(closest.group(0))
+    return date_anchor_from_match(closest)
 
 
-def latest_observed_date(dates: list[re.Match[str]]) -> str:
-    normalized = [
-        value for match in dates
-        if (value := normalize_date(match.group(0))) and time_window(value) is not None
+def latest_observed_date_anchor(dates: list[re.Match[str]]) -> tuple[str, str, str]:
+    anchors = [
+        date_anchor_from_match(match) for match in dates
+        if normalize_date(match.group(0)) and time_window(normalize_date(match.group(0))) is not None
     ]
-    if not normalized:
-        return ""
-    return max(normalized, key=lambda value: time_window(value)[0])
+    if not anchors:
+        return "", "", ""
+    return max(anchors, key=lambda item: time_window(item[0])[0])
 
 
 def sentence_has_current_temporal_bridge(sentence: str) -> bool:
@@ -543,7 +560,8 @@ def unique_subjects(subjects: Any) -> list[str]:
 
 def normalize_date(value: str) -> str:
     text = value.strip().lower().replace(",", "")
-    text = re.sub(r"^(?:early|mid|late)\s+", "", text)
+    text = re.sub(r"^by\s+", "", text)
+    text = re.sub(r"^(?:early|mid|late)(?:\s+in\s+|\s+|-)", "", text)
     text = re.sub(r"(\d)(?:st|nd|rd|th)\b", r"\1", text)
     if text.isdigit() and len(text) == 4:
         return text
@@ -557,7 +575,39 @@ def normalize_date(value: str) -> str:
     return f"{year}-{month:02d}"
 
 
-def display_date(value: str) -> str:
+def normalize_date_text(value: str) -> str:
+    text = re.sub(r"\s+", " ", value.strip().replace(",", " "))
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def date_precision(value: str) -> str:
+    text = value.strip().lower()
+    has_qualifier = bool(re.match(r"^(?:by\s+)?(?:early|mid|late)(?:\s+in\s+|\s+|-)", text))
+    if re.match(r"^by\s+", text):
+        prefix = "by_"
+    else:
+        prefix = ""
+    normalized = normalize_date(text)
+    if not normalized:
+        return ""
+    if has_qualifier:
+        return f"{prefix}qualified_year" if "-" not in normalized else f"{prefix}qualified_month"
+    if len(normalized) == 10:
+        return f"{prefix}day"
+    if len(normalized) == 7:
+        return f"{prefix}month"
+    return f"{prefix}year"
+
+
+def date_anchor_from_match(match: re.Match[str]) -> tuple[str, str, str]:
+    raw = match.group(0)
+    return normalize_date(raw), normalize_date_text(raw), date_precision(raw)
+
+
+def display_date(value: str, observed_at_text: str = "") -> str:
+    if observed_at_text:
+        return observed_at_text
     if not value:
         return ""
     if "-" not in value:

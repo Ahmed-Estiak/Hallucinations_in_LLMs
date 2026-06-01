@@ -129,9 +129,14 @@ def compatible_temporal_chunks(
         observed_window = time_window(fact.get("observed_at"))
         if not _windows_overlap(query_window, observed_window):
             continue
-        next_observed_at = _next_observed_at(timeline, observed_window[0])
+        next_observed_at, next_observed_text = _next_observed_anchor(timeline, observed_window[0])
         exact.append((
-            _resolved_temporal_chunk(chunk, match_kind=_exact_match_kind(fact), next_observed_at=next_observed_at),
+            _resolved_temporal_chunk(
+                chunk,
+                match_kind=_exact_match_kind(fact),
+                next_observed_at=next_observed_at,
+                next_observed_text=next_observed_text,
+            ),
             _exact_match_kind(fact),
         ))
     if exact:
@@ -167,8 +172,17 @@ def compatible_temporal_chunks(
         key=lambda chunk: time_window(chunk["temporal_fact"].get("observed_at"))[0],
     )
     next_observed_at = next_chunk["temporal_fact"].get("observed_at", "")
+    next_observed_text = next_chunk["temporal_fact"].get("observed_at_text", "")
     interval_matches = [
-        (_resolved_temporal_chunk(chunk, match_kind="timeline_interval", next_observed_at=next_observed_at), "timeline_interval")
+        (
+            _resolved_temporal_chunk(
+                chunk,
+                match_kind="timeline_interval",
+                next_observed_at=next_observed_at,
+                next_observed_text=next_observed_text,
+            ),
+            "timeline_interval",
+        )
         for chunk in latest_chunks
     ]
     return _sort_temporal_matches(interval_matches)
@@ -231,22 +245,29 @@ def _sort_temporal_matches(
     return matches
 
 
-def _next_observed_at(timeline: list[dict[str, Any]], observed_start: Any) -> str:
+def _next_observed_anchor(timeline: list[dict[str, Any]], observed_start: Any) -> tuple[str, str]:
     later_chunks = [
         chunk for chunk in timeline
         if (window := time_window(chunk["temporal_fact"].get("observed_at")))
         and window[0] > observed_start
     ]
     if not later_chunks:
-        return ""
+        return "", ""
     next_chunk = min(
         later_chunks,
         key=lambda chunk: time_window(chunk["temporal_fact"].get("observed_at"))[0],
     )
-    return next_chunk["temporal_fact"].get("observed_at", "")
+    next_fact = next_chunk["temporal_fact"]
+    return next_fact.get("observed_at", ""), next_fact.get("observed_at_text", "")
 
 
-def _resolved_temporal_chunk(chunk: dict[str, Any], *, match_kind: str, next_observed_at: str) -> dict[str, Any]:
+def _resolved_temporal_chunk(
+    chunk: dict[str, Any],
+    *,
+    match_kind: str,
+    next_observed_at: str,
+    next_observed_text: str = "",
+) -> dict[str, Any]:
     resolved = copy.deepcopy(chunk)
     fact = resolved["temporal_fact"]
     fact["valid_until_exclusive"] = next_observed_at
@@ -255,18 +276,20 @@ def _resolved_temporal_chunk(chunk: dict[str, Any], *, match_kind: str, next_obs
     subject = fact.get("subject", "")
     value = fact.get("value", "")
     observed_at = fact.get("observed_at", "")
+    observed_text = fact.get("observed_at_text", "")
+    next_text = next_observed_text or fact.get("valid_until_exclusive_text", "")
     text = (
         "Resolved temporal fact:\n"
         f"For {subject} moon count, use this extracted timeline anchor:\n"
-        f"- {_display_date(observed_at)}: {subject} had {value} moons."
+        f"- {_display_date(observed_at, observed_text)}: {subject} had {value} moons."
     )
     if next_observed_at:
         text += (
             "\n"
-            f"- Next later dated anchor: {_display_date(next_observed_at)} "
-            f"(next known count change in {_display_date(next_observed_at)}).\n"
-            f"Therefore, use {value} for dates after {_display_date(observed_at)} "
-            f"and before {_display_date(next_observed_at)}, unless a raw supporting "
+            f"- Next later dated anchor: {_display_date(next_observed_at, next_text)} "
+            f"(next known count change in {_display_date(next_observed_at, next_text)}).\n"
+            f"Therefore, use {value} for dates after {_display_date(observed_at, observed_text)} "
+            f"and before {_display_date(next_observed_at, next_text)}, unless a raw supporting "
             "chunk provides a more specific intermediate dated count anchor."
         )
     elif match_kind == "timeline_interval":
@@ -276,7 +299,9 @@ def _resolved_temporal_chunk(chunk: dict[str, Any], *, match_kind: str, next_obs
     return resolved
 
 
-def _display_date(value: str) -> str:
+def _display_date(value: str, text: str = "") -> str:
+    if text:
+        return text
     if not value:
         return ""
     month_names = {
