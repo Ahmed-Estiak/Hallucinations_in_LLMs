@@ -35,6 +35,7 @@ from src.rag.retrieval_intent import (
     score_ordering_evidence,
     score_target_class_evidence,
 )
+from src.rag.pdf_page_filter import filter_pdf_chunks_by_page_signals
 from src.rag.retriever_terms import tokenize
 from src.rag.routing import DEFAULT_ROUTING_EMBEDDINGS_PATH, DEFAULT_ROUTING_UNITS_PATH
 from src.rag.source_selector import (
@@ -152,6 +153,7 @@ class RagRetriever:
         openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
         routing_units_path: str | Path = DEFAULT_ROUTING_UNITS_PATH,
         routing_embeddings_path: str | Path = DEFAULT_ROUTING_EMBEDDINGS_PATH,
+        page_signals_path: str | Path | None = None,
     ) -> None:
         self.chunks_path = Path(chunks_path)
         self.chunks = self._load_chunks(self.chunks_path)
@@ -161,10 +163,13 @@ class RagRetriever:
         self.openai_embeddings_path = Path(openai_embeddings_path)
         self.routing_units_path = Path(routing_units_path)
         self.routing_embeddings_path = Path(routing_embeddings_path)
+        self.page_signals_path = Path(page_signals_path) if page_signals_path else self.chunks_path.with_name("page_signals.jsonl")
         self._embedding_index: EmbeddingIndex | None = None
         self._embedding_indexes: dict[Path, EmbeddingIndex] = {}
         self._routing_units: list[dict[str, Any]] | None = None
         self._routing_embedding_index: EmbeddingIndex | None = None
+        self._page_signals: list[dict[str, Any]] | None = None
+        self._active_chunks: list[dict[str, Any]] | None = None
         self.question_classifier = QuestionClassifier()
         self._source_selector: SourceSelector | None = None
 
@@ -193,6 +198,30 @@ class RagRetriever:
         per_source_limit: int = 4,
         mode: str = DEFAULT_RETRIEVAL_MODE,
         top_n_sources: int = 5,
+    ) -> RagRetrievalResult:
+        root_call = self._active_chunks is None
+        if root_call:
+            self._active_chunks = self._page_filtered_chunks(question)
+        try:
+            return self._retrieve_with_details_active(
+                question,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                mode=mode,
+                top_n_sources=top_n_sources,
+            )
+        finally:
+            if root_call:
+                self._active_chunks = None
+
+    def _retrieve_with_details_active(
+        self,
+        question: str,
+        *,
+        top_k: int,
+        per_source_limit: int,
+        mode: str,
+        top_n_sources: int,
     ) -> RagRetrievalResult:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
@@ -271,7 +300,7 @@ class RagRetriever:
 
         effective_per_source_limit = self._effective_per_source_limit(question, per_source_limit)
         candidate_chunks = [
-            chunk for chunk in self.chunks
+            chunk for chunk in self.retrieval_chunks
             if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
         ]
         coverage_source_ids = (
@@ -321,6 +350,33 @@ class RagRetriever:
             embeddings_path=str(self.embeddings_path),
         )
         return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+
+    @property
+    def retrieval_chunks(self) -> list[dict[str, Any]]:
+        active_chunks = getattr(self, "_active_chunks", None)
+        return active_chunks if active_chunks is not None else self.chunks
+
+    @property
+    def page_signals(self) -> list[dict[str, Any]]:
+        if self._page_signals is None:
+            if not self.page_signals_path.exists():
+                self._page_signals = []
+            else:
+                self._page_signals = self._load_chunks(self.page_signals_path)
+        return self._page_signals
+
+    def _page_filtered_chunks(self, question: str) -> list[dict[str, Any]]:
+        if not self.page_signals:
+            return self.chunks
+        if any(chunk.get("source_type") != "pdf" for chunk in self.chunks):
+            return self.chunks
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        return filter_pdf_chunks_by_page_signals(
+            self.chunks,
+            self.page_signals,
+            intent,
+            class_members=CLASS_ENTITY_MEMBERS,
+        )
 
     def _retrieve_rrf_fallback_chain(
         self,
@@ -431,11 +487,11 @@ class RagRetriever:
         )
         selected_source_ids = set(source_selection.selected_source_ids)
         candidate_chunks = [
-            chunk for chunk in self.chunks
+            chunk for chunk in self.retrieval_chunks
             if chunk.get("source_id") in selected_source_ids
         ]
         compared_units = len(routes) + len(candidate_chunks)
-        reduction_percent = (1.0 - (compared_units / max(1, len(self.chunks)))) * 100.0
+        reduction_percent = (1.0 - (compared_units / max(1, len(self.retrieval_chunks)))) * 100.0
 
         chunk_dense_scores = self._dense_scores_for_items(candidate_chunks, chunk_index, query_features.dense)
         chunk_sparse_scores = self._sparse_scores_for_items(candidate_chunks, chunk_index, query_features.sparse)
@@ -467,7 +523,7 @@ class RagRetriever:
             routing_units_scored=len(routes),
             selected_route_ids=selected_route_ids,
             candidate_chunks_scored=len(candidate_chunks),
-            full_chunk_count=len(self.chunks),
+            full_chunk_count=len(self.retrieval_chunks),
             comparison_reduction_percent=round(reduction_percent, 2),
             colbert_candidates=min(len(candidate_chunks), COLBERT_RERANK_CANDIDATES),
         )
@@ -560,7 +616,7 @@ class RagRetriever:
             score = content_score + identity_prior + catalog_prior
             best_item = best_items[0] if best_items else identity_item or catalog_item
             best = best_item.chunk
-            source_chunks = [chunk for chunk in self.chunks if chunk["source_id"] == source_id]
+            source_chunks = [chunk for chunk in self.retrieval_chunks if chunk["source_id"] == source_id]
             reasons = [
                 f"content_route_weighted_score:{content_score:.4f}",
                 *[
@@ -735,7 +791,7 @@ class RagRetriever:
         if not is_temporal_count_intent(intent):
             return result
 
-        compatible = compatible_temporal_chunks(self.chunks, intent)
+        compatible = compatible_temporal_chunks(self.retrieval_chunks, intent)
         if not compatible:
             result.retrieved_chunks = []
             result.temporal_evidence_status = "insufficient"
@@ -911,9 +967,9 @@ class RagRetriever:
     ) -> tuple[dict[str, Any], str] | None:
         entity_intent = self._single_entity_moon_count_intent(entity, intent)
         if intent.has_time_lookup and intent.time_value:
-            matches = compatible_temporal_chunks(self.chunks, entity_intent)
+            matches = compatible_temporal_chunks(self.retrieval_chunks, entity_intent)
         else:
-            matches = compatible_current_chunks(self.chunks, entity_intent)
+            matches = compatible_current_chunks(self.retrieval_chunks, entity_intent)
             if not matches:
                 raw_match = self._resolve_raw_current_moon_count_for_entity(entity)
                 if raw_match:
@@ -922,7 +978,7 @@ class RagRetriever:
 
     def _resolve_raw_current_moon_count_for_entity(self, entity: str) -> tuple[dict[str, Any], str] | None:
         entity_lower = entity.lower()
-        for chunk in self.chunks:
+        for chunk in self.retrieval_chunks:
             text = " ".join([
                 chunk.get("title", ""),
                 chunk.get("section", ""),
@@ -985,7 +1041,7 @@ class RagRetriever:
         for entity in missing_entities:
             entity_lower = entity.lower()
             candidates = []
-            for chunk in self.chunks:
+            for chunk in self.retrieval_chunks:
                 if chunk["chunk_id"] in existing_chunk_ids:
                     continue
                 if allowed_source_ids is not None and chunk.get("source_id") not in allowed_source_ids:
@@ -1014,7 +1070,7 @@ class RagRetriever:
         *,
         top_k: int,
     ) -> RagRetrievalResult:
-        compatible = compatible_current_chunks(self.chunks, intent)
+        compatible = compatible_current_chunks(self.retrieval_chunks, intent)
         if not compatible:
             result.retrieved_chunks = []
             result.current_evidence_status = "insufficient"
@@ -1085,7 +1141,7 @@ class RagRetriever:
         )
         selected_source_ids = set(source_selection.selected_source_ids)
         candidate_chunks = [
-            chunk for chunk in self.chunks
+            chunk for chunk in self.retrieval_chunks
             if not selected_source_ids or chunk.get("source_id") in selected_source_ids
         ]
         retrieved = self._retrieve_from_chunks_rrf(
@@ -1217,7 +1273,7 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_embedding: list[float],
     ) -> dict[str, float]:
-        return self._dense_scores_for_items(self.chunks, embedding_index, query_embedding)
+        return self._dense_scores_for_items(self.retrieval_chunks, embedding_index, query_embedding)
 
     def _dense_scores_for_items(
         self,
@@ -1238,7 +1294,7 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_sparse: dict[str, float] | None,
     ) -> dict[str, float]:
-        return self._sparse_scores_for_items(self.chunks, embedding_index, query_sparse)
+        return self._sparse_scores_for_items(self.retrieval_chunks, embedding_index, query_sparse)
 
     def _sparse_scores_for_items(
         self,
@@ -1458,7 +1514,7 @@ class RagRetriever:
 
     def _aggregate_vector_source_scores(self, vector_scores: dict[str, float]) -> list[SourceScore]:
         scores_by_source: dict[str, list[float]] = defaultdict(list)
-        for chunk in self.chunks:
+        for chunk in self.retrieval_chunks:
             score = vector_scores.get(chunk["chunk_id"])
             if score is not None:
                 scores_by_source[chunk["source_id"]].append(score)
@@ -1489,7 +1545,7 @@ class RagRetriever:
 
     def _aggregate_sparse_source_scores(self, sparse_scores: dict[str, float]) -> list[SourceScore]:
         scores_by_source: dict[str, list[float]] = defaultdict(list)
-        for chunk in self.chunks:
+        for chunk in self.retrieval_chunks:
             score = sparse_scores.get(chunk["chunk_id"])
             if score is not None:
                 scores_by_source[chunk["source_id"]].append(score)
