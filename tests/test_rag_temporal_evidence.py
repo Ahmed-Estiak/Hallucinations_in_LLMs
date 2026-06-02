@@ -16,6 +16,7 @@ from src.rag.retriever_terms import build_query_terms
 from src.rag.structured_satellite_facts import (
     extract_explicit_current_count_facts,
     extract_explicit_temporal_count_facts,
+    extract_pipe_table_count_facts,
     extract_satellite_count_facts,
 )
 from src.rag.temporal_evidence import compatible_current_chunks, compatible_temporal_chunks
@@ -209,6 +210,50 @@ class TemporalFactExtractionTests(unittest.TestCase):
         )
         self.assertEqual(facts, [])
 
+    def test_pipe_table_row_extracts_dated_moon_count_fact(self) -> None:
+        facts = extract_pipe_table_count_facts(
+            """
+            Planet | confirmed moons | date
+            Saturn | 82 | 2019
+            """
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].subject, "Saturn")
+        self.assertEqual(facts[0].value, 82)
+        self.assertEqual(facts[0].observed_at, "2019")
+        self.assertEqual(facts[0].evidence_type, "extracted_pdf_table_row")
+
+    def test_pipe_table_row_uses_nearby_header_date(self) -> None:
+        facts = extract_pipe_table_count_facts(
+            """
+            Confirmed moons as of early 2023
+            Planet | count
+            Saturn | 145
+            """
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].observed_at_text, "early 2023")
+        self.assertIn("early 2023", facts[0].text)
+
+    def test_pipe_table_row_does_not_use_year_as_count(self) -> None:
+        facts = extract_pipe_table_count_facts(
+            """
+            Planet | year | moons
+            Saturn | 2019 | 82
+            """
+        )
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(facts[0].value, 82)
+
+    def test_pipe_table_row_requires_moon_context(self) -> None:
+        facts = extract_pipe_table_count_facts(
+            """
+            Planet | radius | date
+            Saturn | 82 | 2019
+            """
+        )
+        self.assertEqual(facts, [])
+
 
 class TemporalCompatibilityTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -241,6 +286,23 @@ class TemporalCompatibilityTests(unittest.TestCase):
             intent,
         )
         self.assertEqual(matches[0][1], "explicit_exact")
+
+    def test_pdf_table_row_fact_works_as_timeline_anchor(self) -> None:
+        table_fact = extract_pipe_table_count_facts(
+            """
+            Planet | confirmed moons | date
+            Saturn | 2 | 2021
+            Saturn | 3 | 2023
+            """
+        )
+        intent = build_retrieval_intent(
+            "As of June 2022, how many confirmed moons did Saturn have?"
+        )
+        matches = compatible_temporal_chunks(
+            [fact_chunk(fact, fact.fact_id) for fact in table_fact],
+            intent,
+        )
+        self.assertEqual([(chunk["temporal_fact"]["value"], kind) for chunk, kind in matches], [(2, "timeline_interval")])
 
     def test_cross_source_timeline_clips_single_source_interval(self) -> None:
         explicit = extract_explicit_temporal_count_facts(

@@ -120,6 +120,8 @@ def write_layout_diagnostics(path: Path, rows: list[dict[str, object]]) -> None:
         "chosen_mode",
         "column_count",
         "table_region_count",
+        "table_starts_page",
+        "table_ends_page",
         "block_count",
         "line_count",
         "avg_words_per_block",

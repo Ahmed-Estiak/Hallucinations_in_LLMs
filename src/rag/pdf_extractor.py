@@ -10,6 +10,8 @@ from typing import Iterable
 
 
 PAGE_MARKER_RE = re.compile(r"^\[\[PAGE\s+(\d+)\]\]$")
+TABLE_CONTINUES_FROM_PREVIOUS = "[[TABLE CONTINUES FROM PREVIOUS PAGE]]"
+TABLE_CONTINUES_ON_NEXT = "[[TABLE CONTINUES ON NEXT PAGE]]"
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,10 @@ def extract_pdf_text(path: str | Path) -> ExtractedPdf:
                 continue
             lines.append(line.rstrip())
         cleaned_pages.append(reconstruct_paragraphs(repair_hyphenation("\n".join(lines))))
+    cleaned_pages = add_cross_page_table_markers(
+        cleaned_pages,
+        [page.diagnostics for page in extracted_pages],
+    )
 
     text_parts = []
     for index, page_text in enumerate(cleaned_pages, start=1):
@@ -147,6 +153,7 @@ def extract_page_with_layout(page: object, *, page_number: int) -> PageExtractio
             },
         )
     width = float(getattr(getattr(page, "rect", None), "width", 0.0) or 0.0)
+    height = float(getattr(getattr(page, "rect", None), "height", 0.0) or 0.0)
     layout = classify_page_layout(blocks, width)
     table_bands = detect_table_regions(lines or blocks)
     if table_bands and layout["layout_class"] != "poster_or_cover":
@@ -168,6 +175,8 @@ def extract_page_with_layout(page: object, *, page_number: int) -> PageExtractio
     diagnostics = {
         "page": page_number,
         **layout,
+        "table_starts_page": table_starts_page(table_bands, height),
+        "table_ends_page": table_ends_page(table_bands, height),
         "block_count": len(blocks),
         "line_count": len(lines),
     }
@@ -360,6 +369,34 @@ def format_page_with_table_regions(
     return "\n\n".join(part for part in parts if part.strip())
 
 
+def add_cross_page_table_markers(
+    pages: list[str],
+    diagnostics: list[dict[str, object]],
+) -> list[str]:
+    """Add safe hints for tables split across adjacent PDF pages."""
+
+    if not pages:
+        return pages
+    marked = list(pages)
+    for index, page_text in enumerate(marked):
+        starts_from_previous = (
+            index > 0
+            and bool(diagnostics[index - 1].get("table_ends_page"))
+            and bool(diagnostics[index].get("table_starts_page"))
+        )
+        continues_next = (
+            index + 1 < len(marked)
+            and bool(diagnostics[index].get("table_ends_page"))
+            and bool(diagnostics[index + 1].get("table_starts_page"))
+        )
+        if starts_from_previous and TABLE_CONTINUES_FROM_PREVIOUS not in page_text:
+            page_text = f"{TABLE_CONTINUES_FROM_PREVIOUS}\n\n{page_text}".strip()
+        if continues_next and TABLE_CONTINUES_ON_NEXT not in page_text:
+            page_text = f"{page_text.strip()}\n\n{TABLE_CONTINUES_ON_NEXT}"
+        marked[index] = page_text
+    return marked
+
+
 def append_ordered_blocks(parts: list[str], blocks: list[PdfTextBlock], page_width: float) -> None:
     if not blocks:
         return
@@ -392,6 +429,20 @@ def detect_table_regions(lines: list[PdfTextBlock]) -> list[tuple[float, float]]
         run = [index]
     append_table_band(bands, rows, run)
     return bands
+
+
+def table_starts_page(table_bands: list[tuple[float, float]], page_height: float) -> bool:
+    if not table_bands or page_height <= 0:
+        return False
+    start, _end = table_bands[0]
+    return start <= page_height * 0.20
+
+
+def table_ends_page(table_bands: list[tuple[float, float]], page_height: float) -> bool:
+    if not table_bands or page_height <= 0:
+        return False
+    _start, end = table_bands[-1]
+    return end >= page_height * 0.80
 
 
 def append_table_band(

@@ -8,6 +8,15 @@ from typing import Any
 
 from src.time_utils import time_window
 
+DATED_TEMPORAL_EVIDENCE_TYPES = {
+    "explicit_dated_sentence",
+    "extracted_pdf_table_row",
+}
+TIMELINE_EVIDENCE_TYPES = {
+    *DATED_TEMPORAL_EVIDENCE_TYPES,
+    "derived_validated_timeline",
+}
+
 
 def is_temporal_count_intent(intent: Any) -> bool:
     return bool(
@@ -59,7 +68,7 @@ def temporal_fact_match_kind(fact: dict[str, Any], intent: Any) -> str:
         and observed_window[0] <= query_window[1]
     )
     evidence_type = fact.get("evidence_type")
-    if evidence_type == "explicit_dated_sentence":
+    if evidence_type in DATED_TEMPORAL_EVIDENCE_TYPES:
         return "explicit_exact" if exact_overlap else ""
     if evidence_type != "derived_validated_timeline":
         return ""
@@ -201,7 +210,7 @@ def _temporal_timeline(chunks: list[dict[str, Any]], intent: Any) -> list[dict[s
             continue
         if str(fact.get("subject", "")).lower() not in subjects:
             continue
-        if fact.get("evidence_type") not in {"explicit_dated_sentence", "derived_validated_timeline"}:
+        if fact.get("evidence_type") not in TIMELINE_EVIDENCE_TYPES:
             continue
         if time_window(fact.get("observed_at")) is None:
             continue
@@ -215,7 +224,7 @@ def _temporal_sort_key(chunk: dict[str, Any]) -> tuple[Any, ...]:
     observed_window = time_window(fact.get("observed_at"))
     return (
         observed_window[0],
-        fact.get("evidence_type") != "explicit_dated_sentence",
+        fact.get("evidence_type") not in DATED_TEMPORAL_EVIDENCE_TYPES,
         chunk.get("trust_level") != "official",
         chunk.get("chunk_id", ""),
     )
@@ -226,7 +235,7 @@ def _windows_overlap(left: Any, right: Any) -> bool:
 
 
 def _exact_match_kind(fact: dict[str, Any]) -> str:
-    if fact.get("evidence_type") == "explicit_dated_sentence":
+    if fact.get("evidence_type") in DATED_TEMPORAL_EVIDENCE_TYPES:
         return "explicit_exact"
     return "timeline_anchor"
 
@@ -237,7 +246,7 @@ def _sort_temporal_matches(
     matches.sort(
         key=lambda item: (
             temporal_match_score(item[1]),
-            item[0]["temporal_fact"].get("evidence_type") == "explicit_dated_sentence",
+            item[0]["temporal_fact"].get("evidence_type") in DATED_TEMPORAL_EVIDENCE_TYPES,
             item[0].get("trust_level") == "official",
         ),
         reverse=True,
@@ -340,7 +349,7 @@ def compatible_current_chunks(
         for chunk in chunks
         if isinstance((fact := chunk.get("temporal_fact")), dict)
         and str(fact.get("subject", "")).lower() in subjects
-        and fact.get("evidence_type") in {"explicit_dated_sentence", "derived_validated_timeline"}
+        and fact.get("evidence_type") in TIMELINE_EVIDENCE_TYPES
         and isinstance(fact.get("value"), int)
     ]
     historical_floor = max(historical_values, default=-1)

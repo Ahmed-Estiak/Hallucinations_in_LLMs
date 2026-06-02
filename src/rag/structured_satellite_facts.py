@@ -77,6 +77,37 @@ MONTHS = {
     "december": ("December", 12),
 }
 
+MOON_COUNT_SUBJECTS = [
+    "Mercury",
+    "Venus",
+    "Earth",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+    "Pluto",
+    "Ceres",
+    "Eris",
+    "Haumea",
+    "Makemake",
+    "Gonggong",
+    "Quaoar",
+    "Sedna",
+    "Orcus",
+]
+MOON_COUNT_CONTEXT_RE = re.compile(
+    r"\b(?:moon|moons|satellite|satellites|natural\s+satellites|moon\s+count|"
+    r"satellite\s+count)\b",
+    re.IGNORECASE,
+)
+TABLE_CONTINUATION_MARKER_RE = re.compile(r"^\[\[TABLE CONTINUES", re.IGNORECASE)
+TABLE_CELL_INT_RE = re.compile(r"(?<![\w.])\d[\d,]*(?![\w.])")
+COUNT_COLUMN_HEADER_RE = re.compile(
+    r"\b(?:moon|moons|satellite|satellites|count|number|no\.?)\b",
+    re.IGNORECASE,
+)
+
 HALF_MONTHS = {
     "A": ("January", 1), "B": ("January", 1),
     "C": ("February", 2), "D": ("February", 2),
@@ -140,6 +171,7 @@ def extract_temporal_count_facts(text: str) -> list[StructuredFact]:
     return dedupe_facts([
         *extract_explicit_temporal_count_facts(text),
         *extract_explicit_current_count_facts(text),
+        *extract_pipe_table_count_facts(text),
         *extract_satellite_count_facts(text),
     ])
 
@@ -348,6 +380,177 @@ def extract_satellite_count_facts(text: str) -> list[StructuredFact]:
             continue
         facts.extend(build_count_facts(subject, declared_total, entries))
     return dedupe_facts(facts)
+
+
+def extract_pipe_table_count_facts(text: str) -> list[StructuredFact]:
+    """Extract dated moon-count facts from preserved PDF table rows.
+
+    The PDF extractor preserves table-like regions as pipe-separated rows. This
+    parser intentionally stays conservative: it requires a table row, moon or
+    satellite count context from the row or nearby header lines, a known body
+    name, a non-year numeric count, and a date anchor from the row/header window.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    facts: list[StructuredFact] = []
+    for index, line in enumerate(lines):
+        if "|" not in line or TABLE_CONTINUATION_MARKER_RE.match(line):
+            continue
+        cells = [cell.strip() for cell in line.split("|") if cell.strip()]
+        if len(cells) < 2:
+            continue
+        context_lines = nearby_table_context(lines, index)
+        context = " ".join(context_lines)
+        if not MOON_COUNT_CONTEXT_RE.search(context):
+            continue
+        subjects = subjects_in_text(line)
+        if not subjects:
+            context_subjects = subjects_in_text(context)
+            subjects = context_subjects if len(context_subjects) == 1 else []
+        if not subjects:
+            continue
+        date_anchor = table_row_date_anchor(line, context)
+        if date_anchor is None:
+            continue
+        observed_at, observed_at_text, precision = date_anchor
+        if not observed_at or time_window(observed_at) is None or not is_supported_observed_at(observed_at):
+            continue
+        header_cells = table_header_cells(lines, index)
+        values = table_count_values(cells, header_cells, line, subjects)
+        if not values:
+            continue
+        for subject in subjects:
+            for value in values:
+                facts.append(build_table_row_count_fact(
+                    subject=subject,
+                    observed_at=observed_at,
+                    observed_at_text=observed_at_text,
+                    date_precision=precision,
+                    value=value,
+                    row_text=line,
+                ))
+    return dedupe_facts(facts)
+
+
+def nearby_table_context(lines: list[str], index: int) -> list[str]:
+    start = max(0, index - 3)
+    end = min(len(lines), index + 2)
+    return [
+        line for line in lines[start:end]
+        if not TABLE_CONTINUATION_MARKER_RE.match(line)
+    ]
+
+
+def table_header_cells(lines: list[str], index: int) -> list[str]:
+    for cursor in range(index - 1, max(-1, index - 4), -1):
+        candidate = lines[cursor].strip()
+        if "|" not in candidate or TABLE_CONTINUATION_MARKER_RE.match(candidate):
+            continue
+        cells = [cell.strip() for cell in candidate.split("|") if cell.strip()]
+        if cells and any(COUNT_COLUMN_HEADER_RE.search(cell) for cell in cells):
+            return cells
+    return []
+
+
+def subjects_in_text(text: str) -> list[str]:
+    return [
+        subject for subject in MOON_COUNT_SUBJECTS
+        if re.search(rf"\b{re.escape(subject)}\b", text, flags=re.IGNORECASE)
+    ]
+
+
+def table_row_date_anchor(row: str, context: str) -> tuple[str, str, str] | None:
+    row_dates = list(re.finditer(DATE_TEXT_PATTERN, row, flags=re.IGNORECASE))
+    context_dates = list(re.finditer(DATE_TEXT_PATTERN, context, flags=re.IGNORECASE))
+    candidates = row_dates or context_dates
+    if not candidates:
+        return None
+    return latest_observed_date_anchor(candidates)
+
+
+def table_count_values(
+    cells: list[str],
+    header_cells: list[str],
+    row_text: str,
+    subjects: list[str],
+) -> list[int]:
+    values: list[int] = []
+    for subject, match in sentence_count_claims(row_text):
+        if subject in subjects:
+            value = int(match.group("value").replace(",", ""))
+            if 0 <= value <= 999 and value not in values:
+                values.append(value)
+    if values:
+        return values
+
+    count_indexes = {
+        index for index, header in enumerate(header_cells)
+        if COUNT_COLUMN_HEADER_RE.search(header)
+    }
+    if count_indexes:
+        candidate_cells = [
+            cell for index, cell in enumerate(cells)
+            if index in count_indexes
+        ]
+    else:
+        candidate_cells = [
+            cell for cell in cells
+            if MOON_COUNT_CONTEXT_RE.search(cell)
+        ]
+
+    for cell in candidate_cells:
+        if re.fullmatch(DATE_TEXT_PATTERN, cell, flags=re.IGNORECASE):
+            continue
+        for match in TABLE_CELL_INT_RE.finditer(cell):
+            raw = match.group(0).replace(",", "")
+            if not raw.isdigit():
+                continue
+            value = int(raw)
+            if is_probable_year(value):
+                continue
+            if 0 <= value <= 999 and value not in values:
+                values.append(value)
+    return values
+
+
+def is_probable_year(value: int) -> bool:
+    return 1500 <= value <= 2100
+
+
+def is_supported_observed_at(value: str) -> bool:
+    match = re.match(r"^(\d{4})", value)
+    return bool(match and 1500 <= int(match.group(1)) <= 2100)
+
+
+def build_table_row_count_fact(
+    *,
+    subject: str,
+    observed_at: str,
+    observed_at_text: str,
+    date_precision: str,
+    value: int,
+    row_text: str,
+) -> StructuredFact:
+    display = display_date(observed_at, observed_at_text)
+    prefix = "By" if observed_at_text.strip().lower().startswith("by ") else "As of"
+    return StructuredFact(
+        fact_id=(
+            f"{slug(subject)}_moon_count_pdf_table_{observed_at.replace('-', '_')}_{value}"
+        ),
+        heading=f"Extracted PDF Table Moon Count - {subject}",
+        text=(
+            f"Extracted PDF table-row fact: {prefix} {display}, {subject} had "
+            f"{value} moons. Source table row: {row_text}"
+        ),
+        subject=subject,
+        predicate="moon_count",
+        value=value,
+        evidence_type="extracted_pdf_table_row",
+        validation_status="validated",
+        claim_type="table_moon_count",
+        observed_at=observed_at,
+        observed_at_text=observed_at_text,
+        date_precision=date_precision,
+    )
 
 
 def iter_satellite_sections(lines: list[str]) -> list[tuple[str, int | None, list[str]]]:

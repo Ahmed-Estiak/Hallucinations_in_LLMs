@@ -6,6 +6,9 @@ import unittest
 
 from src.rag.pdf_extractor import (
     PdfTextBlock,
+    TABLE_CONTINUES_FROM_PREVIOUS,
+    TABLE_CONTINUES_ON_NEXT,
+    add_cross_page_table_markers,
     classify_page_layout,
     detect_table_regions,
     format_page_with_table_regions,
@@ -148,6 +151,24 @@ class PdfLayoutOrderingTests(unittest.TestCase):
         self.assertIn("Saturn | 82 | 2019", text)
         self.assertIn("Jupiter | 95 | 2023", text)
         self.assertIn("Conclusion paragraph after the table.", text)
+
+    def test_cross_page_table_markers_are_added_only_for_linked_table_edges(self) -> None:
+        pages = [
+            "Intro\n\nSaturn | 82 | 2019",
+            "Jupiter | 95 | 2023\n\nAfter text",
+            "Unrelated page",
+        ]
+        diagnostics = [
+            {"table_ends_page": True, "table_starts_page": False},
+            {"table_ends_page": False, "table_starts_page": True},
+            {"table_ends_page": False, "table_starts_page": False},
+        ]
+
+        marked = add_cross_page_table_markers(pages, diagnostics)
+
+        self.assertIn(TABLE_CONTINUES_ON_NEXT, marked[0])
+        self.assertTrue(marked[1].startswith(TABLE_CONTINUES_FROM_PREVIOUS))
+        self.assertNotIn(TABLE_CONTINUES_FROM_PREVIOUS, marked[2])
 
     def test_single_column_blocks_keep_top_to_bottom_order(self) -> None:
         blocks = [
