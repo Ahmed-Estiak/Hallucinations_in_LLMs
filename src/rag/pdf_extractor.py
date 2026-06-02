@@ -95,11 +95,11 @@ def _extract_pages(path: Path) -> list[str]:
 
 
 def extract_page_text_with_layout(page: object) -> str:
-    """Extract one PyMuPDF page with conservative two-column ordering.
+    """Extract one PyMuPDF page with conservative multi-column ordering.
 
     PyMuPDF's plain text mode can interleave columns depending on the PDF text
-    layer. Blocks provide coordinates, so we can sort left-column blocks before
-    right-column blocks when a two-column body is detected.
+    layer. Blocks provide coordinates, so clean two- and three-column bodies can
+    be sorted by column before downstream paragraph cleanup.
     """
 
     blocks = page_text_blocks(page)
@@ -135,26 +135,29 @@ def page_text_blocks(page: object) -> list[PdfTextBlock]:
 
 
 def order_page_blocks(blocks: list[PdfTextBlock], page_width: float) -> list[PdfTextBlock]:
-    """Return blocks in reading order, using left-then-right for two columns."""
+    """Return blocks in reading order, using up to three clean columns."""
 
     if len(blocks) < 4 or page_width <= 0:
         return sorted(blocks, key=lambda block: (block.y0, block.x0))
 
     full_width, body = split_full_width_blocks(blocks, page_width)
-    columns = detect_two_columns(body, page_width)
+    columns = detect_columns(body, page_width)
     if columns is None:
         return sorted(blocks, key=lambda block: (block.y0, block.x0))
 
-    left, right = columns
-    column_top = min(block.y0 for block in [*left, *right])
-    column_bottom = max(block.y1 for block in [*left, *right])
+    column_blocks = [block for column in columns for block in column]
+    column_top = min(block.y0 for block in column_blocks)
+    column_bottom = max(block.y1 for block in column_blocks)
     before = [block for block in full_width if block.y1 <= column_top]
     after = [block for block in full_width if block.y1 > column_top]
 
     return [
         *sorted(before, key=lambda block: (block.y0, block.x0)),
-        *sorted(left, key=lambda block: (block.y0, block.x0)),
-        *sorted(right, key=lambda block: (block.y0, block.x0)),
+        *[
+            block
+            for column in columns
+            for block in sorted(column, key=lambda block: (block.y0, block.x0))
+        ],
         *sorted(after, key=lambda block: (block.y0, block.x0)),
     ]
 
@@ -179,32 +182,91 @@ def detect_two_columns(
     blocks: list[PdfTextBlock],
     page_width: float,
 ) -> tuple[list[PdfTextBlock], list[PdfTextBlock]] | None:
+    columns = detect_columns(blocks, page_width)
+    if columns is None or len(columns) != 2:
+        return None
+    return columns[0], columns[1]
+
+
+def detect_columns(
+    blocks: list[PdfTextBlock],
+    page_width: float,
+) -> list[list[PdfTextBlock]] | None:
+    """Detect clean two- or three-column text bodies.
+
+    More than three clusters, overlapping columns, or extremely sparse columns
+    are treated as complex layout and left in top-to-bottom block order.
+    """
+
     if len(blocks) < 4:
         return None
 
-    left = []
-    right = []
-    middle = []
-    for block in blocks:
+    columns = cluster_blocks_by_x_position(blocks, page_width)
+    if columns is None or len(columns) not in {2, 3}:
+        return None
+    if not columns_have_clear_gaps(columns, page_width):
+        return None
+    if not looks_like_columnar_text(columns):
+        return None
+    return columns
+
+
+def cluster_blocks_by_x_position(
+    blocks: list[PdfTextBlock],
+    page_width: float,
+) -> list[list[PdfTextBlock]] | None:
+    sorted_blocks = sorted(blocks, key=lambda block: ((block.x0 + block.x1) / 2, block.y0))
+    columns: list[list[PdfTextBlock]] = []
+    for block in sorted_blocks:
         center = (block.x0 + block.x1) / 2
-        if center < page_width * 0.47:
-            left.append(block)
-        elif center > page_width * 0.53:
-            right.append(block)
+        if not columns:
+            columns.append([block])
+            continue
+
+        last_column = columns[-1]
+        last_center = median_block_center(last_column)
+        center_gap = center - last_center
+        if center_gap >= page_width * 0.18:
+            columns.append([block])
+            if len(columns) > 3:
+                return None
         else:
-            middle.append(block)
+            last_column.append(block)
 
-    if len(left) < 2 or len(right) < 2:
+    if len(columns) < 2:
         return None
-    if len(middle) > max(2, int(len(blocks) * 0.35)):
+    if any(len(column) < 2 for column in columns):
         return None
+    return columns
 
-    left_right_edge = max(block.x1 for block in left)
-    right_left_edge = min(block.x0 for block in right)
-    if right_left_edge - left_right_edge < page_width * 0.04:
-        return None
 
-    return left + middle, right
+def median_block_center(blocks: list[PdfTextBlock]) -> float:
+    centers = sorted((block.x0 + block.x1) / 2 for block in blocks)
+    middle = len(centers) // 2
+    if len(centers) % 2:
+        return centers[middle]
+    return (centers[middle - 1] + centers[middle]) / 2
+
+
+def columns_have_clear_gaps(columns: list[list[PdfTextBlock]], page_width: float) -> bool:
+    for left, right in zip(columns, columns[1:]):
+        left_center = median_block_center(left)
+        right_center = median_block_center(right)
+        if right_center - left_center < page_width * 0.18:
+            return False
+    return True
+
+
+def looks_like_columnar_text(columns: list[list[PdfTextBlock]]) -> bool:
+    """Reject cover/list layouts while allowing normal column text lines."""
+
+    blocks = [block for column in columns for block in column]
+    if len(blocks) <= 8:
+        return True
+    word_counts = [len(re.findall(r"\w+", block.text)) for block in blocks]
+    average_words = sum(word_counts) / len(word_counts)
+    longish_blocks = sum(count >= 6 for count in word_counts)
+    return average_words >= 5.0 and longish_blocks >= len(blocks) * 0.45
 
 
 def _find_repeated_boilerplate(pages: list[str]) -> set[str]:
