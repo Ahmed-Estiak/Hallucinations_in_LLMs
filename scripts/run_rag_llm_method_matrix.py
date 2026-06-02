@@ -80,6 +80,7 @@ def run_matrix(
     *,
     questions: list[dict[str, Any]],
     methods: list[str],
+    providers: list[str],
     output: Path,
     max_chars: int,
     source_set: str,
@@ -89,12 +90,12 @@ def run_matrix(
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     for method in methods:
-        print(f"\n{method}")
+        print(f"\n{method}", flush=True)
         for question_row in questions:
             question_id = int(question_row["id"])
             question = question_row["question"]
             truth = expected_answer(question_row)
-            print(f"  Q{question_id}: retrieving...")
+            print(f"  Q{question_id}: retrieving...", flush=True)
             retrieval_result = retriever.retrieve_with_details(
                 question,
                 mode=method,
@@ -114,7 +115,8 @@ def run_matrix(
 
             answers: dict[str, str] = {}
             evals: dict[str, dict[str, Any]] = {}
-            for provider in ("openai", "gemini"):
+            for provider in providers:
+                print(f"    {provider}: calling...", flush=True)
                 if context_sufficient:
                     try:
                         answer = call_provider(provider, question, context)
@@ -132,9 +134,14 @@ def run_matrix(
             )
             print(
                 "    "
-                f"OpenAI={answers['openai']} ({evals['openai']['reason']}), "
-                f"Gemini={answers['gemini']} ({evals['gemini']['reason']}), "
+                + ", ".join(
+                    f"{provider}={answers[provider]} ({evals[provider]['reason']})"
+                    for provider in providers
+                )
+                + ", "
                 f"executed={retrieval_result.retrieval_mode}{fallback_note}"
+                ,
+                flush=True,
             )
 
             rows.append(
@@ -161,12 +168,12 @@ def run_matrix(
                     "temporal_evidence_reason": retrieval_result.temporal_evidence_reason,
                     "current_evidence_status": retrieval_result.current_evidence_status,
                     "current_evidence_reason": retrieval_result.current_evidence_reason,
-                    "openai_answer": answers["openai"],
-                    "openai_is_correct": evals["openai"]["is_correct"],
-                    "openai_reason": evals["openai"]["reason"],
-                    "gemini_answer": answers["gemini"],
-                    "gemini_is_correct": evals["gemini"]["is_correct"],
-                    "gemini_reason": evals["gemini"]["reason"],
+                    "openai_answer": answers.get("openai", ""),
+                    "openai_is_correct": evals.get("openai", {}).get("is_correct", ""),
+                    "openai_reason": evals.get("openai", {}).get("reason", ""),
+                    "gemini_answer": answers.get("gemini", ""),
+                    "gemini_is_correct": evals.get("gemini", {}).get("is_correct", ""),
+                    "gemini_reason": evals.get("gemini", {}).get("reason", ""),
                 }
             )
 
@@ -183,6 +190,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-set", choices=("web", "pdf"), default="web")
     parser.add_argument("--questions", nargs="+", type=int, default=DEFAULT_QUESTION_IDS)
     parser.add_argument("--methods", nargs="+", default=DEFAULT_METHODS)
+    parser.add_argument("--providers", nargs="+", choices=("openai", "gemini"), default=["openai", "gemini"])
     parser.add_argument("--questions-path", type=Path, default=PROJECT_ROOT / "data" / "qa_92.json")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--max-chars", type=int, default=12000)
@@ -211,6 +219,7 @@ def main() -> None:
     rows = run_matrix(
         questions=questions,
         methods=args.methods,
+        providers=args.providers,
         output=args.output,
         max_chars=args.max_chars,
         source_set=args.source_set,
