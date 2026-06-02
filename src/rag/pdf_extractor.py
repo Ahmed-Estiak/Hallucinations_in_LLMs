@@ -19,6 +19,7 @@ class ExtractedPdf:
     raw_char_count: int
     cleaned_char_count: int
     repeated_lines_removed: int
+    page_diagnostics: list[dict[str, object]]
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,12 @@ class PdfTextBlock:
     text: str
 
 
+@dataclass(frozen=True)
+class PageExtraction:
+    text: str
+    diagnostics: dict[str, object]
+
+
 def extract_pdf_text(path: str | Path) -> ExtractedPdf:
     """Extract text from a copyable PDF and apply conservative cleanup.
 
@@ -39,7 +46,8 @@ def extract_pdf_text(path: str | Path) -> ExtractedPdf:
     """
 
     pdf_path = Path(path)
-    raw_pages = _extract_pages(pdf_path)
+    extracted_pages = _extract_pages(pdf_path)
+    raw_pages = [page.text for page in extracted_pages]
     repeated_lines = _find_repeated_boilerplate(raw_pages)
     cleaned_pages: list[str] = []
     removed = 0
@@ -67,17 +75,18 @@ def extract_pdf_text(path: str | Path) -> ExtractedPdf:
         raw_char_count=sum(len(page) for page in raw_pages),
         cleaned_char_count=len(text),
         repeated_lines_removed=removed,
+        page_diagnostics=[page.diagnostics for page in extracted_pages],
     )
 
 
-def _extract_pages(path: Path) -> list[str]:
+def _extract_pages(path: Path) -> list[PageExtraction]:
     try:
         import fitz  # type: ignore
 
         pages = []
         with fitz.open(path) as document:
-            for page in document:
-                pages.append(extract_page_text_with_layout(page))
+            for page_number, page in enumerate(document, start=1):
+                pages.append(extract_page_with_layout(page, page_number=page_number))
         return pages
     except ImportError:
         pass
@@ -86,7 +95,21 @@ def _extract_pages(path: Path) -> list[str]:
         from pypdf import PdfReader  # type: ignore
 
         reader = PdfReader(str(path))
-        return [page.extract_text() or "" for page in reader.pages]
+        return [
+            PageExtraction(
+                text=page.extract_text() or "",
+                diagnostics={
+                    "page": index,
+                    "layout_class": "unknown",
+                    "chosen_mode": "pypdf_plain_text",
+                    "column_count": 0,
+                    "block_count": 0,
+                    "line_count": 0,
+                    "warning": "pymupdf_unavailable",
+                },
+            )
+            for index, page in enumerate(reader.pages, start=1)
+        ]
     except ImportError as exc:
         raise RuntimeError(
             "PDF ingestion requires PyMuPDF or pypdf. Install one of them, "
@@ -95,6 +118,10 @@ def _extract_pages(path: Path) -> list[str]:
 
 
 def extract_page_text_with_layout(page: object) -> str:
+    return extract_page_with_layout(page, page_number=0).text
+
+
+def extract_page_with_layout(page: object, *, page_number: int) -> PageExtraction:
     """Extract one PyMuPDF page with conservative multi-column ordering.
 
     PyMuPDF's plain text mode can interleave columns depending on the PDF text
@@ -102,13 +129,40 @@ def extract_page_text_with_layout(page: object) -> str:
     be sorted by column before downstream paragraph cleanup.
     """
 
+    get_text = getattr(page, "get_text")
+    plain_text = get_text("text") or ""
     blocks = page_text_blocks(page)
+    lines = page_text_lines(page)
     if not blocks:
-        get_text = getattr(page, "get_text")
-        return get_text("text") or ""
+        return PageExtraction(
+            text=plain_text,
+            diagnostics={
+                "page": page_number,
+                "layout_class": "unknown",
+                "chosen_mode": "plain_text_no_blocks",
+                "column_count": 0,
+                "block_count": 0,
+                "line_count": len(lines),
+                "warning": "no_text_blocks",
+            },
+        )
     width = float(getattr(getattr(page, "rect", None), "width", 0.0) or 0.0)
-    ordered = order_page_blocks(blocks, width)
-    return "\n\n".join(block.text.strip() for block in ordered if block.text.strip())
+    layout = classify_page_layout(blocks, width)
+    if layout["chosen_mode"] == "plain_text":
+        text = plain_text
+    elif layout["chosen_mode"] == "row_order_lines":
+        ordered = sorted(lines or blocks, key=lambda block: (block.y0, block.x0))
+        text = "\n".join(block.text.strip() for block in ordered if block.text.strip())
+    else:
+        ordered = order_page_blocks(blocks, width)
+        text = "\n\n".join(block.text.strip() for block in ordered if block.text.strip())
+    diagnostics = {
+        "page": page_number,
+        **layout,
+        "block_count": len(blocks),
+        "line_count": len(lines),
+    }
+    return PageExtraction(text=text, diagnostics=diagnostics)
 
 
 def page_text_blocks(page: object) -> list[PdfTextBlock]:
@@ -132,6 +186,108 @@ def page_text_blocks(page: object) -> list[PdfTextBlock]:
             text=text.strip(),
         ))
     return blocks
+
+
+def page_text_lines(page: object) -> list[PdfTextBlock]:
+    """Extract line-level text boxes from PyMuPDF's dict representation."""
+
+    get_text = getattr(page, "get_text")
+    raw = get_text("dict") or {}
+    lines: list[PdfTextBlock] = []
+    for block in raw.get("blocks", []):
+        if block.get("type", 0) != 0:
+            continue
+        for line in block.get("lines", []):
+            spans = [
+                span for span in line.get("spans", [])
+                if isinstance(span.get("text"), str) and span.get("text", "").strip()
+            ]
+            if not spans:
+                continue
+            text = join_line_spans(spans)
+            bbox = line.get("bbox") or spans[0].get("bbox")
+            if not bbox or len(bbox) < 4 or not text:
+                continue
+            x0, y0, x1, y1 = bbox[:4]
+            lines.append(PdfTextBlock(
+                x0=float(x0),
+                y0=float(y0),
+                x1=float(x1),
+                y1=float(y1),
+                text=text,
+            ))
+    return lines
+
+
+def join_line_spans(spans: list[dict]) -> str:
+    """Join PyMuPDF spans without losing word spaces across span boundaries."""
+
+    parts: list[str] = []
+    previous_x1: float | None = None
+    for span in spans:
+        text = str(span.get("text", ""))
+        if not text:
+            continue
+        bbox = span.get("bbox") or []
+        x0 = float(bbox[0]) if len(bbox) >= 4 else None
+        if (
+            parts
+            and previous_x1 is not None
+            and x0 is not None
+            and x0 - previous_x1 > 1.5
+            and not parts[-1].endswith((" ", "-", "/", "\u00ad"))
+            and not text.startswith((" ", ".", ",", ";", ":", ")", "]"))
+        ):
+            parts.append(" ")
+        parts.append(text)
+        if len(bbox) >= 4:
+            previous_x1 = float(bbox[2])
+    return "".join(parts).strip()
+
+
+def classify_page_layout(blocks: list[PdfTextBlock], page_width: float) -> dict[str, object]:
+    """Classify a page enough to choose a safe extraction order."""
+
+    full_width, body = split_full_width_blocks(blocks, page_width)
+    columns = detect_columns(body, page_width)
+    metrics = layout_metrics(blocks)
+    if columns is not None:
+        column_count = len(columns)
+        return {
+            "layout_class": f"narrative_{column_count}_column",
+            "chosen_mode": "column_order",
+            "column_count": column_count,
+            **metrics,
+            "warning": "",
+        }
+
+    if looks_table_like_page(blocks):
+        return {
+            "layout_class": "table_like",
+            "chosen_mode": "row_order_lines",
+            "column_count": 0,
+            **metrics,
+            "warning": "table_like_row_order_no_structured_table_parse",
+        }
+    if looks_poster_or_cover_page(blocks):
+        return {
+            "layout_class": "poster_or_cover",
+            "chosen_mode": "plain_text",
+            "column_count": 0,
+            **metrics,
+            "warning": "plain_text_fallback_for_poster_or_cover",
+        }
+    if len(full_width) >= max(4, len(blocks) * 0.5):
+        layout_class = "narrative_single_column"
+    else:
+        layout_class = "mixed"
+    return {
+        "layout_class": layout_class,
+        "chosen_mode": "plain_text" if layout_class == "mixed" else "row_order_lines",
+        "column_count": 1 if layout_class == "narrative_single_column" else 0,
+        **metrics,
+        "warning": "mixed_layout_plain_text_fallback" if layout_class == "mixed" else "",
+    }
 
 
 def order_page_blocks(blocks: list[PdfTextBlock], page_width: float) -> list[PdfTextBlock]:
@@ -267,6 +423,64 @@ def looks_like_columnar_text(columns: list[list[PdfTextBlock]]) -> bool:
     average_words = sum(word_counts) / len(word_counts)
     longish_blocks = sum(count >= 6 for count in word_counts)
     return average_words >= 5.0 and longish_blocks >= len(blocks) * 0.45
+
+
+def layout_metrics(blocks: list[PdfTextBlock]) -> dict[str, object]:
+    word_counts = [len(re.findall(r"\w+", block.text)) for block in blocks]
+    if not word_counts:
+        return {
+            "avg_words_per_block": 0.0,
+            "short_block_ratio": 0.0,
+            "numeric_block_ratio": 0.0,
+        }
+    short_blocks = sum(count <= 4 for count in word_counts)
+    numeric_blocks = sum(bool(re.search(r"\d", block.text)) for block in blocks)
+    return {
+        "avg_words_per_block": round(sum(word_counts) / len(word_counts), 2),
+        "short_block_ratio": round(short_blocks / len(blocks), 3),
+        "numeric_block_ratio": round(numeric_blocks / len(blocks), 3),
+    }
+
+
+def looks_table_like_page(blocks: list[PdfTextBlock]) -> bool:
+    if len(blocks) < 8:
+        return False
+    metrics = layout_metrics(blocks)
+    row_groups = group_blocks_by_row(blocks)
+    multi_cell_rows = sum(1 for row in row_groups if len(row) >= 3)
+    has_many_rows = multi_cell_rows >= max(3, len(row_groups) * 0.25)
+    return bool(
+        has_many_rows
+        and metrics["short_block_ratio"] >= 0.45
+        and metrics["numeric_block_ratio"] >= 0.25
+    )
+
+
+def looks_poster_or_cover_page(blocks: list[PdfTextBlock]) -> bool:
+    if len(blocks) < 8:
+        return False
+    metrics = layout_metrics(blocks)
+    word_counts = [len(re.findall(r"\w+", block.text)) for block in blocks]
+    very_short = sum(count <= 3 for count in word_counts)
+    all_caps_or_title = sum(looks_like_heading(block.text) for block in blocks)
+    return bool(
+        metrics["short_block_ratio"] >= 0.55
+        and (very_short >= len(blocks) * 0.35 or all_caps_or_title >= len(blocks) * 0.35)
+    )
+
+
+def group_blocks_by_row(blocks: list[PdfTextBlock], *, y_tolerance: float = 4.0) -> list[list[PdfTextBlock]]:
+    rows: list[list[PdfTextBlock]] = []
+    for block in sorted(blocks, key=lambda item: (item.y0, item.x0)):
+        for row in rows:
+            if abs(row[0].y0 - block.y0) <= y_tolerance:
+                row.append(block)
+                break
+        else:
+            rows.append([block])
+    for row in rows:
+        row.sort(key=lambda item: item.x0)
+    return rows
 
 
 def _find_repeated_boilerplate(pages: list[str]) -> set[str]:
