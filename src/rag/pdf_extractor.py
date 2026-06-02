@@ -148,7 +148,16 @@ def extract_page_with_layout(page: object, *, page_number: int) -> PageExtractio
         )
     width = float(getattr(getattr(page, "rect", None), "width", 0.0) or 0.0)
     layout = classify_page_layout(blocks, width)
-    if layout["chosen_mode"] == "plain_text":
+    table_bands = detect_table_regions(lines or blocks)
+    if table_bands and layout["layout_class"] != "poster_or_cover":
+        text = format_page_with_table_regions(blocks, lines or blocks, width, table_bands)
+        layout = {
+            **layout,
+            "chosen_mode": "region_order_with_tables",
+            "table_region_count": len(table_bands),
+            "warning": append_warning(str(layout.get("warning", "")), "table_regions_row_ordered"),
+        }
+    elif layout["chosen_mode"] == "plain_text":
         text = plain_text
     elif layout["chosen_mode"] == "row_order_lines":
         ordered = sorted(lines or blocks, key=lambda block: (block.y0, block.x0))
@@ -257,6 +266,7 @@ def classify_page_layout(blocks: list[PdfTextBlock], page_width: float) -> dict[
             "layout_class": f"narrative_{column_count}_column",
             "chosen_mode": "column_order",
             "column_count": column_count,
+            "table_region_count": 0,
             **metrics,
             "warning": "",
         }
@@ -266,6 +276,7 @@ def classify_page_layout(blocks: list[PdfTextBlock], page_width: float) -> dict[
             "layout_class": "table_like",
             "chosen_mode": "row_order_lines",
             "column_count": 0,
+            "table_region_count": 1,
             **metrics,
             "warning": "table_like_row_order_no_structured_table_parse",
         }
@@ -274,6 +285,7 @@ def classify_page_layout(blocks: list[PdfTextBlock], page_width: float) -> dict[
             "layout_class": "poster_or_cover",
             "chosen_mode": "plain_text",
             "column_count": 0,
+            "table_region_count": 0,
             **metrics,
             "warning": "plain_text_fallback_for_poster_or_cover",
         }
@@ -285,6 +297,7 @@ def classify_page_layout(blocks: list[PdfTextBlock], page_width: float) -> dict[
         "layout_class": layout_class,
         "chosen_mode": "plain_text" if layout_class == "mixed" else "row_order_lines",
         "column_count": 1 if layout_class == "narrative_single_column" else 0,
+        "table_region_count": 0,
         **metrics,
         "warning": "mixed_layout_plain_text_fallback" if layout_class == "mixed" else "",
     }
@@ -316,6 +329,105 @@ def order_page_blocks(blocks: list[PdfTextBlock], page_width: float) -> list[Pdf
         ],
         *sorted(after, key=lambda block: (block.y0, block.x0)),
     ]
+
+
+def format_page_with_table_regions(
+    blocks: list[PdfTextBlock],
+    lines: list[PdfTextBlock],
+    page_width: float,
+    table_bands: list[tuple[float, float]],
+) -> str:
+    """Format a page while preserving only detected table regions row-wise."""
+
+    parts: list[str] = []
+    cursor = min((block.y0 for block in blocks), default=0.0)
+    for start, end in table_bands:
+        before_blocks = [
+            block for block in blocks
+            if cursor <= block.y0 and block.y1 < start
+        ]
+        append_ordered_blocks(parts, before_blocks, page_width)
+        table_lines = [
+            line for line in lines
+            if start <= line.y0 <= end
+        ]
+        table_text = format_table_lines(table_lines)
+        if table_text:
+            parts.append(table_text)
+        cursor = end
+    after_blocks = [block for block in blocks if block.y0 > cursor]
+    append_ordered_blocks(parts, after_blocks, page_width)
+    return "\n\n".join(part for part in parts if part.strip())
+
+
+def append_ordered_blocks(parts: list[str], blocks: list[PdfTextBlock], page_width: float) -> None:
+    if not blocks:
+        return
+    ordered = order_page_blocks(blocks, page_width)
+    text = "\n\n".join(block.text.strip() for block in ordered if block.text.strip())
+    if text.strip():
+        parts.append(text.strip())
+
+
+def detect_table_regions(lines: list[PdfTextBlock]) -> list[tuple[float, float]]:
+    """Detect table-like row bands inside a page, not only whole table pages."""
+
+    if len(lines) < 6:
+        return []
+    rows = group_blocks_by_row(lines, y_tolerance=3.0)
+    table_row_indexes = [
+        index for index, row in enumerate(rows)
+        if looks_like_table_row(row)
+    ]
+    if not table_row_indexes:
+        return []
+
+    bands: list[tuple[float, float]] = []
+    run: list[int] = []
+    for index in table_row_indexes:
+        if not run or index == run[-1] + 1:
+            run.append(index)
+            continue
+        append_table_band(bands, rows, run)
+        run = [index]
+    append_table_band(bands, rows, run)
+    return bands
+
+
+def append_table_band(
+    bands: list[tuple[float, float]],
+    rows: list[list[PdfTextBlock]],
+    run: list[int],
+) -> None:
+    if len(run) < 2:
+        return
+    row_blocks = [block for index in run for block in rows[index]]
+    bands.append((
+        min(block.y0 for block in row_blocks) - 1.0,
+        max(block.y1 for block in row_blocks) + 1.0,
+    ))
+
+
+def looks_like_table_row(row: list[PdfTextBlock]) -> bool:
+    if len(row) < 3:
+        return False
+    texts = [block.text.strip() for block in row if block.text.strip()]
+    if len(texts) < 3:
+        return False
+    word_counts = [len(re.findall(r"\w+", text)) for text in texts]
+    numeric_cells = sum(bool(re.search(r"\d", text)) for text in texts)
+    short_cells = sum(count <= 4 for count in word_counts)
+    return bool(short_cells >= len(texts) * 0.65 and numeric_cells >= 2)
+
+
+def format_table_lines(lines: list[PdfTextBlock]) -> str:
+    rows = group_blocks_by_row(lines, y_tolerance=3.0)
+    formatted_rows = []
+    for row in rows:
+        cells = [cell.text.strip() for cell in sorted(row, key=lambda cell: cell.x0) if cell.text.strip()]
+        if cells:
+            formatted_rows.append(" | ".join(cells))
+    return "\n".join(formatted_rows)
 
 
 def split_full_width_blocks(
@@ -516,6 +628,14 @@ def normalize_line(line: str) -> str:
     return re.sub(r"\s+", " ", line.strip()).lower()
 
 
+def append_warning(existing: str, addition: str) -> str:
+    if not existing:
+        return addition
+    if addition in existing.split(";"):
+        return existing
+    return f"{existing};{addition}"
+
+
 def repair_hyphenation(text: str) -> str:
     return re.sub(r"(\w)-\n(\w)", r"\1-\2", text)
 
@@ -531,6 +651,12 @@ def reconstruct_paragraphs(text: str) -> str:
                 current = []
             continue
         if looks_like_heading(line):
+            if current:
+                paragraphs.append(" ".join(current))
+                current = []
+            paragraphs.append(line)
+            continue
+        if looks_like_table_text_line(line):
             if current:
                 paragraphs.append(" ".join(current))
                 current = []
@@ -552,6 +678,10 @@ def looks_like_heading(line: str) -> bool:
     if re.fullmatch(r"\d+(?:\.\d+)*\s+[A-Z][A-Za-z0-9 ,:'()/.-]+", text):
         return True
     return bool(re.fullmatch(r"[A-Z][A-Za-z0-9 ,:'()/.-]+", text))
+
+
+def looks_like_table_text_line(line: str) -> bool:
+    return line.count("|") >= 2
 
 
 def iter_page_marked_blocks(text: str) -> Iterable[tuple[int, list[str]]]:

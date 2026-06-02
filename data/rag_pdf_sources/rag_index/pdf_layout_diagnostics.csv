@@ -1,316 +1,316 @@
-source_id,title,file_name,page,layout_class,chosen_mode,column_count,block_count,line_count,avg_words_per_block,short_block_ratio,numeric_block_ratio,warning
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,1,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,2,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,3,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,4,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,5,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,6,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,7,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,8,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,9,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,10,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,1,mixed,plain_text,0,12,47,53.08,0.25,0.667,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,2,mixed,plain_text,0,4,52,227.75,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,3,narrative_single_column,row_order_lines,1,11,48,75.36,0.182,1.0,
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,4,mixed,plain_text,0,15,40,30.13,0.333,0.933,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,5,mixed,plain_text,0,8,538,135.62,0.125,0.5,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,6,mixed,plain_text,0,5,600,229.8,0.2,0.8,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,7,mixed,plain_text,0,7,50,126.57,0.571,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,8,mixed,plain_text,0,5,21,67.8,0.2,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,9,mixed,plain_text,0,5,22,81.8,0.2,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,10,mixed,plain_text,0,5,17,61.8,0.2,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,11,narrative_single_column,row_order_lines,1,7,51,136.0,0.286,1.0,
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,12,mixed,plain_text,0,5,17,54.0,0.4,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,13,mixed,plain_text,0,5,24,72.4,0.4,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,14,mixed,plain_text,0,5,33,118.6,0.6,1.0,mixed_layout_plain_text_fallback
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,15,narrative_single_column,row_order_lines,1,6,33,99.0,0.167,1.0,
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,16,narrative_single_column,row_order_lines,1,8,39,77.62,0.5,0.875,
-pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,17,mixed,plain_text,0,16,51,24.5,0.125,0.938,mixed_layout_plain_text_fallback
-pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,1,mixed,plain_text,0,13,100,77.08,0.154,1.0,mixed_layout_plain_text_fallback
-pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,2,narrative_3_column,column_order,3,13,66,48.54,0.385,1.0,
-pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,3,mixed,plain_text,0,12,86,63.25,0.25,1.0,mixed_layout_plain_text_fallback
-pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,4,mixed,plain_text,0,15,133,76.27,0.267,0.8,mixed_layout_plain_text_fallback
-pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,5,mixed,plain_text,0,6,24,30.5,0.333,0.833,mixed_layout_plain_text_fallback
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,1,narrative_3_column,column_order,3,14,57,42.93,0.143,0.571,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,2,narrative_2_column,column_order,2,9,115,122.0,0.0,0.889,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,3,narrative_single_column,row_order_lines,1,18,369,46.61,0.0,0.889,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,4,poster_or_cover,plain_text,0,37,125,20.97,0.757,0.541,plain_text_fallback_for_poster_or_cover
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,5,narrative_single_column,row_order_lines,1,18,522,58.94,0.0,0.889,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,6,narrative_2_column,column_order,2,9,113,125.44,0.111,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,7,narrative_2_column,column_order,2,8,115,139.5,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,8,narrative_single_column,row_order_lines,1,24,312,37.88,0.083,0.75,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,9,narrative_2_column,column_order,2,14,110,75.43,0.143,0.929,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,10,table_like,row_order_lines,0,125,198,7.4,0.888,0.936,table_like_row_order_no_structured_table_parse
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,11,narrative_2_column,column_order,2,12,101,84.33,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,12,narrative_2_column,column_order,2,15,113,75.93,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,13,poster_or_cover,plain_text,0,52,127,15.19,0.808,0.462,plain_text_fallback_for_poster_or_cover
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,14,narrative_2_column,column_order,2,8,115,135.5,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,15,narrative_2_column,column_order,2,7,65,104.43,0.0,0.857,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,16,narrative_2_column,column_order,2,8,96,122.38,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,17,narrative_2_column,column_order,2,9,86,92.22,0.111,0.889,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,18,narrative_single_column,row_order_lines,1,14,99,60.5,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,19,narrative_2_column,column_order,2,10,115,107.5,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,20,narrative_2_column,column_order,2,9,113,120.67,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,21,narrative_2_column,column_order,2,9,115,119.56,0.0,0.889,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,22,narrative_2_column,column_order,2,10,113,104.0,0.0,0.6,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,23,narrative_2_column,column_order,2,8,78,91.0,0.0,0.875,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,24,narrative_2_column,column_order,2,44,148,34.18,0.023,0.977,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,25,narrative_2_column,column_order,2,54,153,26.54,0.0,1.0,
-pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,26,narrative_2_column,column_order,2,41,123,30.51,0.0,1.0,
-pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,1,narrative_3_column,column_order,3,34,48,21.24,0.265,0.735,
-pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,2,narrative_3_column,column_order,3,37,69,18.68,0.216,0.757,
-pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,3,narrative_3_column,column_order,3,48,86,24.06,0.312,0.771,
-pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,4,mixed,plain_text,0,33,70,24.48,0.121,0.879,mixed_layout_plain_text_fallback
-pdf_kuiper_belt_objects_in_the_solar_system,kuiper belt objects in the solar system,kuiper-belt-objects-in-the-solar-system.pdf,1,narrative_2_column,column_order,2,16,68,45.12,0.188,0.625,
-pdf_kuiper_belt_lithograph,kuiper belt lithograph,kuiper_belt_lithograph.pdf,1,narrative_2_column,column_order,2,9,14,6.89,0.667,0.0,
-pdf_kuiper_belt_lithograph,kuiper belt lithograph,kuiper_belt_lithograph.pdf,2,narrative_3_column,column_order,3,27,137,46.19,0.37,0.667,
-pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,1,mixed,plain_text,0,10,13,18.0,0.0,0.5,mixed_layout_plain_text_fallback
-pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,2,narrative_single_column,row_order_lines,1,8,48,88.5,0.125,0.75,
-pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,3,mixed,plain_text,0,3,38,217.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,4,mixed,plain_text,0,10,34,23.6,0.2,0.9,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,1,mixed,plain_text,0,3,49,251.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,2,mixed,plain_text,0,3,47,211.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,3,mixed,plain_text,0,4,41,131.25,0.25,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,4,mixed,plain_text,0,3,44,197.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,5,mixed,plain_text,0,3,48,224.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,6,mixed,plain_text,0,3,45,212.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,7,mixed,plain_text,0,3,45,208.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,8,mixed,plain_text,0,3,46,206.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,9,mixed,plain_text,0,3,46,208.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,10,mixed,plain_text,0,3,45,198.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,11,mixed,plain_text,0,3,46,225.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,12,mixed,plain_text,0,3,42,180.0,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_notes9,notes9,notes9.pdf,13,mixed,plain_text,0,3,46,221.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,1,mixed,plain_text,0,1,1,2.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,2,mixed,plain_text,0,2,6,25.0,0.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,3,mixed,plain_text,0,6,13,11.5,0.0,0.167,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,4,mixed,plain_text,0,13,18,8.85,0.0,0.231,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,5,mixed,plain_text,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,6,mixed,plain_text,0,13,16,7.31,0.385,0.231,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,7,mixed,plain_text,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,8,mixed,plain_text,0,2,13,67.0,0.0,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,9,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,10,mixed,plain_text,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,11,mixed,plain_text,0,11,15,8.18,0.091,0.273,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,12,mixed,plain_text,0,11,14,8.73,0.091,0.273,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,13,mixed,plain_text,0,2,3,9.0,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,14,mixed,plain_text,0,8,19,13.38,0.125,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,15,mixed,plain_text,0,13,18,9.08,0.077,0.231,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,16,mixed,plain_text,0,10,10,7.6,0.3,0.6,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,17,mixed,plain_text,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,18,mixed,plain_text,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,19,poster_or_cover,plain_text,0,18,20,4.83,0.556,0.389,plain_text_fallback_for_poster_or_cover
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,20,mixed,plain_text,0,10,13,8.0,0.1,0.4,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,21,mixed,plain_text,0,8,20,11.12,0.125,0.25,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,22,poster_or_cover,plain_text,0,9,12,3.22,0.778,0.667,plain_text_fallback_for_poster_or_cover
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,23,mixed,plain_text,0,2,3,2.5,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,24,mixed,plain_text,0,2,2,2.0,1.0,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,25,mixed,plain_text,0,2,6,33.0,0.0,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,26,mixed,plain_text,0,10,19,10.9,0.0,0.4,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,27,mixed,plain_text,0,12,18,10.33,0.167,0.333,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,28,mixed,plain_text,0,11,19,6.45,0.364,0.273,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,29,unknown,plain_text_no_blocks,0,0,0,,,,no_text_blocks
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,30,mixed,plain_text,0,2,6,18.0,0.5,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,31,mixed,plain_text,0,2,5,4.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,32,mixed,plain_text,0,7,9,9.0,0.0,0.143,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,33,mixed,plain_text,0,9,11,8.0,0.222,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,34,mixed,plain_text,0,7,11,11.0,0.143,0.143,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,35,mixed,plain_text,0,5,12,15.0,0.2,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,36,mixed,plain_text,0,11,18,9.45,0.0,0.273,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,37,mixed,plain_text,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,38,narrative_2_column,column_order,2,12,21,11.75,0.25,0.25,
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,39,mixed,plain_text,0,5,17,19.2,0.0,0.2,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,40,mixed,plain_text,0,3,10,30.67,0.333,0.333,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,41,mixed,plain_text,0,9,10,8.33,0.111,0.444,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,42,mixed,plain_text,0,17,20,7.24,0.353,0.294,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,43,mixed,plain_text,0,1,1,2.0,1.0,1.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,44,mixed,plain_text,0,10,13,9.1,0.2,0.3,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,45,mixed,plain_text,0,1,1,2.0,1.0,1.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,46,mixed,plain_text,0,13,23,7.77,0.385,0.538,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,47,mixed,plain_text,0,12,18,9.33,0.083,0.333,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,48,mixed,plain_text,0,5,16,13.6,0.2,0.6,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,49,mixed,plain_text,0,2,10,26.0,0.0,0.5,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,50,mixed,plain_text,0,10,22,9.1,0.2,0.2,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,51,mixed,plain_text,0,1,2,6.0,0.0,0.0,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,52,mixed,plain_text,0,3,8,33.0,0.0,0.667,mixed_layout_plain_text_fallback
-pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,53,mixed,plain_text,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
-pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,1,narrative_single_column,row_order_lines,1,11,36,27.55,0.091,0.818,
-pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,2,narrative_single_column,row_order_lines,1,14,39,27.14,0.071,0.786,
-pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,3,narrative_single_column,row_order_lines,1,15,41,26.67,0.067,0.733,
-pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,4,narrative_single_column,row_order_lines,1,16,39,24.06,0.062,0.938,
-pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,5,narrative_single_column,row_order_lines,1,17,42,23.35,0.059,0.765,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,1,narrative_2_column,column_order,2,7,8,4.14,0.714,0.429,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,2,mixed,plain_text,0,5,33,55.4,0.6,0.8,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,3,mixed,plain_text,0,29,32,6.41,0.517,0.31,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,4,mixed,plain_text,0,27,30,6.89,0.444,0.37,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,5,poster_or_cover,plain_text,0,9,9,5.44,0.556,0.333,plain_text_fallback_for_poster_or_cover
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,6,mixed,plain_text,0,2,46,321.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,7,mixed,plain_text,0,2,43,309.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,8,mixed,plain_text,0,2,19,88.0,0.5,0.5,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,9,narrative_single_column,row_order_lines,1,10,34,37.8,0.2,0.5,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,10,mixed,plain_text,0,23,75,9.17,0.13,0.87,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,11,narrative_single_column,row_order_lines,1,10,23,25.0,0.1,0.9,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,12,narrative_single_column,row_order_lines,1,11,29,32.09,0.273,0.273,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,13,mixed,plain_text,0,4,21,68.75,0.5,0.75,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,14,narrative_single_column,row_order_lines,1,4,17,52.5,0.5,0.75,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,15,narrative_single_column,row_order_lines,1,5,31,94.4,0.4,0.6,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,16,narrative_single_column,row_order_lines,1,9,21,24.44,0.222,0.889,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,17,narrative_2_column,column_order,2,16,34,25.94,0.375,0.312,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,18,narrative_2_column,column_order,2,33,105,6.21,0.424,0.818,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,19,narrative_single_column,row_order_lines,1,12,53,36.17,0.167,0.833,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,20,narrative_single_column,row_order_lines,1,11,44,53.18,0.091,0.455,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,21,mixed,plain_text,0,3,40,187.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,22,narrative_single_column,row_order_lines,1,21,53,8.57,0.19,0.857,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,23,narrative_single_column,row_order_lines,1,7,31,16.57,0.429,0.714,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,24,narrative_single_column,row_order_lines,1,11,65,38.82,0.273,0.727,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,25,narrative_single_column,row_order_lines,1,4,47,153.75,0.25,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,26,mixed,plain_text,0,2,37,229.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,27,narrative_single_column,row_order_lines,1,9,43,62.78,0.333,0.444,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,28,mixed,plain_text,0,21,62,6.95,0.048,0.952,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,29,mixed,plain_text,0,28,58,6.36,0.036,0.964,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,30,mixed,plain_text,0,13,45,35.69,0.308,0.846,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,31,narrative_single_column,row_order_lines,1,12,28,23.83,0.167,0.833,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,32,narrative_2_column,column_order,2,12,30,29.17,0.25,0.5,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,33,mixed,plain_text,0,37,104,5.43,0.432,0.784,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,34,narrative_single_column,row_order_lines,1,16,57,26.0,0.25,0.812,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,35,narrative_single_column,row_order_lines,1,5,7,13.0,0.2,0.8,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,36,narrative_single_column,row_order_lines,1,12,42,44.83,0.167,0.5,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,37,mixed,plain_text,0,19,68,19.37,0.105,0.842,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,38,narrative_single_column,row_order_lines,1,12,45,47.83,0.083,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,39,narrative_single_column,row_order_lines,1,4,7,19.5,0.25,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,40,narrative_single_column,row_order_lines,1,11,45,52.09,0.273,0.545,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,41,narrative_single_column,row_order_lines,1,5,36,107.0,0.2,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,42,mixed,plain_text,0,4,4,8.0,0.25,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,43,mixed,plain_text,0,4,18,61.75,0.5,0.75,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,44,narrative_single_column,row_order_lines,1,8,29,49.12,0.25,0.875,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,45,narrative_single_column,row_order_lines,1,7,14,23.71,0.143,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,46,narrative_2_column,column_order,2,12,45,57.83,0.333,0.417,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,47,narrative_single_column,row_order_lines,1,7,24,48.43,0.571,0.429,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,48,mixed,plain_text,0,32,167,9.09,0.344,0.656,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,49,mixed,plain_text,0,40,182,6.97,0.475,0.6,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,50,narrative_single_column,row_order_lines,1,8,45,78.25,0.5,0.625,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,51,mixed,plain_text,0,2,12,53.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,52,narrative_single_column,row_order_lines,1,10,36,45.9,0.2,0.5,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,53,narrative_2_column,column_order,2,30,129,7.53,0.133,0.833,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,54,narrative_2_column,column_order,2,14,80,33.64,0.286,0.786,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,55,mixed,plain_text,0,2,17,90.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,56,narrative_single_column,row_order_lines,1,10,42,57.8,0.4,0.4,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,57,narrative_3_column,column_order,3,23,70,13.48,0.261,0.87,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,58,narrative_single_column,row_order_lines,1,9,18,20.33,0.333,0.667,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,59,mixed,plain_text,0,21,69,18.19,0.286,0.619,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,60,mixed,plain_text,0,27,77,10.78,0.667,0.556,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,61,mixed,plain_text,0,2,4,18.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,62,narrative_single_column,row_order_lines,1,9,56,56.22,0.222,0.444,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,63,narrative_single_column,row_order_lines,1,4,59,75.0,0.25,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,64,narrative_single_column,row_order_lines,1,11,44,54.73,0.273,0.545,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,65,narrative_single_column,row_order_lines,1,5,30,84.8,0.2,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,66,mixed,plain_text,0,3,37,195.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,67,mixed,plain_text,0,3,10,36.0,0.667,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,68,mixed,plain_text,0,3,6,17.33,0.667,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,69,mixed,plain_text,0,5,10,17.8,0.8,1.0,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,70,narrative_single_column,row_order_lines,1,8,45,71.88,0.25,0.875,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,71,narrative_single_column,row_order_lines,1,13,38,33.62,0.077,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,72,narrative_single_column,row_order_lines,1,10,43,56.1,0.2,0.5,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,73,narrative_single_column,row_order_lines,1,6,104,66.83,0.333,0.833,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,74,narrative_single_column,row_order_lines,1,9,86,53.33,0.222,0.889,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,75,narrative_single_column,row_order_lines,1,7,16,22.43,0.286,0.714,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,76,narrative_single_column,row_order_lines,1,11,41,46.82,0.182,0.364,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,77,mixed,plain_text,0,21,66,13.33,0.048,0.905,mixed_layout_plain_text_fallback
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,78,narrative_2_column,column_order,2,12,56,38.83,0.417,0.75,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,79,narrative_single_column,row_order_lines,1,10,22,25.0,0.1,1.0,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,80,narrative_single_column,row_order_lines,1,12,41,44.92,0.167,0.583,
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,81,table_like,row_order_lines,0,55,132,4.47,0.618,0.527,table_like_row_order_no_structured_table_parse
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,82,table_like,row_order_lines,0,46,87,6.83,0.891,0.478,table_like_row_order_no_structured_table_parse
-pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,83,mixed,plain_text,0,2,9,49.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,1,poster_or_cover,plain_text,0,28,32,3.07,0.857,0.107,plain_text_fallback_for_poster_or_cover
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,2,narrative_3_column,column_order,3,49,49,8.1,0.143,0.02,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,3,poster_or_cover,plain_text,0,10,13,3.2,0.9,0.0,plain_text_fallback_for_poster_or_cover
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,4,narrative_3_column,column_order,3,23,188,56.78,0.174,0.522,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,5,mixed,plain_text,0,4,12,15.75,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,6,narrative_3_column,column_order,3,30,153,38.27,0.4,0.7,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,7,mixed,plain_text,0,4,12,18.25,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,8,narrative_3_column,column_order,3,29,157,38.83,0.379,0.793,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,9,mixed,plain_text,0,4,13,14.25,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,10,narrative_3_column,column_order,3,29,160,40.93,0.379,0.69,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,11,mixed,plain_text,0,4,12,13.5,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,12,narrative_2_column,column_order,2,34,160,33.12,0.441,0.618,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,13,mixed,plain_text,0,4,12,17.0,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,14,narrative_3_column,column_order,3,36,155,33.67,0.444,0.778,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,15,mixed,plain_text,0,4,13,20.75,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,16,narrative_2_column,column_order,2,36,163,33.11,0.5,0.583,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,17,mixed,plain_text,0,4,13,17.75,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,18,mixed,plain_text,0,35,130,34.86,0.4,0.714,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,19,mixed,plain_text,0,3,7,13.0,0.667,0.333,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,20,narrative_2_column,column_order,2,33,147,36.48,0.394,0.636,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,21,poster_or_cover,plain_text,0,20,25,5.05,0.85,0.05,plain_text_fallback_for_poster_or_cover
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,22,narrative_3_column,column_order,3,39,209,28.72,0.308,0.718,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,23,mixed,plain_text,0,4,12,16.25,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,24,narrative_3_column,column_order,3,31,152,36.52,0.387,0.677,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,25,mixed,plain_text,0,4,12,22.25,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,26,narrative_3_column,column_order,3,34,161,33.38,0.412,0.559,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,27,mixed,plain_text,0,4,12,11.25,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,28,narrative_3_column,column_order,3,31,160,38.19,0.387,0.645,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,29,mixed,plain_text,0,4,13,16.75,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,30,narrative_3_column,column_order,3,46,133,20.7,0.304,0.522,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,31,mixed,plain_text,0,5,20,21.4,0.4,0.4,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,32,narrative_3_column,column_order,3,42,153,24.79,0.5,0.714,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,33,mixed,plain_text,0,4,13,12.75,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,34,narrative_2_column,column_order,2,37,156,29.68,0.459,0.784,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,35,mixed,plain_text,0,4,12,17.0,0.5,0.0,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,36,narrative_3_column,column_order,3,29,155,40.31,0.379,0.724,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,37,mixed,plain_text,0,4,6,16.75,0.5,0.25,mixed_layout_plain_text_fallback
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,38,narrative_3_column,column_order,3,31,143,39.61,0.387,0.839,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,39,narrative_2_column,column_order,2,9,14,6.89,0.667,0.0,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,40,narrative_3_column,column_order,3,27,137,46.19,0.37,0.667,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,41,narrative_2_column,column_order,2,8,11,8.75,0.875,0.125,
-pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,42,narrative_3_column,column_order,3,37,148,32.35,0.297,0.459,
-pdf_ss_saturnmoons,ss saturnmoons,ss_saturnmoons.pdf,1,mixed,plain_text,0,5,14,12.2,0.4,0.0,mixed_layout_plain_text_fallback
-pdf_ss_saturnmoons,ss saturnmoons,ss_saturnmoons.pdf,2,narrative_3_column,column_order,3,29,107,27.76,0.138,0.448,
-pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,1,narrative_2_column,column_order,2,15,54,35.27,0.2,0.733,
-pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,2,narrative_2_column,column_order,2,11,58,50.82,0.091,0.636,
-pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,3,mixed,plain_text,0,12,35,30.58,0.083,0.833,mixed_layout_plain_text_fallback
-pdf_the_kuiper_belt,The Kuiper Belt,The Kuiper Belt.pdf,1,mixed,plain_text,0,4,17,31.75,0.0,0.25,mixed_layout_plain_text_fallback
-pdf_the_kuiper_belt,The Kuiper Belt,The Kuiper Belt.pdf,2,narrative_2_column,column_order,2,9,38,36.33,0.0,0.111,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,1,mixed,plain_text,0,6,25,56.5,0.333,0.5,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,2,mixed,plain_text,0,8,41,57.38,0.25,0.875,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,3,mixed,plain_text,0,3,40,209.33,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,4,mixed,plain_text,0,2,46,386.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,5,mixed,plain_text,0,2,43,335.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,6,narrative_single_column,row_order_lines,1,5,42,126.8,0.2,0.8,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,7,narrative_3_column,column_order,3,16,72,30.19,0.438,0.438,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,8,mixed,plain_text,0,3,41,206.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,9,narrative_single_column,row_order_lines,1,6,75,69.83,0.167,0.667,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,10,mixed,plain_text,0,3,47,209.67,0.333,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,11,mixed,plain_text,0,2,43,333.0,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,12,narrative_single_column,row_order_lines,1,6,41,106.17,0.167,1.0,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,13,mixed,plain_text,0,2,18,125.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,14,narrative_single_column,row_order_lines,1,10,29,37.7,0.3,0.7,
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,15,mixed,plain_text,0,3,4,7.33,0.667,0.667,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,16,mixed,plain_text,0,2,2,7.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,17,mixed,plain_text,0,2,2,6.5,0.5,1.0,mixed_layout_plain_text_fallback
-pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,18,narrative_2_column,column_order,2,8,20,9.5,0.625,0.5,
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,1,narrative_single_column,row_order_lines,1,6,49,123.5,0.333,0.5,
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,2,narrative_single_column,row_order_lines,1,5,30,93.4,0.0,1.0,
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,3,narrative_single_column,row_order_lines,1,9,52,90.22,0.0,1.0,
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,4,mixed,plain_text,0,3,13,67.0,0.0,1.0,mixed_layout_plain_text_fallback
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,5,mixed,plain_text,0,3,19,62.67,0.0,1.0,mixed_layout_plain_text_fallback
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,6,narrative_single_column,row_order_lines,1,11,29,32.36,0.0,1.0,
-pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,7,narrative_single_column,row_order_lines,1,19,43,27.42,0.0,1.0,
-pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",1,mixed,plain_text,0,11,72,56.64,0.273,0.636,mixed_layout_plain_text_fallback
-pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",2,mixed,plain_text,0,13,82,50.85,0.231,0.692,mixed_layout_plain_text_fallback
-pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",3,mixed,plain_text,0,15,89,44.4,0.4,0.467,mixed_layout_plain_text_fallback
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,1,poster_or_cover,plain_text,0,12,12,2.25,0.917,0.0,plain_text_fallback_for_poster_or_cover
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,2,poster_or_cover,plain_text,0,18,93,44.28,0.556,0.167,plain_text_fallback_for_poster_or_cover
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,3,narrative_2_column,column_order,2,20,61,21.8,0.35,0.25,
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,4,narrative_2_column,column_order,2,19,85,30.21,0.158,0.421,
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,5,narrative_2_column,column_order,2,38,90,19.16,0.526,0.421,
-pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,6,narrative_2_column,column_order,2,26,81,21.5,0.269,0.192,
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,1,mixed,plain_text,0,12,28,7.5,0.333,0.583,mixed_layout_plain_text_fallback
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,2,mixed,plain_text,0,10,60,53.3,0.1,0.3,mixed_layout_plain_text_fallback
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,3,narrative_2_column,column_order,2,10,101,72.7,0.1,0.6,
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,4,poster_or_cover,plain_text,0,33,65,6.64,0.818,0.303,plain_text_fallback_for_poster_or_cover
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,5,poster_or_cover,plain_text,0,27,76,7.0,0.667,0.222,plain_text_fallback_for_poster_or_cover
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,6,mixed,plain_text,0,16,64,34.5,0.5,0.312,mixed_layout_plain_text_fallback
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,7,mixed,plain_text,0,9,116,92.22,0.111,0.444,mixed_layout_plain_text_fallback
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,8,mixed,plain_text,0,12,90,65.08,0.167,0.333,mixed_layout_plain_text_fallback
-pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,9,mixed,plain_text,0,24,116,36.17,0.542,0.417,mixed_layout_plain_text_fallback
+source_id,title,file_name,page,layout_class,chosen_mode,column_count,table_region_count,block_count,line_count,avg_words_per_block,short_block_ratio,numeric_block_ratio,warning
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,1,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,2,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,3,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,4,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,5,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,6,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,7,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,8,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,9,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_11_solar_system,11 Solar System,11_Solar-System.pdf,10,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,1,mixed,plain_text,0,0,12,47,53.08,0.25,0.667,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,2,mixed,plain_text,0,0,4,52,227.75,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,3,narrative_single_column,row_order_lines,1,0,11,48,75.36,0.182,1.0,
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,4,mixed,plain_text,0,0,15,40,30.13,0.333,0.933,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,5,mixed,region_order_with_tables,0,1,8,538,135.62,0.125,0.5,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,6,mixed,region_order_with_tables,0,1,5,600,229.8,0.2,0.8,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,7,mixed,plain_text,0,0,7,50,126.57,0.571,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,8,mixed,plain_text,0,0,5,21,67.8,0.2,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,9,mixed,plain_text,0,0,5,22,81.8,0.2,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,10,mixed,plain_text,0,0,5,17,61.8,0.2,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,11,narrative_single_column,row_order_lines,1,0,7,51,136.0,0.286,1.0,
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,12,mixed,plain_text,0,0,5,17,54.0,0.4,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,13,mixed,plain_text,0,0,5,24,72.4,0.4,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,14,mixed,plain_text,0,0,5,33,118.6,0.6,1.0,mixed_layout_plain_text_fallback
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,15,narrative_single_column,row_order_lines,1,0,6,33,99.0,0.167,1.0,
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,16,narrative_single_column,row_order_lines,1,0,8,39,77.62,0.5,0.875,
+pdf_2503_07081v2,2503.07081v2,2503.07081v2.pdf,17,mixed,plain_text,0,0,16,51,24.5,0.125,0.938,mixed_layout_plain_text_fallback
+pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,1,mixed,plain_text,0,0,13,100,77.08,0.154,1.0,mixed_layout_plain_text_fallback
+pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,2,narrative_3_column,column_order,3,0,13,66,48.54,0.385,1.0,
+pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,3,mixed,plain_text,0,0,12,86,63.25,0.25,1.0,mixed_layout_plain_text_fallback
+pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,4,mixed,plain_text,0,0,15,133,76.27,0.267,0.8,mixed_layout_plain_text_fallback
+pdf_ashton_2022_planet_sci_j_3_107,Ashton 2022 Planet. Sci. J. 3 107,Ashton_2022_Planet._Sci._J._3_107.pdf,5,mixed,plain_text,0,0,6,24,30.5,0.333,0.833,mixed_layout_plain_text_fallback
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,1,narrative_3_column,column_order,3,0,14,57,42.93,0.143,0.571,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,2,narrative_2_column,column_order,2,0,9,115,122.0,0.0,0.889,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,3,narrative_single_column,region_order_with_tables,1,1,18,369,46.61,0.0,0.889,table_regions_row_ordered
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,4,poster_or_cover,plain_text,0,0,37,125,20.97,0.757,0.541,plain_text_fallback_for_poster_or_cover
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,5,narrative_single_column,region_order_with_tables,1,1,18,522,58.94,0.0,0.889,table_regions_row_ordered
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,6,narrative_2_column,column_order,2,0,9,113,125.44,0.111,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,7,narrative_2_column,column_order,2,0,8,115,139.5,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,8,narrative_single_column,region_order_with_tables,1,1,24,312,37.88,0.083,0.75,table_regions_row_ordered
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,9,narrative_2_column,column_order,2,0,14,110,75.43,0.143,0.929,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,10,table_like,region_order_with_tables,0,3,125,198,7.4,0.888,0.936,table_like_row_order_no_structured_table_parse;table_regions_row_ordered
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,11,narrative_2_column,column_order,2,0,12,101,84.33,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,12,narrative_2_column,column_order,2,0,15,113,75.93,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,13,poster_or_cover,plain_text,0,0,52,127,15.19,0.808,0.462,plain_text_fallback_for_poster_or_cover
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,14,narrative_2_column,column_order,2,0,8,115,135.5,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,15,narrative_2_column,column_order,2,0,7,65,104.43,0.0,0.857,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,16,narrative_2_column,column_order,2,0,8,96,122.38,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,17,narrative_2_column,column_order,2,0,9,86,92.22,0.111,0.889,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,18,narrative_single_column,region_order_with_tables,1,1,14,99,60.5,0.0,1.0,table_regions_row_ordered
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,19,narrative_2_column,column_order,2,0,10,115,107.5,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,20,narrative_2_column,column_order,2,0,9,113,120.67,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,21,narrative_2_column,column_order,2,0,9,115,119.56,0.0,0.889,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,22,narrative_2_column,column_order,2,0,10,113,104.0,0.0,0.6,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,23,narrative_2_column,column_order,2,0,8,78,91.0,0.0,0.875,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,24,narrative_2_column,column_order,2,0,44,148,34.18,0.023,0.977,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,25,narrative_2_column,column_order,2,0,54,153,26.54,0.0,1.0,
+pdf_denketal2018_irregularmoons,DenkEtAl2018 IrregularMoons,DenkEtAl2018_IrregularMoons.pdf,26,narrative_2_column,column_order,2,0,41,123,30.51,0.0,1.0,
+pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,1,narrative_3_column,column_order,3,0,34,48,21.24,0.265,0.735,
+pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,2,narrative_3_column,column_order,3,0,37,69,18.68,0.216,0.757,
+pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,3,narrative_3_column,column_order,3,0,48,86,24.06,0.312,0.771,
+pdf_eis_c1_pf,EIS C1 pf,EIS-C1_pf.pdf,4,mixed,region_order_with_tables,0,1,33,70,24.48,0.121,0.879,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_kuiper_belt_objects_in_the_solar_system,kuiper belt objects in the solar system,kuiper-belt-objects-in-the-solar-system.pdf,1,narrative_2_column,column_order,2,0,16,68,45.12,0.188,0.625,
+pdf_kuiper_belt_lithograph,kuiper belt lithograph,kuiper_belt_lithograph.pdf,1,narrative_2_column,column_order,2,0,9,14,6.89,0.667,0.0,
+pdf_kuiper_belt_lithograph,kuiper belt lithograph,kuiper_belt_lithograph.pdf,2,narrative_3_column,column_order,3,0,27,137,46.19,0.37,0.667,
+pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,1,mixed,plain_text,0,0,10,13,18.0,0.0,0.5,mixed_layout_plain_text_fallback
+pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,2,narrative_single_column,row_order_lines,1,0,8,48,88.5,0.125,0.75,
+pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,3,mixed,plain_text,0,0,3,38,217.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_new_jupiter_and_saturn_satellites_reveal_new_moon,New Jupiter and Saturn Satellites Reveal New Moon,New_Jupiter_and_Saturn_Satellites_Reveal_New_Moon_.pdf,4,mixed,plain_text,0,0,10,34,23.6,0.2,0.9,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,1,mixed,plain_text,0,0,3,49,251.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,2,mixed,plain_text,0,0,3,47,211.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,3,mixed,plain_text,0,0,4,41,131.25,0.25,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,4,mixed,plain_text,0,0,3,44,197.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,5,mixed,plain_text,0,0,3,48,224.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,6,mixed,plain_text,0,0,3,45,212.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,7,mixed,plain_text,0,0,3,45,208.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,8,mixed,plain_text,0,0,3,46,206.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,9,mixed,plain_text,0,0,3,46,208.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,10,mixed,plain_text,0,0,3,45,198.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,11,mixed,plain_text,0,0,3,46,225.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,12,mixed,plain_text,0,0,3,42,180.0,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_notes9,notes9,notes9.pdf,13,mixed,plain_text,0,0,3,46,221.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,1,mixed,plain_text,0,0,1,1,2.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,2,mixed,plain_text,0,0,2,6,25.0,0.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,3,mixed,plain_text,0,0,6,13,11.5,0.0,0.167,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,4,mixed,plain_text,0,0,13,18,8.85,0.0,0.231,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,5,mixed,plain_text,0,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,6,mixed,plain_text,0,0,13,16,7.31,0.385,0.231,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,7,mixed,plain_text,0,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,8,mixed,plain_text,0,0,2,13,67.0,0.0,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,9,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,10,mixed,plain_text,0,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,11,mixed,plain_text,0,0,11,15,8.18,0.091,0.273,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,12,mixed,plain_text,0,0,11,14,8.73,0.091,0.273,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,13,mixed,plain_text,0,0,2,3,9.0,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,14,mixed,plain_text,0,0,8,19,13.38,0.125,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,15,mixed,plain_text,0,0,13,18,9.08,0.077,0.231,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,16,mixed,plain_text,0,0,10,10,7.6,0.3,0.6,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,17,mixed,plain_text,0,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,18,mixed,plain_text,0,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,19,poster_or_cover,plain_text,0,0,18,20,4.83,0.556,0.389,plain_text_fallback_for_poster_or_cover
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,20,mixed,plain_text,0,0,10,13,8.0,0.1,0.4,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,21,mixed,plain_text,0,0,8,20,11.12,0.125,0.25,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,22,poster_or_cover,plain_text,0,0,9,12,3.22,0.778,0.667,plain_text_fallback_for_poster_or_cover
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,23,mixed,plain_text,0,0,2,3,2.5,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,24,mixed,plain_text,0,0,2,2,2.0,1.0,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,25,mixed,plain_text,0,0,2,6,33.0,0.0,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,26,mixed,plain_text,0,0,10,19,10.9,0.0,0.4,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,27,mixed,plain_text,0,0,12,18,10.33,0.167,0.333,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,28,mixed,plain_text,0,0,11,19,6.45,0.364,0.273,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,29,unknown,plain_text_no_blocks,0,,0,0,,,,no_text_blocks
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,30,mixed,plain_text,0,0,2,6,18.0,0.5,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,31,mixed,plain_text,0,0,2,5,4.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,32,mixed,plain_text,0,0,7,9,9.0,0.0,0.143,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,33,mixed,plain_text,0,0,9,11,8.0,0.222,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,34,mixed,plain_text,0,0,7,11,11.0,0.143,0.143,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,35,mixed,plain_text,0,0,5,12,15.0,0.2,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,36,mixed,plain_text,0,0,11,18,9.45,0.0,0.273,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,37,mixed,plain_text,0,0,1,1,3.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,38,narrative_2_column,column_order,2,0,12,21,11.75,0.25,0.25,
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,39,mixed,plain_text,0,0,5,17,19.2,0.0,0.2,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,40,mixed,plain_text,0,0,3,10,30.67,0.333,0.333,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,41,mixed,plain_text,0,0,9,10,8.33,0.111,0.444,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,42,mixed,plain_text,0,0,17,20,7.24,0.353,0.294,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,43,mixed,plain_text,0,0,1,1,2.0,1.0,1.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,44,mixed,plain_text,0,0,10,13,9.1,0.2,0.3,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,45,mixed,plain_text,0,0,1,1,2.0,1.0,1.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,46,mixed,plain_text,0,0,13,23,7.77,0.385,0.538,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,47,mixed,plain_text,0,0,12,18,9.33,0.083,0.333,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,48,mixed,plain_text,0,0,5,16,13.6,0.2,0.6,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,49,mixed,plain_text,0,0,2,10,26.0,0.0,0.5,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,50,mixed,plain_text,0,0,10,22,9.1,0.2,0.2,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,51,mixed,plain_text,0,0,1,2,6.0,0.0,0.0,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,52,mixed,plain_text,0,0,3,8,33.0,0.0,0.667,mixed_layout_plain_text_fallback
+pdf_planetary_bodies_slaughter2020sep_pp,Planetary Bodies Slaughter2020Sep PP,Planetary-Bodies-Slaughter2020Sep-PP.pdf,53,mixed,plain_text,0,0,1,1,4.0,1.0,0.0,mixed_layout_plain_text_fallback
+pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,1,narrative_single_column,row_order_lines,1,0,11,36,27.55,0.091,0.818,
+pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,2,narrative_single_column,row_order_lines,1,0,14,39,27.14,0.071,0.786,
+pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,3,narrative_single_column,row_order_lines,1,0,15,41,26.67,0.067,0.733,
+pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,4,narrative_single_column,row_order_lines,1,0,16,39,24.06,0.062,0.938,
+pdf_pluto_and_the_kuiper_belt_resource_guide,Pluto and the Kuiper Belt Resource Guide,Pluto-and-the-Kuiper-Belt-Resource-Guide.pdf,5,narrative_single_column,row_order_lines,1,0,17,42,23.35,0.059,0.765,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,1,narrative_2_column,column_order,2,0,7,8,4.14,0.714,0.429,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,2,mixed,plain_text,0,0,5,33,55.4,0.6,0.8,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,3,mixed,plain_text,0,0,29,32,6.41,0.517,0.31,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,4,mixed,plain_text,0,0,27,30,6.89,0.444,0.37,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,5,poster_or_cover,plain_text,0,0,9,9,5.44,0.556,0.333,plain_text_fallback_for_poster_or_cover
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,6,mixed,plain_text,0,0,2,46,321.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,7,mixed,plain_text,0,0,2,43,309.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,8,mixed,plain_text,0,0,2,19,88.0,0.5,0.5,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,9,narrative_single_column,row_order_lines,1,0,10,34,37.8,0.2,0.5,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,10,mixed,region_order_with_tables,0,2,23,75,9.17,0.13,0.87,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,11,narrative_single_column,row_order_lines,1,0,10,23,25.0,0.1,0.9,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,12,narrative_single_column,row_order_lines,1,0,11,29,32.09,0.273,0.273,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,13,mixed,plain_text,0,0,4,21,68.75,0.5,0.75,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,14,narrative_single_column,row_order_lines,1,0,4,17,52.5,0.5,0.75,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,15,narrative_single_column,row_order_lines,1,0,5,31,94.4,0.4,0.6,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,16,narrative_single_column,row_order_lines,1,0,9,21,24.44,0.222,0.889,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,17,narrative_2_column,column_order,2,0,16,34,25.94,0.375,0.312,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,18,narrative_2_column,region_order_with_tables,2,2,33,105,6.21,0.424,0.818,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,19,narrative_single_column,region_order_with_tables,1,1,12,53,36.17,0.167,0.833,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,20,narrative_single_column,row_order_lines,1,0,11,44,53.18,0.091,0.455,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,21,mixed,plain_text,0,0,3,40,187.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,22,narrative_single_column,region_order_with_tables,1,3,21,53,8.57,0.19,0.857,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,23,narrative_single_column,region_order_with_tables,1,1,7,31,16.57,0.429,0.714,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,24,narrative_single_column,region_order_with_tables,1,3,11,65,38.82,0.273,0.727,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,25,narrative_single_column,row_order_lines,1,0,4,47,153.75,0.25,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,26,mixed,plain_text,0,0,2,37,229.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,27,narrative_single_column,row_order_lines,1,0,9,43,62.78,0.333,0.444,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,28,mixed,plain_text,0,0,21,62,6.95,0.048,0.952,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,29,mixed,plain_text,0,0,28,58,6.36,0.036,0.964,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,30,mixed,plain_text,0,0,13,45,35.69,0.308,0.846,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,31,narrative_single_column,row_order_lines,1,0,12,28,23.83,0.167,0.833,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,32,narrative_2_column,column_order,2,0,12,30,29.17,0.25,0.5,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,33,mixed,region_order_with_tables,0,1,37,104,5.43,0.432,0.784,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,34,narrative_single_column,row_order_lines,1,0,16,57,26.0,0.25,0.812,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,35,narrative_single_column,row_order_lines,1,0,5,7,13.0,0.2,0.8,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,36,narrative_single_column,row_order_lines,1,0,12,42,44.83,0.167,0.5,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,37,mixed,region_order_with_tables,0,1,19,68,19.37,0.105,0.842,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,38,narrative_single_column,row_order_lines,1,0,12,45,47.83,0.083,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,39,narrative_single_column,row_order_lines,1,0,4,7,19.5,0.25,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,40,narrative_single_column,row_order_lines,1,0,11,45,52.09,0.273,0.545,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,41,narrative_single_column,row_order_lines,1,0,5,36,107.0,0.2,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,42,mixed,plain_text,0,0,4,4,8.0,0.25,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,43,mixed,plain_text,0,0,4,18,61.75,0.5,0.75,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,44,narrative_single_column,row_order_lines,1,0,8,29,49.12,0.25,0.875,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,45,narrative_single_column,row_order_lines,1,0,7,14,23.71,0.143,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,46,narrative_2_column,column_order,2,0,12,45,57.83,0.333,0.417,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,47,narrative_single_column,row_order_lines,1,0,7,24,48.43,0.571,0.429,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,48,mixed,plain_text,0,0,32,167,9.09,0.344,0.656,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,49,mixed,plain_text,0,0,40,182,6.97,0.475,0.6,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,50,narrative_single_column,row_order_lines,1,0,8,45,78.25,0.5,0.625,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,51,mixed,plain_text,0,0,2,12,53.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,52,narrative_single_column,row_order_lines,1,0,10,36,45.9,0.2,0.5,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,53,narrative_2_column,region_order_with_tables,2,3,30,129,7.53,0.133,0.833,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,54,narrative_2_column,region_order_with_tables,2,2,14,80,33.64,0.286,0.786,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,55,mixed,plain_text,0,0,2,17,90.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,56,narrative_single_column,row_order_lines,1,0,10,42,57.8,0.4,0.4,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,57,narrative_3_column,region_order_with_tables,3,1,23,70,13.48,0.261,0.87,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,58,narrative_single_column,row_order_lines,1,0,9,18,20.33,0.333,0.667,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,59,mixed,region_order_with_tables,0,1,21,69,18.19,0.286,0.619,mixed_layout_plain_text_fallback;table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,60,mixed,plain_text,0,0,27,77,10.78,0.667,0.556,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,61,mixed,plain_text,0,0,2,4,18.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,62,narrative_single_column,region_order_with_tables,1,1,9,56,56.22,0.222,0.444,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,63,narrative_single_column,region_order_with_tables,1,2,4,59,75.0,0.25,1.0,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,64,narrative_single_column,row_order_lines,1,0,11,44,54.73,0.273,0.545,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,65,narrative_single_column,row_order_lines,1,0,5,30,84.8,0.2,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,66,mixed,plain_text,0,0,3,37,195.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,67,mixed,plain_text,0,0,3,10,36.0,0.667,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,68,mixed,plain_text,0,0,3,6,17.33,0.667,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,69,mixed,plain_text,0,0,5,10,17.8,0.8,1.0,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,70,narrative_single_column,row_order_lines,1,0,8,45,71.88,0.25,0.875,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,71,narrative_single_column,row_order_lines,1,0,13,38,33.62,0.077,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,72,narrative_single_column,row_order_lines,1,0,10,43,56.1,0.2,0.5,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,73,narrative_single_column,region_order_with_tables,1,4,6,104,66.83,0.333,0.833,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,74,narrative_single_column,region_order_with_tables,1,3,9,86,53.33,0.222,0.889,table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,75,narrative_single_column,row_order_lines,1,0,7,16,22.43,0.286,0.714,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,76,narrative_single_column,row_order_lines,1,0,11,41,46.82,0.182,0.364,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,77,mixed,plain_text,0,0,21,66,13.33,0.048,0.905,mixed_layout_plain_text_fallback
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,78,narrative_2_column,column_order,2,0,12,56,38.83,0.417,0.75,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,79,narrative_single_column,row_order_lines,1,0,10,22,25.0,0.1,1.0,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,80,narrative_single_column,row_order_lines,1,0,12,41,44.92,0.167,0.583,
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,81,table_like,region_order_with_tables,0,1,55,132,4.47,0.618,0.527,table_like_row_order_no_structured_table_parse;table_regions_row_ordered
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,82,table_like,row_order_lines,0,1,46,87,6.83,0.891,0.478,table_like_row_order_no_structured_table_parse
+pdf_saturn_feb_2021,Saturn Feb 2021,Saturn_Feb_2021.pdf,83,mixed,plain_text,0,0,2,9,49.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,1,poster_or_cover,plain_text,0,0,28,32,3.07,0.857,0.107,plain_text_fallback_for_poster_or_cover
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,2,narrative_3_column,column_order,3,0,49,49,8.1,0.143,0.02,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,3,poster_or_cover,plain_text,0,0,10,13,3.2,0.9,0.0,plain_text_fallback_for_poster_or_cover
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,4,narrative_3_column,region_order_with_tables,3,2,23,188,56.78,0.174,0.522,table_regions_row_ordered
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,5,mixed,plain_text,0,0,4,12,15.75,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,6,narrative_3_column,column_order,3,0,30,153,38.27,0.4,0.7,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,7,mixed,plain_text,0,0,4,12,18.25,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,8,narrative_3_column,column_order,3,0,29,157,38.83,0.379,0.793,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,9,mixed,plain_text,0,0,4,13,14.25,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,10,narrative_3_column,column_order,3,0,29,160,40.93,0.379,0.69,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,11,mixed,plain_text,0,0,4,12,13.5,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,12,narrative_2_column,column_order,2,0,34,160,33.12,0.441,0.618,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,13,mixed,plain_text,0,0,4,12,17.0,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,14,narrative_3_column,column_order,3,0,36,155,33.67,0.444,0.778,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,15,mixed,plain_text,0,0,4,13,20.75,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,16,narrative_2_column,column_order,2,0,36,163,33.11,0.5,0.583,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,17,mixed,plain_text,0,0,4,13,17.75,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,18,mixed,plain_text,0,0,35,130,34.86,0.4,0.714,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,19,mixed,plain_text,0,0,3,7,13.0,0.667,0.333,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,20,narrative_2_column,column_order,2,0,33,147,36.48,0.394,0.636,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,21,poster_or_cover,plain_text,0,0,20,25,5.05,0.85,0.05,plain_text_fallback_for_poster_or_cover
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,22,narrative_3_column,region_order_with_tables,3,3,39,209,28.72,0.308,0.718,table_regions_row_ordered
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,23,mixed,plain_text,0,0,4,12,16.25,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,24,narrative_3_column,column_order,3,0,31,152,36.52,0.387,0.677,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,25,mixed,plain_text,0,0,4,12,22.25,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,26,narrative_3_column,column_order,3,0,34,161,33.38,0.412,0.559,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,27,mixed,plain_text,0,0,4,12,11.25,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,28,narrative_3_column,column_order,3,0,31,160,38.19,0.387,0.645,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,29,mixed,plain_text,0,0,4,13,16.75,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,30,narrative_3_column,column_order,3,0,46,133,20.7,0.304,0.522,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,31,mixed,plain_text,0,0,5,20,21.4,0.4,0.4,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,32,narrative_3_column,column_order,3,0,42,153,24.79,0.5,0.714,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,33,mixed,plain_text,0,0,4,13,12.75,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,34,narrative_2_column,column_order,2,0,37,156,29.68,0.459,0.784,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,35,mixed,plain_text,0,0,4,12,17.0,0.5,0.0,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,36,narrative_3_column,column_order,3,0,29,155,40.31,0.379,0.724,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,37,mixed,plain_text,0,0,4,6,16.75,0.5,0.25,mixed_layout_plain_text_fallback
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,38,narrative_3_column,column_order,3,0,31,143,39.61,0.387,0.839,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,39,narrative_2_column,column_order,2,0,9,14,6.89,0.667,0.0,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,40,narrative_3_column,column_order,3,0,27,137,46.19,0.37,0.667,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,41,narrative_2_column,column_order,2,0,8,11,8.75,0.875,0.125,
+pdf_solar_system_lithograph_set_h,Solar System Lithograph Set h,Solar_System_Lithograph_Set_h.pdf,42,narrative_3_column,column_order,3,0,37,148,32.35,0.297,0.459,
+pdf_ss_saturnmoons,ss saturnmoons,ss_saturnmoons.pdf,1,mixed,plain_text,0,0,5,14,12.2,0.4,0.0,mixed_layout_plain_text_fallback
+pdf_ss_saturnmoons,ss saturnmoons,ss_saturnmoons.pdf,2,narrative_3_column,column_order,3,0,29,107,27.76,0.138,0.448,
+pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,1,narrative_2_column,column_order,2,0,15,54,35.27,0.2,0.733,
+pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,2,narrative_2_column,column_order,2,0,11,58,50.82,0.091,0.636,
+pdf_stl_the_solar_system,STL The Solar System,STL-The-Solar-System.pdf,3,mixed,plain_text,0,0,12,35,30.58,0.083,0.833,mixed_layout_plain_text_fallback
+pdf_the_kuiper_belt,The Kuiper Belt,The Kuiper Belt.pdf,1,mixed,plain_text,0,0,4,17,31.75,0.0,0.25,mixed_layout_plain_text_fallback
+pdf_the_kuiper_belt,The Kuiper Belt,The Kuiper Belt.pdf,2,narrative_2_column,column_order,2,0,9,38,36.33,0.0,0.111,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,1,mixed,plain_text,0,0,6,25,56.5,0.333,0.5,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,2,mixed,plain_text,0,0,8,41,57.38,0.25,0.875,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,3,mixed,plain_text,0,0,3,40,209.33,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,4,mixed,plain_text,0,0,2,46,386.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,5,mixed,plain_text,0,0,2,43,335.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,6,narrative_single_column,row_order_lines,1,0,5,42,126.8,0.2,0.8,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,7,narrative_3_column,column_order,3,0,16,72,30.19,0.438,0.438,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,8,mixed,plain_text,0,0,3,41,206.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,9,narrative_single_column,row_order_lines,1,0,6,75,69.83,0.167,0.667,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,10,mixed,plain_text,0,0,3,47,209.67,0.333,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,11,mixed,plain_text,0,0,2,43,333.0,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,12,narrative_single_column,row_order_lines,1,0,6,41,106.17,0.167,1.0,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,13,mixed,plain_text,0,0,2,18,125.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,14,narrative_single_column,row_order_lines,1,0,10,29,37.7,0.3,0.7,
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,15,mixed,plain_text,0,0,3,4,7.33,0.667,0.667,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,16,mixed,plain_text,0,0,2,2,7.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,17,mixed,plain_text,0,0,2,2,6.5,0.5,1.0,mixed_layout_plain_text_fallback
+pdf_the_new_horizons_pluto_kuiper_belt_mission_an_overview_with_4pk4ve2ixl,the new horizons pluto kuiper belt mission an overview with 4pk4ve2ixl,the-new-horizons-pluto-kuiper-belt-mission-an-overview-with-4pk4ve2ixl.pdf,18,narrative_2_column,column_order,2,0,8,20,9.5,0.625,0.5,
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,1,narrative_single_column,row_order_lines,1,0,6,49,123.5,0.333,0.5,
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,2,narrative_single_column,row_order_lines,1,0,5,30,93.4,0.0,1.0,
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,3,narrative_single_column,row_order_lines,1,0,9,52,90.22,0.0,1.0,
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,4,mixed,plain_text,0,0,3,13,67.0,0.0,1.0,mixed_layout_plain_text_fallback
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,5,mixed,plain_text,0,0,3,19,62.67,0.0,1.0,mixed_layout_plain_text_fallback
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,6,narrative_single_column,row_order_lines,1,0,11,29,32.36,0.0,1.0,
+pdf_vidmachenko01beijinqondiscoveringdwarfplanetplutoen,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn,Vidmachenko01BeijinqOndiscoveringdwarfplanetPlutoEn.pdf,7,narrative_single_column,row_order_lines,1,0,19,43,27.42,0.0,1.0,
+pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",1,mixed,plain_text,0,0,11,72,56.64,0.273,0.636,mixed_layout_plain_text_fallback
+pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",2,mixed,plain_text,0,0,13,82,50.85,0.231,0.692,mixed_layout_plain_text_fallback
+pdf_volume_1_issue_4_6_8,"Volume  1, Issue 4.6 8","Volume -1, Issue-4.6-8.pdf",3,mixed,plain_text,0,0,15,89,44.4,0.4,0.467,mixed_layout_plain_text_fallback
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,1,poster_or_cover,plain_text,0,0,12,12,2.25,0.917,0.0,plain_text_fallback_for_poster_or_cover
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,2,poster_or_cover,plain_text,0,0,18,93,44.28,0.556,0.167,plain_text_fallback_for_poster_or_cover
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,3,narrative_2_column,column_order,2,0,20,61,21.8,0.35,0.25,
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,4,narrative_2_column,column_order,2,0,19,85,30.21,0.158,0.421,
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,5,narrative_2_column,column_order,2,0,38,90,19.16,0.526,0.421,
+pdf_worlds_beyond_earth_ed_guide,Worlds Beyond Earth Ed Guide,Worlds-Beyond-Earth-Ed-Guide.pdf,6,narrative_2_column,column_order,2,0,26,81,21.5,0.269,0.192,
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,1,mixed,plain_text,0,0,12,28,7.5,0.333,0.583,mixed_layout_plain_text_fallback
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,2,mixed,plain_text,0,0,10,60,53.3,0.1,0.3,mixed_layout_plain_text_fallback
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,3,narrative_2_column,column_order,2,0,10,101,72.7,0.1,0.6,
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,4,poster_or_cover,plain_text,0,0,33,65,6.64,0.818,0.303,plain_text_fallback_for_poster_or_cover
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,5,poster_or_cover,plain_text,0,0,27,76,7.0,0.667,0.222,plain_text_fallback_for_poster_or_cover
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,6,mixed,plain_text,0,0,16,64,34.5,0.5,0.312,mixed_layout_plain_text_fallback
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,7,mixed,plain_text,0,0,9,116,92.22,0.111,0.444,mixed_layout_plain_text_fallback
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,8,mixed,plain_text,0,0,12,90,65.08,0.167,0.333,mixed_layout_plain_text_fallback
+pdf_young_how_old_are_saturn_s_moons_sky_and_telescope_142_no_03_2021,Young How Old Are Saturn's Moons Sky and Telescope 142 no 03 (2021),Young_How_Old_Are_Saturn's_Moons_Sky_and_Telescope_142_no_03_(2021).pdf,9,mixed,plain_text,0,0,24,116,36.17,0.542,0.417,mixed_layout_plain_text_fallback

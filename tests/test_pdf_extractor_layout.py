@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import unittest
 
-from src.rag.pdf_extractor import PdfTextBlock, classify_page_layout, join_line_spans, order_page_blocks
+from src.rag.pdf_extractor import (
+    PdfTextBlock,
+    classify_page_layout,
+    detect_table_regions,
+    format_page_with_table_regions,
+    join_line_spans,
+    order_page_blocks,
+)
 
 
 class PdfLayoutOrderingTests(unittest.TestCase):
@@ -119,6 +126,28 @@ class PdfLayoutOrderingTests(unittest.TestCase):
 
         self.assertEqual(layout["layout_class"], "table_like")
         self.assertEqual(layout["chosen_mode"], "row_order_lines")
+
+    def test_table_region_inside_page_is_formatted_row_wise(self) -> None:
+        blocks = [
+            PdfTextBlock(40, 40, 560, 60, "Intro paragraph before the table."),
+            PdfTextBlock(40, 100, 90, 120, "Saturn"),
+            PdfTextBlock(160, 100, 180, 120, "82"),
+            PdfTextBlock(260, 100, 300, 120, "2019"),
+            PdfTextBlock(40, 140, 90, 160, "Jupiter"),
+            PdfTextBlock(160, 140, 180, 160, "95"),
+            PdfTextBlock(260, 140, 300, 160, "2023"),
+            PdfTextBlock(40, 220, 560, 240, "Conclusion paragraph after the table."),
+        ]
+        lines = blocks
+
+        bands = detect_table_regions(lines)
+        text = format_page_with_table_regions(blocks, lines, 600, bands)
+
+        self.assertEqual(len(bands), 1)
+        self.assertIn("Intro paragraph before the table.", text)
+        self.assertIn("Saturn | 82 | 2019", text)
+        self.assertIn("Jupiter | 95 | 2023", text)
+        self.assertIn("Conclusion paragraph after the table.", text)
 
     def test_single_column_blocks_keep_top_to_bottom_order(self) -> None:
         blocks = [

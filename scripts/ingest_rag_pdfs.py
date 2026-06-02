@@ -119,6 +119,7 @@ def write_layout_diagnostics(path: Path, rows: list[dict[str, object]]) -> None:
         "layout_class",
         "chosen_mode",
         "column_count",
+        "table_region_count",
         "block_count",
         "line_count",
         "avg_words_per_block",
