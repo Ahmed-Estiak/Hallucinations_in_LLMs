@@ -12,6 +12,7 @@ import csv
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -85,7 +86,9 @@ def run_matrix(
     max_chars: int,
     source_set: str,
 ) -> list[dict[str, Any]]:
+    retriever_init_started = time.perf_counter()
     retriever = build_retriever(source_set)
+    retriever_init_seconds = time.perf_counter() - retriever_init_started
     rows: list[dict[str, Any]] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -95,28 +98,40 @@ def run_matrix(
             question_id = int(question_row["id"])
             question = question_row["question"]
             truth = expected_answer(question_row)
+            row_started = time.perf_counter()
             print(f"  Q{question_id}: retrieving...", flush=True)
+            retrieval_started = time.perf_counter()
             retrieval_result = retriever.retrieve_with_details(
                 question,
                 mode=method,
                 top_n_sources=3 if source_set == "pdf" else 12,
             )
+            retrieval_seconds = time.perf_counter() - retrieval_started
+            context_started = time.perf_counter()
             context = retriever.format_context_for_llm(
                 retrieval_result.retrieved_chunks,
                 max_chars=max_chars,
             )
+            context_format_seconds = time.perf_counter() - context_started
+            prompt_started = time.perf_counter()
             prompt = build_rag_prompt(question, context)
+            prompt_build_seconds = time.perf_counter() - prompt_started
+            sufficiency_started = time.perf_counter()
             context_sufficient = (
                 bool(retrieval_result.retrieved_chunks)
                 and len(context) >= 200
                 and retrieval_result.temporal_evidence_status not in {"insufficient", "conflict"}
                 and retrieval_result.current_evidence_status not in {"insufficient", "conflict"}
             )
+            context_sufficiency_seconds = time.perf_counter() - sufficiency_started
 
             answers: dict[str, str] = {}
             evals: dict[str, dict[str, Any]] = {}
+            provider_call_seconds: dict[str, float] = {}
+            provider_eval_seconds: dict[str, float] = {}
             for provider in providers:
                 print(f"    {provider}: calling...", flush=True)
+                provider_started = time.perf_counter()
                 if context_sufficient:
                     try:
                         answer = call_provider(provider, question, context)
@@ -124,8 +139,11 @@ def run_matrix(
                         answer = f"ERROR: {type(exc).__name__}: {exc}"
                 else:
                     answer = "insufficient context"
+                provider_call_seconds[provider] = time.perf_counter() - provider_started
                 answers[provider] = answer
+                eval_started = time.perf_counter()
                 evals[provider] = evaluate_answer(question_row, answer)
+                provider_eval_seconds[provider] = time.perf_counter() - eval_started
 
             fallback_note = (
                 f", fallback: {retrieval_result.fallback_reason}"
@@ -164,6 +182,16 @@ def run_matrix(
                         [item.chunk.get("chunk_id", "") for item in retrieval_result.retrieved_chunks],
                         ensure_ascii=False,
                     ),
+                    "timing_retriever_init_seconds": round(retriever_init_seconds, 6),
+                    "timing_retrieval_seconds": round(retrieval_seconds, 6),
+                    "timing_context_format_seconds": round(context_format_seconds, 6),
+                    "timing_prompt_build_seconds": round(prompt_build_seconds, 6),
+                    "timing_context_sufficiency_seconds": round(context_sufficiency_seconds, 6),
+                    "timing_openai_call_seconds": round(provider_call_seconds.get("openai", 0.0), 6),
+                    "timing_openai_eval_seconds": round(provider_eval_seconds.get("openai", 0.0), 6),
+                    "timing_gemini_call_seconds": round(provider_call_seconds.get("gemini", 0.0), 6),
+                    "timing_gemini_eval_seconds": round(provider_eval_seconds.get("gemini", 0.0), 6),
+                    "timing_row_total_seconds": round(time.perf_counter() - row_started, 6),
                     "temporal_evidence_status": retrieval_result.temporal_evidence_status,
                     "temporal_evidence_reason": retrieval_result.temporal_evidence_reason,
                     "current_evidence_status": retrieval_result.current_evidence_status,
