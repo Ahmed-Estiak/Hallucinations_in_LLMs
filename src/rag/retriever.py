@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -141,6 +142,7 @@ class RagRetrievalResult:
     temporal_evidence_reason: str = ""
     current_evidence_status: str = ""
     current_evidence_reason: str = ""
+    retrieval_timings: dict[str, float] = field(default_factory=dict)
 
 
 class RagRetriever:
@@ -471,20 +473,29 @@ class RagRetriever:
         if routing_index.model != chunk_index.model:
             raise RuntimeError("Routing and chunk embedding caches must use the same BGE-M3 model.")
 
+        timings: dict[str, float] = {}
+        started = time.perf_counter()
         query_features = routing_index.encode_query(question)
+        timings["query_encode_seconds"] = time.perf_counter() - started
+        started = time.perf_counter()
         route_dense_scores = self._dense_scores_for_items(routes, routing_index, query_features.dense)
         route_sparse_scores = self._sparse_scores_for_items(routes, routing_index, query_features.sparse)
+        timings["route_dense_sparse_seconds"] = time.perf_counter() - started
+        started = time.perf_counter()
         route_items = self._rank_routing_units(
             question,
             routes=routes,
             dense_scores=route_dense_scores,
             sparse_scores=route_sparse_scores,
         )
+        timings["route_rank_seconds"] = time.perf_counter() - started
+        started = time.perf_counter()
         source_selection, selected_route_ids = self._select_sources_from_routes(
             question,
             route_items=route_items,
             top_n_sources=top_n_sources,
         )
+        timings["source_shortlist_seconds"] = time.perf_counter() - started
         selected_source_ids = set(source_selection.selected_source_ids)
         candidate_chunks = [
             chunk for chunk in self.retrieval_chunks
@@ -493,8 +504,10 @@ class RagRetriever:
         compared_units = len(routes) + len(candidate_chunks)
         reduction_percent = (1.0 - (compared_units / max(1, len(self.retrieval_chunks)))) * 100.0
 
+        started = time.perf_counter()
         chunk_dense_scores = self._dense_scores_for_items(candidate_chunks, chunk_index, query_features.dense)
         chunk_sparse_scores = self._sparse_scores_for_items(candidate_chunks, chunk_index, query_features.sparse)
+        timings["chunk_dense_sparse_seconds"] = time.perf_counter() - started
         retrieved = self._retrieve_from_chunks_rrf(
             question,
             chunks=candidate_chunks,
@@ -505,12 +518,15 @@ class RagRetriever:
             top_k=top_k * 2,
             per_source_limit=self._effective_per_source_limit(question, per_source_limit),
             required_source_ids=source_selection.coverage_source_ids,
+            timings=timings,
         )
+        started = time.perf_counter()
         retrieved = suppress_near_duplicate_chunks(
             retrieved,
             top_k=top_k,
             required_source_ids=source_selection.coverage_source_ids,
         )
+        timings["dedupe_seconds"] = time.perf_counter() - started
         result = RagRetrievalResult(
             retrieved_chunks=retrieved,
             retrieval_mode="hierarchical-bge-m3-rrf",
@@ -526,8 +542,12 @@ class RagRetriever:
             full_chunk_count=len(self.retrieval_chunks),
             comparison_reduction_percent=round(reduction_percent, 2),
             colbert_candidates=min(len(candidate_chunks), COLBERT_RERANK_CANDIDATES),
+            retrieval_timings=timings,
         )
-        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+        started = time.perf_counter()
+        result = self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+        result.retrieval_timings["moon_gate_seconds"] = time.perf_counter() - started
+        return result
 
     def _rank_routing_units(
         self,
@@ -1250,13 +1270,19 @@ class RagRetriever:
         top_n_sources: int,
     ) -> RagRetrievalResult:
         embedding_index = self._embedding_index_for_rrf_mode(mode)
+        timings: dict[str, float] = {}
+        started = time.perf_counter()
         query_features = embedding_index.encode_query(question)
+        timings["query_encode_seconds"] = time.perf_counter() - started
+        started = time.perf_counter()
         dense_scores = self._dense_scores_by_chunk(embedding_index, query_features.dense)
         sparse_scores = (
             self._sparse_scores_by_chunk(embedding_index, query_features.sparse)
             if mode == "bge-m3-rrf"
             else {}
         )
+        timings["chunk_dense_sparse_seconds"] = time.perf_counter() - started
+        started = time.perf_counter()
         source_selection = self._select_sources_rrf(
             question,
             mode=mode,
@@ -1264,6 +1290,7 @@ class RagRetriever:
             sparse_scores=sparse_scores,
             top_n_sources=top_n_sources,
         )
+        timings["source_shortlist_seconds"] = time.perf_counter() - started
         selected_source_ids = set(source_selection.selected_source_ids)
         candidate_chunks = [
             chunk for chunk in self.retrieval_chunks
@@ -1279,6 +1306,7 @@ class RagRetriever:
             top_k=top_k,
             per_source_limit=self._effective_per_source_limit(question, per_source_limit),
             required_source_ids=source_selection.coverage_source_ids,
+            timings=timings,
         )
         result = RagRetrievalResult(
             retrieved_chunks=retrieved,
@@ -1287,8 +1315,15 @@ class RagRetriever:
             embedding_provider=embedding_index.provider,
             embedding_model=embedding_index.model,
             embeddings_path=str(embedding_index.path),
+            candidate_chunks_scored=len(candidate_chunks),
+            full_chunk_count=len(self.retrieval_chunks),
+            colbert_candidates=min(len(candidate_chunks), COLBERT_RERANK_CANDIDATES) if mode == "bge-m3-rrf" else 0,
+            retrieval_timings=timings,
         )
-        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+        started = time.perf_counter()
+        result = self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+        result.retrieval_timings["moon_gate_seconds"] = time.perf_counter() - started
+        return result
 
     def _ensure_openai_embedding_cache(self) -> None:
         result = ensure_embedding_cache(
@@ -1782,8 +1817,13 @@ class RagRetriever:
         top_k: int,
         per_source_limit: int,
         required_source_ids: list[str] | None = None,
+        timings: dict[str, float] | None = None,
     ) -> list[RetrievedChunk]:
+        timings = timings if timings is not None else {}
+        started = time.perf_counter()
         lexical_items = self._score_chunks_lexical(question, chunks=chunks)
+        timings["chunk_lexical_seconds"] = timings.get("chunk_lexical_seconds", 0.0) + (time.perf_counter() - started)
+        started = time.perf_counter()
         chunk_ids = {chunk["chunk_id"] for chunk in chunks}
         dense_items = [
             RetrievedChunk(chunk=chunk, score=dense_scores[chunk["chunk_id"]] * 100.0, reasons=[])
@@ -1825,6 +1865,7 @@ class RagRetriever:
             weights=weights,
         )
         initial_items.sort(key=lambda item: item.score, reverse=True)
+        timings["chunk_rrf_seconds"] = timings.get("chunk_rrf_seconds", 0.0) + (time.perf_counter() - started)
         if mode != "bge-m3-rrf":
             return cap_per_source(
                 initial_items,
@@ -1833,6 +1874,7 @@ class RagRetriever:
                 required_source_ids=required_source_ids,
             )
 
+        started = time.perf_counter()
         rerank_candidates = cap_per_source(
             initial_items,
             top_k=max(COLBERT_RERANK_CANDIDATES, top_k),
@@ -1849,6 +1891,8 @@ class RagRetriever:
             for item, score in zip(rerank_candidates, colbert_scores)
         ]
         colbert_items.sort(key=lambda item: item.score, reverse=True)
+        timings["colbert_seconds"] = timings.get("colbert_seconds", 0.0) + (time.perf_counter() - started)
+        started = time.perf_counter()
         final_rank_maps = dict(rank_maps)
         final_rank_maps["colbert"] = chunk_rank_map(colbert_items)
         final_item_maps = dict(item_maps)
@@ -1862,6 +1906,7 @@ class RagRetriever:
             weights=BGE_M3_FINAL_RRF_WEIGHTS,
         )
         final_items.sort(key=lambda item: item.score, reverse=True)
+        timings["final_rrf_seconds"] = timings.get("final_rrf_seconds", 0.0) + (time.perf_counter() - started)
         return cap_per_source(
             final_items,
             top_k=top_k,
