@@ -85,9 +85,10 @@ def run_matrix(
     output: Path,
     max_chars: int,
     source_set: str,
+    enable_temporal_first: bool,
 ) -> list[dict[str, Any]]:
     retriever_init_started = time.perf_counter()
-    retriever = build_retriever(source_set)
+    retriever = build_retriever(source_set, enable_temporal_first=enable_temporal_first)
     retriever_init_seconds = time.perf_counter() - retriever_init_started
     rows: list[dict[str, Any]] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -170,6 +171,7 @@ def run_matrix(
                     "expected_answer": truth,
                     "requested_method": method,
                     "executed_method": retrieval_result.retrieval_mode,
+                    "temporal_first_enabled": enable_temporal_first,
                     "fallback_used": retrieval_result.fallback_used,
                     "fallback_reason": retrieval_result.fallback_reason,
                     "context_sufficient": context_sufficient,
@@ -239,12 +241,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--questions-path", type=Path, default=PROJECT_ROOT / "data" / "qa_92.json")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--max-chars", type=int, default=12000)
+    parser.add_argument(
+        "--disable-temporal-first",
+        action="store_true",
+        help="Disable the production temporal-first resolver for fair method comparison.",
+    )
     return parser.parse_args()
 
 
-def build_retriever(source_set: str) -> RagRetriever:
+def build_retriever(source_set: str, *, enable_temporal_first: bool = True) -> RagRetriever:
     if source_set != "pdf":
-        return RagRetriever()
+        return RagRetriever(enable_temporal_first=enable_temporal_first)
     return RagRetriever(
         PROJECT_ROOT / PDF_CHUNKS_PATH,
         documents_path=PROJECT_ROOT / PDF_DOCUMENTS_PATH,
@@ -253,6 +260,7 @@ def build_retriever(source_set: str) -> RagRetriever:
         openai_embeddings_path=PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH,
         routing_units_path=PROJECT_ROOT / PDF_ROUTING_UNITS_PATH,
         routing_embeddings_path=PROJECT_ROOT / PDF_ROUTING_EMBEDDINGS_PATH,
+        enable_temporal_first=enable_temporal_first,
     )
 
 
@@ -268,6 +276,7 @@ def main() -> None:
         output=args.output,
         max_chars=args.max_chars,
         source_set=args.source_set,
+        enable_temporal_first=not args.disable_temporal_first,
     )
     print(f"\nRows: {len(rows)}")
     print(f"Saved to: {args.output}")

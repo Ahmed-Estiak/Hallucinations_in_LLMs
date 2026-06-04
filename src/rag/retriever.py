@@ -158,6 +158,7 @@ class RagRetriever:
         routing_units_path: str | Path = DEFAULT_ROUTING_UNITS_PATH,
         routing_embeddings_path: str | Path = DEFAULT_ROUTING_EMBEDDINGS_PATH,
         page_signals_path: str | Path | None = None,
+        enable_temporal_first: bool = True,
     ) -> None:
         self.chunks_path = Path(chunks_path)
         self.chunks = self._load_chunks(self.chunks_path)
@@ -174,6 +175,7 @@ class RagRetriever:
         self._routing_embedding_index: EmbeddingIndex | None = None
         self._page_signals: list[dict[str, Any]] | None = None
         self._active_chunks: list[dict[str, Any]] | None = None
+        self.enable_temporal_first = enable_temporal_first
         self.question_classifier = QuestionClassifier()
         self._source_selector: SourceSelector | None = None
 
@@ -230,14 +232,15 @@ class RagRetriever:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
 
-        temporal_first = self._try_temporal_first_retrieval(
-            question,
-            top_k=top_k,
-            per_source_limit=per_source_limit,
-            requested_mode=mode,
-        )
-        if temporal_first is not None:
-            return temporal_first
+        if self.enable_temporal_first:
+            temporal_first = self._try_temporal_first_retrieval(
+                question,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                requested_mode=mode,
+            )
+            if temporal_first is not None:
+                return temporal_first
 
         if mode == "temporal-first-bge-m3-rrf":
             mode = "hierarchical-bge-m3-rrf"
@@ -274,6 +277,98 @@ class RagRetriever:
                 per_source_limit=per_source_limit,
                 top_n_sources=top_n_sources,
             )
+
+        source_selection = None
+        selected_source_ids = None
+        fallback_used = False
+        fallback_reason = ""
+        embedding_provider = ""
+        embedding_model = ""
+        query_embedding = None
+        vector_scores = None
+        if mode == "auto-source":
+            source_selection = self.source_selector.select(question, top_n_sources=top_n_sources)
+            selected_source_ids = set(source_selection.selected_source_ids)
+            if not selected_source_ids:
+                fallback_used = True
+                fallback_reason = "no_sources_selected"
+                selected_source_ids = None
+        elif mode in {"vector", "hybrid"}:
+            embedding_index = self.embedding_index
+            embedding_provider = embedding_index.provider
+            embedding_model = embedding_index.model
+            query_embedding = embedding_index.embed_query(question)
+            vector_scores = self._vector_scores_by_chunk(query_embedding)
+            if mode == "vector":
+                source_selection = self._select_sources_vector(
+                    question,
+                    vector_scores,
+                    top_n_sources=top_n_sources,
+                )
+            else:
+                source_selection = self._select_sources_hybrid(
+                    question,
+                    vector_scores,
+                    top_n_sources=top_n_sources,
+                )
+            selected_source_ids = set(source_selection.selected_source_ids)
+            if not selected_source_ids:
+                fallback_used = True
+                fallback_reason = "no_sources_selected"
+                selected_source_ids = None
+
+        effective_per_source_limit = self._effective_per_source_limit(question, per_source_limit)
+        candidate_chunks = [
+            chunk
+            for chunk in self.retrieval_chunks
+            if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
+        ]
+        coverage_source_ids = source_selection.coverage_source_ids if source_selection else []
+        if mode == "vector":
+            retrieved = self._retrieve_from_chunks_vector(
+                candidate_chunks,
+                vector_scores=vector_scores or {},
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
+            )
+        elif mode == "hybrid":
+            retrieved = self._retrieve_from_chunks_hybrid(
+                question,
+                chunks=candidate_chunks,
+                vector_scores=vector_scores or {},
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
+            )
+        else:
+            retrieved = self._retrieve_from_chunks(
+                question,
+                chunks=candidate_chunks,
+                top_k=top_k,
+                per_source_limit=effective_per_source_limit,
+                required_source_ids=coverage_source_ids,
+            )
+
+        if source_selection and source_selection.fallback_used:
+            fallback_used = True
+            fallback_reason = fallback_reason or source_selection.fallback_reason
+
+        result = RagRetrievalResult(
+            retrieved_chunks=retrieved,
+            retrieval_mode=mode,
+            requested_mode=mode,
+            source_selection=source_selection,
+            fallback_used=fallback_used,
+            fallback_reason=fallback_reason,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embeddings_path=str(self.embeddings_path),
+        )
+        started = time.perf_counter()
+        result = self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
+        result.retrieval_timings["moon_gate_seconds"] = time.perf_counter() - started
+        return result
 
     def _try_temporal_first_retrieval(
         self,
