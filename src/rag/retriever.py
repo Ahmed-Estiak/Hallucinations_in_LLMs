@@ -24,6 +24,7 @@ from src.rag.embeddings import (
     DEFAULT_OPENAI_EMBEDDINGS_PATH,
     EmbeddingIndex,
     bge_m3_colbert_scores,
+    count_complete_embedding_records,
     cosine_similarity,
     embedding_text_for_chunk,
     ensure_embedding_cache,
@@ -441,6 +442,7 @@ class RagRetriever:
             question,
             raw_candidates,
             intent=intent,
+            requested_mode=requested_mode,
             top_k=max(TEMPORAL_RAW_SUPPORT_LIMIT, top_k),
             per_source_limit=max(TEMPORAL_RAW_SUPPORT_LIMIT, per_source_limit),
             timings=timings,
@@ -467,13 +469,18 @@ class RagRetriever:
             key=lambda item: item.score,
             reverse=True,
         )
+        raw_rank_provider = str(timings.get("temporal_raw_rank_provider", "bge-m3"))
+        raw_rank_status = str(timings.get("temporal_raw_rank_status", ""))
+        embedding_provider = raw_rank_provider if raw_rank_status == "embedding" else ""
+        embedding_model = str(timings.get("temporal_raw_rank_model", ""))
+        embeddings_path = str(timings.get("temporal_raw_rank_cache_path", ""))
         result = RagRetrievalResult(
             retrieved_chunks=merged[:top_k],
             retrieval_mode="temporal-first-bge-m3-rrf",
             requested_mode=requested_mode,
-            embedding_provider="bge-m3",
-            embedding_model=self._embedding_index_for_rrf_mode("bge-m3-rrf").model,
-            embeddings_path=str(self.embeddings_path),
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embeddings_path=embeddings_path,
             candidate_chunks_scored=len(raw_candidates),
             full_chunk_count=len(self.retrieval_chunks),
             temporal_evidence_status="supported",
@@ -520,25 +527,59 @@ class RagRetriever:
         candidates: list[dict[str, Any]],
         *,
         intent: RetrievalIntent,
+        requested_mode: str,
         top_k: int,
         per_source_limit: int,
         timings: dict[str, float],
     ) -> list[RetrievedChunk]:
         if not candidates:
             return []
+        ranking_mode = (
+            "openai-embedding-rrf"
+            if requested_mode == "openai-embedding-rrf"
+            else "bge-m3-rrf"
+        )
+        timings["temporal_raw_rank_provider"] = (
+            "openai" if ranking_mode == "openai-embedding-rrf" else "bge-m3"
+        )
         try:
-            embedding_index = self._embedding_index_for_rrf_mode("bge-m3-rrf")
+            embedding_index = self._embedding_index_for_rrf_mode(ranking_mode)
+            if ranking_mode == "openai-embedding-rrf":
+                complete_count = count_complete_embedding_records(
+                    candidates,
+                    records=embedding_index.records,
+                    provider=embedding_index.provider,
+                    model=embedding_index.model,
+                )
+                missing_count = len(candidates) - complete_count
+                timings["temporal_openai_embedding_complete_count"] = float(complete_count)
+                timings["temporal_openai_embedding_missing_count"] = float(missing_count)
+                timings["temporal_openai_embedding_cache_path"] = str(embedding_index.path)
+                if missing_count:
+                    timings["temporal_openai_embedding_status"] = "incomplete"
+                    raise RuntimeError(
+                        f"OpenAI temporal candidate embedding cache incomplete: "
+                        f"{complete_count}/{len(candidates)} complete at {embedding_index.path}"
+                    )
+                timings["temporal_openai_embedding_status"] = "complete"
+            timings["temporal_raw_rank_status"] = "embedding"
+            timings["temporal_raw_rank_model"] = embedding_index.model
+            timings["temporal_raw_rank_cache_path"] = str(embedding_index.path)
             started = time.perf_counter()
             query_features = embedding_index.encode_query(question)
             timings["query_encode_seconds"] = timings.get("query_encode_seconds", 0.0) + (time.perf_counter() - started)
             started = time.perf_counter()
             dense_scores = self._dense_scores_for_items(candidates, embedding_index, query_features.dense)
-            sparse_scores = self._sparse_scores_for_items(candidates, embedding_index, query_features.sparse)
+            sparse_scores = (
+                self._sparse_scores_for_items(candidates, embedding_index, query_features.sparse)
+                if ranking_mode == "bge-m3-rrf"
+                else {}
+            )
             timings["chunk_dense_sparse_seconds"] = timings.get("chunk_dense_sparse_seconds", 0.0) + (time.perf_counter() - started)
             items = self._retrieve_from_chunks_rrf(
                 question,
                 chunks=candidates,
-                mode="bge-m3-rrf",
+                mode=ranking_mode,
                 dense_scores=dense_scores,
                 sparse_scores=sparse_scores,
                 embedding_index=embedding_index,
@@ -550,11 +591,22 @@ class RagRetriever:
                 RetrievedChunk(
                     chunk=item.chunk,
                     score=item.score,
-                    reasons=["temporal_raw_bge_m3_support", *item.reasons],
+                    reasons=[
+                        (
+                            "temporal_raw_openai_embedding_support"
+                            if ranking_mode == "openai-embedding-rrf"
+                            else "temporal_raw_bge_m3_support"
+                        ),
+                        *item.reasons,
+                    ],
                 )
                 for item in items
             ]
-        except Exception:
+        except Exception as exc:
+            timings["temporal_raw_rank_status"] = "lexical_fallback"
+            if ranking_mode == "openai-embedding-rrf":
+                timings.setdefault("temporal_openai_embedding_status", "error")
+                timings["temporal_openai_embedding_error"] = f"{type(exc).__name__}: {exc}"
             time_constraints = extract_time_constraints(question)
             fallback_items = []
             for chunk in candidates:
@@ -574,98 +626,6 @@ class RagRetriever:
                 top_k=top_k,
                 per_source_limit=per_source_limit,
             )
-
-        source_selection = None
-        selected_source_ids = None
-        fallback_used = False
-        fallback_reason = ""
-        embedding_provider = ""
-        embedding_model = ""
-        query_embedding = None
-        vector_scores = None
-        if mode == "auto-source":
-            source_selection = self.source_selector.select(question, top_n_sources=top_n_sources)
-            selected_source_ids = set(source_selection.selected_source_ids)
-            if not selected_source_ids:
-                fallback_used = True
-                fallback_reason = "no_sources_selected"
-                selected_source_ids = None
-        elif mode in {"vector", "hybrid"}:
-            embedding_index = self.embedding_index
-            embedding_provider = embedding_index.provider
-            embedding_model = embedding_index.model
-            query_embedding = embedding_index.embed_query(question)
-            vector_scores = self._vector_scores_by_chunk(query_embedding)
-            if mode == "vector":
-                source_selection = self._select_sources_vector(
-                    question,
-                    vector_scores,
-                    top_n_sources=top_n_sources,
-                )
-            else:
-                source_selection = self._select_sources_hybrid(
-                    question,
-                    vector_scores,
-                    top_n_sources=top_n_sources,
-                )
-            selected_source_ids = set(source_selection.selected_source_ids)
-            if not selected_source_ids:
-                fallback_used = True
-                fallback_reason = "no_sources_selected"
-                selected_source_ids = None
-
-        effective_per_source_limit = self._effective_per_source_limit(question, per_source_limit)
-        candidate_chunks = [
-            chunk for chunk in self.retrieval_chunks
-            if selected_source_ids is None or chunk.get("source_id") in selected_source_ids
-        ]
-        coverage_source_ids = (
-            source_selection.coverage_source_ids
-            if source_selection
-            else []
-        )
-        if mode == "vector":
-            retrieved = self._retrieve_from_chunks_vector(
-                candidate_chunks,
-                vector_scores=vector_scores or {},
-                top_k=top_k,
-                per_source_limit=effective_per_source_limit,
-                required_source_ids=coverage_source_ids,
-            )
-        elif mode == "hybrid":
-            retrieved = self._retrieve_from_chunks_hybrid(
-                question,
-                chunks=candidate_chunks,
-                vector_scores=vector_scores or {},
-                top_k=top_k,
-                per_source_limit=effective_per_source_limit,
-                required_source_ids=coverage_source_ids,
-            )
-        else:
-            retrieved = self._retrieve_from_chunks(
-                question,
-                chunks=candidate_chunks,
-                top_k=top_k,
-                per_source_limit=effective_per_source_limit,
-                required_source_ids=coverage_source_ids,
-            )
-
-        if source_selection and source_selection.fallback_used:
-            fallback_used = True
-            fallback_reason = fallback_reason or source_selection.fallback_reason
-
-        result = RagRetrievalResult(
-            retrieved_chunks=retrieved,
-            retrieval_mode=mode,
-            requested_mode=mode,
-            source_selection=source_selection,
-            fallback_used=fallback_used,
-            fallback_reason=fallback_reason,
-            embedding_provider=embedding_provider,
-            embedding_model=embedding_model,
-            embeddings_path=str(self.embeddings_path),
-        )
-        return self._apply_moon_count_evidence_gate(question, result, top_k=top_k)
 
     @property
     def retrieval_chunks(self) -> list[dict[str, Any]]:
