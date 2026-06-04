@@ -19,7 +19,11 @@ from src.rag.structured_satellite_facts import (
     extract_pipe_table_count_facts,
     extract_satellite_count_facts,
 )
-from src.rag.temporal_evidence import compatible_current_chunks, compatible_temporal_chunks
+from src.rag.temporal_evidence import (
+    compatible_current_chunks,
+    compatible_temporal_chunks,
+    is_temporal_count_intent,
+)
 
 
 TABLE_TEXT = """
@@ -259,6 +263,21 @@ class TemporalCompatibilityTests(unittest.TestCase):
     def setUp(self) -> None:
         facts = extract_satellite_count_facts(TABLE_TEXT)
         self.chunks = [fact_chunk(fact, fact.fact_id) for fact in facts]
+
+    def test_temporal_first_gate_is_moon_count_only(self) -> None:
+        saturn_intent = build_retrieval_intent(
+            "As of November 2021, how many confirmed moons did Saturn have?"
+        )
+        pluto_intent = build_retrieval_intent(
+            "As of November 2021, how many confirmed moons did Pluto have?"
+        )
+        discovery_intent = build_retrieval_intent(
+            "As of November 2021, who discovered Pluto?"
+        )
+
+        self.assertTrue(is_temporal_count_intent(saturn_intent))
+        self.assertTrue(is_temporal_count_intent(pluto_intent))
+        self.assertFalse(is_temporal_count_intent(discovery_intent))
 
     def test_intermediate_month_is_supported_only_by_derived_interval(self) -> None:
         intent = build_retrieval_intent(
