@@ -62,6 +62,7 @@ from src.rag.temporal_evidence import (
 
 
 RETRIEVAL_MODES = {
+    "temporal-first-bge-m3-rrf",
     "hierarchical-bge-m3-rrf",
     "global",
     "auto-source",
@@ -97,6 +98,7 @@ CLASS_ENTITY_MEMBERS = {
 MOON_COUNT_CONTEXT_CHUNK_LIMIT = 8
 MOON_COUNT_SUPPORT_LIMIT = 16
 MOON_COUNT_SUPPORT_PER_ENTITY = 2
+TEMPORAL_RAW_SUPPORT_LIMIT = 10
 AUTOMATIC_FALLBACK_CHAIN = [
     "hierarchical-bge-m3-rrf",
     "bge-m3-rrf",
@@ -228,6 +230,18 @@ class RagRetriever:
         if mode not in RETRIEVAL_MODES:
             raise ValueError(f"mode must be one of: {', '.join(sorted(RETRIEVAL_MODES))}")
 
+        temporal_first = self._try_temporal_first_retrieval(
+            question,
+            top_k=top_k,
+            per_source_limit=per_source_limit,
+            requested_mode=mode,
+        )
+        if temporal_first is not None:
+            return temporal_first
+
+        if mode == "temporal-first-bge-m3-rrf":
+            mode = "hierarchical-bge-m3-rrf"
+
         if mode == "hierarchical-bge-m3-rrf":
             return self._retrieve_rrf_fallback_chain(
                 question,
@@ -259,6 +273,211 @@ class RagRetriever:
                 top_k=top_k,
                 per_source_limit=per_source_limit,
                 top_n_sources=top_n_sources,
+            )
+
+    def _try_temporal_first_retrieval(
+        self,
+        question: str,
+        *,
+        top_k: int,
+        per_source_limit: int,
+        requested_mode: str,
+    ) -> RagRetrievalResult | None:
+        """Resolve temporal moon-count queries before expensive global retrieval.
+
+        The fast path uses structured temporal facts first. If they provide a
+        valid exact/interval answer, it scans raw chunks for recall-oriented
+        dated moon-count support and ranks only that small candidate pool with
+        BGE-M3 RRF. Unsupported cases fall back to the requested retrieval mode.
+        """
+        timings: dict[str, float] = {}
+        started = time.perf_counter()
+        intent = build_retrieval_intent(question, classifier=self.question_classifier)
+        timings["temporal_intent_seconds"] = time.perf_counter() - started
+        if not is_temporal_count_intent(intent):
+            return None
+
+        started = time.perf_counter()
+        compatible = compatible_temporal_chunks(self.retrieval_chunks, intent)
+        timings["temporal_resolver_seconds"] = time.perf_counter() - started
+        if not compatible:
+            return None
+
+        values = {
+            chunk["temporal_fact"].get("value")
+            for chunk, _kind in compatible
+        }
+        if len(values) > 1:
+            result = RagRetrievalResult(
+                retrieved_chunks=[],
+                retrieval_mode="temporal-first-bge-m3-rrf",
+                requested_mode=requested_mode,
+                temporal_evidence_status="conflict",
+                temporal_evidence_reason="conflicting_validated_temporal_facts",
+                retrieval_timings=timings,
+            )
+            return result
+
+        time_constraints = extract_time_constraints(question)
+        evidence_items: list[RetrievedChunk] = []
+        anchor_items: list[RetrievedChunk] = []
+        started = time.perf_counter()
+        for chunk, match_kind in compatible:
+            score, reasons = self._score_chunk(
+                chunk,
+                intent=intent,
+                time_constraints=time_constraints,
+            )
+            evidence_items.append(RetrievedChunk(
+                chunk=chunk,
+                score=max(score, 100.0),
+                reasons=[f"required_temporal_evidence:{match_kind}", *reasons],
+            ))
+            anchor_items.extend(self._temporal_interval_anchor_items(chunk, intent))
+        timings["temporal_anchor_merge_seconds"] = time.perf_counter() - started
+
+        started = time.perf_counter()
+        raw_candidates = self._raw_temporal_support_candidates(intent)
+        timings["temporal_raw_scan_seconds"] = time.perf_counter() - started
+        timings["temporal_raw_candidate_count"] = float(len(raw_candidates))
+
+        started = time.perf_counter()
+        raw_items = self._rank_temporal_raw_candidates(
+            question,
+            raw_candidates,
+            intent=intent,
+            top_k=max(TEMPORAL_RAW_SUPPORT_LIMIT, top_k),
+            per_source_limit=max(TEMPORAL_RAW_SUPPORT_LIMIT, per_source_limit),
+            timings=timings,
+        )
+        timings["temporal_raw_rank_seconds"] = time.perf_counter() - started
+
+        protected_ids = {
+            item.chunk["chunk_id"]
+            for item in [*evidence_items, *anchor_items]
+        }
+        raw_items = [
+            item for item in raw_items
+            if (
+                item.chunk["chunk_id"] not in protected_ids
+                and not item.chunk.get("temporal_fact")
+                and not contains_target_count_assertion(item.chunk, intent)
+            )
+        ][:TEMPORAL_RAW_SUPPORT_LIMIT]
+        merged = sorted(
+            {
+                item.chunk["chunk_id"]: item
+                for item in [*raw_items, *anchor_items, *evidence_items]
+            }.values(),
+            key=lambda item: item.score,
+            reverse=True,
+        )
+        result = RagRetrievalResult(
+            retrieved_chunks=merged[:top_k],
+            retrieval_mode="temporal-first-bge-m3-rrf",
+            requested_mode=requested_mode,
+            embedding_provider="bge-m3",
+            embedding_model=self._embedding_index_for_rrf_mode("bge-m3-rrf").model,
+            embeddings_path=str(self.embeddings_path),
+            candidate_chunks_scored=len(raw_candidates),
+            full_chunk_count=len(self.retrieval_chunks),
+            temporal_evidence_status="supported",
+            temporal_evidence_reason=compatible[0][1],
+            colbert_candidates=min(len(raw_candidates), COLBERT_RERANK_CANDIDATES),
+            retrieval_timings=timings,
+        )
+        return result
+
+    def _raw_temporal_support_candidates(self, intent: RetrievalIntent) -> list[dict[str, Any]]:
+        chunks = self.retrieval_chunks
+        candidates: list[tuple[float, int, dict[str, Any]]] = []
+        for index, chunk in enumerate(chunks):
+            if chunk.get("temporal_fact") or chunk.get("content_type") == "structured_fact":
+                continue
+            text = str(chunk.get("text", ""))
+            text_lower = text.lower()
+            if not has_moon_term(text_lower):
+                continue
+            if not has_temporal_signal(text_lower):
+                continue
+            neighbor_text = self._neighbor_window_text(chunks, index)
+            if not any(entity_context_present(neighbor_text, entity) for entity in intent.entity_terms):
+                continue
+            score = temporal_raw_candidate_score(text_lower, neighbor_text, intent)
+            candidates.append((score, index, chunk))
+        candidates.sort(key=lambda item: (item[0], -item[1]), reverse=True)
+        return [chunk for _score, _index, chunk in candidates]
+
+    @staticmethod
+    def _neighbor_window_text(chunks: list[dict[str, Any]], index: int) -> str:
+        chunk = chunks[index]
+        source_id = chunk.get("source_id")
+        texts = []
+        for cursor in range(max(0, index - 1), min(len(chunks), index + 2)):
+            neighbor = chunks[cursor]
+            if neighbor.get("source_id") == source_id:
+                texts.append(str(neighbor.get("text", "")))
+        return "\n".join(texts).lower()
+
+    def _rank_temporal_raw_candidates(
+        self,
+        question: str,
+        candidates: list[dict[str, Any]],
+        *,
+        intent: RetrievalIntent,
+        top_k: int,
+        per_source_limit: int,
+        timings: dict[str, float],
+    ) -> list[RetrievedChunk]:
+        if not candidates:
+            return []
+        try:
+            embedding_index = self._embedding_index_for_rrf_mode("bge-m3-rrf")
+            started = time.perf_counter()
+            query_features = embedding_index.encode_query(question)
+            timings["query_encode_seconds"] = timings.get("query_encode_seconds", 0.0) + (time.perf_counter() - started)
+            started = time.perf_counter()
+            dense_scores = self._dense_scores_for_items(candidates, embedding_index, query_features.dense)
+            sparse_scores = self._sparse_scores_for_items(candidates, embedding_index, query_features.sparse)
+            timings["chunk_dense_sparse_seconds"] = timings.get("chunk_dense_sparse_seconds", 0.0) + (time.perf_counter() - started)
+            items = self._retrieve_from_chunks_rrf(
+                question,
+                chunks=candidates,
+                mode="bge-m3-rrf",
+                dense_scores=dense_scores,
+                sparse_scores=sparse_scores,
+                embedding_index=embedding_index,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
+                timings=timings,
+            )
+            return [
+                RetrievedChunk(
+                    chunk=item.chunk,
+                    score=item.score,
+                    reasons=["temporal_raw_bge_m3_support", *item.reasons],
+                )
+                for item in items
+            ]
+        except Exception:
+            time_constraints = extract_time_constraints(question)
+            fallback_items = []
+            for chunk in candidates:
+                score, reasons = self._score_chunk(
+                    chunk,
+                    intent=intent,
+                    time_constraints=time_constraints,
+                )
+                fallback_items.append(RetrievedChunk(
+                    chunk=chunk,
+                    score=score,
+                    reasons=["temporal_raw_lexical_support", *reasons],
+                ))
+            fallback_items.sort(key=lambda item: item.score, reverse=True)
+            return cap_per_source(
+                fallback_items,
+                top_k=top_k,
+                per_source_limit=per_source_limit,
             )
 
         source_selection = None
@@ -2211,6 +2430,67 @@ def has_phrase(text: str, phrase: str) -> bool:
 
 def slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+
+
+TEMPORAL_SIGNAL_RE = re.compile(
+    r"\b(?:"
+    r"(?:1[5-9]\d{2}|20\d{2})"
+    r"|(?:jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)[a-z.]*\s+(?:1[5-9]\d{2}|20\d{2})"
+    r"|(?:1[0-2])[/.-](?:1[5-9]\d{2}|20\d{2})"
+    r"|(?:1[5-9]\d{2}|20\d{2})[/.-](?:0?[1-9]|1[0-2])"
+    r"|(?:early|mid|late)(?:\s+in\s+|\s+|-)(?:1[5-9]\d{2}|20\d{2})"
+    r"|by\s+(?:1[5-9]\d{2}|20\d{2})"
+    r"|as\s+of\s+(?:1[5-9]\d{2}|20\d{2})"
+    r")\b",
+    re.IGNORECASE,
+)
+MOON_TERM_RE = re.compile(r"\b(?:moon|moons|satellite|satellites)\b", re.IGNORECASE)
+COUNT_NEAR_MOON_RE = re.compile(
+    r"(?:\b\d[\d,]*\b.{0,80}\b(?:moon|moons|satellite|satellites)\b|"
+    r"\b(?:moon|moons|satellite|satellites)\b.{0,80}\b\d[\d,]*\b)",
+    re.IGNORECASE,
+)
+
+
+def has_temporal_signal(text: str) -> bool:
+    return bool(TEMPORAL_SIGNAL_RE.search(text))
+
+
+def has_moon_term(text: str) -> bool:
+    return bool(MOON_TERM_RE.search(text))
+
+
+def entity_context_present(text: str, entity: str) -> bool:
+    normalized = entity.lower().strip()
+    if not normalized:
+        return False
+    if re.search(rf"\b{re.escape(normalized)}(?:'s|s')?\b", text, flags=re.IGNORECASE):
+        return True
+    if normalized == "saturn" and re.search(r"\bsaturnian\b", text, flags=re.IGNORECASE):
+        return True
+    return False
+
+
+def temporal_raw_candidate_score(text: str, window_text: str, intent: RetrievalIntent) -> float:
+    score = 0.0
+    target_time = (intent.time_value or "").lower()
+    if target_time and target_time in text:
+        score += 10.0
+    if any(entity_context_present(text, entity) for entity in intent.entity_terms):
+        score += 4.0
+    elif any(entity_context_present(window_text, entity) for entity in intent.entity_terms):
+        score += 2.0
+    if has_moon_term(text):
+        score += 3.0
+    if has_temporal_signal(text):
+        score += 3.0
+    if COUNT_NEAR_MOON_RE.search(text):
+        score += 5.0
+    if re.search(r"\b(?:total|count|confirmed|known|named|listed|bringing\s+the\s+total)\b", text):
+        score += 4.0
+    if re.search(r"\b(?:references|bibliography|doi|journal|proceedings)\b", text):
+        score -= 5.0
+    return score
 
 
 MONTH_NAMES = {
