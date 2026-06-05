@@ -2,14 +2,16 @@
 Run one benchmark question through both vanilla and KG-grounded paths.
 
 Default question ID is 5 to make targeted debugging cheap in time and tokens.
+This smoke test calls both OpenAI and Gemini.
 """
 import argparse
 import json
 import sys
 from pathlib import Path
 
-# Add workspace root to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Resolve imports and data independently of the caller's working directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.models import ask_openai, ask_gemini
 from src.kg_runner import (
@@ -24,7 +26,8 @@ from src.kg_models import ask_openai_with_kg, ask_gemini_with_kg
 
 
 def _load_question(question_id: int) -> dict:
-    with open("data/qa_92.json", "r", encoding="utf-8") as f:
+    questions_path = PROJECT_ROOT / "data" / "qa_92.json"
+    with questions_path.open("r", encoding="utf-8") as f:
         questions = json.load(f)
 
     for question in questions:
@@ -32,6 +35,8 @@ def _load_question(question_id: int) -> dict:
             return question
 
     raise ValueError(f"Question ID {question_id} not found in data/qa_92.json")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run one question through vanilla and KG paths.")
     parser.add_argument("--id", type=int, default=5, help="Question ID from data/qa_92.json (default: 5)")

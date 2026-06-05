@@ -119,6 +119,7 @@ For method-isolation audits, disable it with:
 |   |-- final/                         # final benchmark/comparison reports
 |   `-- debug/                         # temporary audit, timing, and retrieval reports
 |-- scripts/                           # ingestion, index building, audit, and debug CLIs
+|   `-- smoke/                         # targeted provider/API smoke tests
 |-- src/
 |   |-- rag/                           # RAG extraction, indexing, retrieval, and evidence logic
 |   |-- evaluator.py                   # answer-format-aware evaluation
@@ -182,6 +183,14 @@ Preview retrieval context without making an LLM call:
 ```powershell
 .\.venv\Scripts\python.exe scripts\preview_rag_context.py --id 9 --retrieval-mode hierarchical-bge-m3-rrf
 ```
+
+Smoke-test one question through vanilla and KG-grounded OpenAI/Gemini paths:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\smoke\test_single_question.py --id 5
+```
+
+This smoke test calls both provider APIs and incurs API usage.
 
 ## Web RAG Pipeline
 
