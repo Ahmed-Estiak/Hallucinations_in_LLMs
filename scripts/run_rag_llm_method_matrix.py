@@ -86,10 +86,12 @@ def run_matrix(
     max_chars: int,
     source_set: str,
     enable_temporal_first: bool,
+    warmup_retriever: bool,
 ) -> list[dict[str, Any]]:
     retriever_init_started = time.perf_counter()
     retriever = build_retriever(source_set, enable_temporal_first=enable_temporal_first)
     retriever_init_seconds = time.perf_counter() - retriever_init_started
+    warmup_timings = retriever.warm_up() if warmup_retriever else {}
     rows: list[dict[str, Any]] = []
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -185,6 +187,12 @@ def run_matrix(
                         ensure_ascii=False,
                     ),
                     "timing_retriever_init_seconds": round(retriever_init_seconds, 6),
+                    "retriever_warmup_enabled": warmup_retriever,
+                    "timing_warmup_load_indexes_seconds": round(warmup_timings.get("load_indexes_seconds", 0.0), 6),
+                    "timing_warmup_encode_query_seconds": round(warmup_timings.get("encode_query_seconds", 0.0), 6),
+                    "timing_warmup_build_vector_indexes_seconds": round(warmup_timings.get("build_vector_indexes_seconds", 0.0), 6),
+                    "timing_warmup_build_lexical_features_seconds": round(warmup_timings.get("build_lexical_features_seconds", 0.0), 6),
+                    "timing_warmup_colbert_seconds": round(warmup_timings.get("warm_colbert_seconds", 0.0), 6),
                     "timing_retrieval_seconds": round(retrieval_seconds, 6),
                     "timing_context_format_seconds": round(context_format_seconds, 6),
                     "timing_prompt_build_seconds": round(prompt_build_seconds, 6),
@@ -215,6 +223,10 @@ def run_matrix(
                     "timing_final_rrf_seconds": round(retrieval_result.retrieval_timings.get("final_rrf_seconds", 0.0), 6),
                     "timing_dedupe_seconds": round(retrieval_result.retrieval_timings.get("dedupe_seconds", 0.0), 6),
                     "timing_moon_gate_seconds": round(retrieval_result.retrieval_timings.get("moon_gate_seconds", 0.0), 6),
+                    "timing_moon_gate_resolve_entities_seconds": round(retrieval_result.retrieval_timings.get("moon_gate_resolve_entities_seconds", 0.0), 6),
+                    "timing_moon_gate_table_lines_seconds": round(retrieval_result.retrieval_timings.get("moon_gate_table_lines_seconds", 0.0), 6),
+                    "timing_moon_gate_support_select_seconds": round(retrieval_result.retrieval_timings.get("moon_gate_support_select_seconds", 0.0), 6),
+                    "timing_moon_gate_merge_seconds": round(retrieval_result.retrieval_timings.get("moon_gate_merge_seconds", 0.0), 6),
                     "timing_openai_call_seconds": round(provider_call_seconds.get("openai", 0.0), 6),
                     "timing_openai_eval_seconds": round(provider_eval_seconds.get("openai", 0.0), 6),
                     "timing_gemini_call_seconds": round(provider_call_seconds.get("gemini", 0.0), 6),
@@ -255,6 +267,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable the production temporal-first resolver for fair method comparison.",
     )
+    parser.add_argument(
+        "--warmup-retriever",
+        action="store_true",
+        help="Preload BGE-M3, vector indexes, lexical features, and ColBERT before timing queries.",
+    )
     return parser.parse_args()
 
 
@@ -286,6 +303,7 @@ def main() -> None:
         max_chars=args.max_chars,
         source_set=args.source_set,
         enable_temporal_first=not args.disable_temporal_first,
+        warmup_retriever=args.warmup_retriever,
     )
     print(f"\nRows: {len(rows)}")
     print(f"Saved to: {args.output}")

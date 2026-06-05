@@ -24,6 +24,9 @@ EMBEDDING_PROVIDERS = {"bge-m3", "local", "openai"}
 
 _LOCAL_MODEL_CACHE: dict[str, Any] = {}
 _BGE_M3_MODEL_CACHE: dict[str, Any] = {}
+_BGE_M3_COLBERT_QUERY_CACHE: dict[tuple[str, str], Any] = {}
+_BGE_M3_COLBERT_PASSAGE_CACHE: dict[tuple[str, str], Any] = {}
+MAX_COLBERT_PASSAGE_CACHE_ITEMS = 4096
 
 
 @dataclass
@@ -79,6 +82,9 @@ class EmbeddingIndex:
         self.provider = first_record.provider
         self.model = first_record.model
         self._query_cache: dict[tuple[str, bool], EmbeddingFeatures] = {}
+        self._dense_matrix: Any | None = None
+        self._dense_row_by_id: dict[str, int] = {}
+        self._sparse_postings: dict[str, list[tuple[str, float]]] | None = None
 
     def get(self, chunk_id: str) -> list[float] | None:
         record = self.records.get(chunk_id)
@@ -101,6 +107,66 @@ class EmbeddingIndex:
                 return_sparse=self.provider == "bge-m3",
             )[0]
         return self._query_cache[cache_key]
+
+    def dense_scores(self, chunk_ids: Iterable[str], query_embedding: list[float]) -> dict[str, float]:
+        """Score cached dense vectors with one vectorized matrix operation."""
+        try:
+            import numpy as np
+        except ImportError:
+            return {
+                chunk_id: cosine_similarity(query_embedding, record.embedding)
+                for chunk_id in chunk_ids
+                if (record := self.records.get(chunk_id)) is not None
+            }
+        if self._dense_matrix is None:
+            ordered = list(self.records.items())
+            self._dense_row_by_id = {
+                chunk_id: index for index, (chunk_id, _record) in enumerate(ordered)
+            }
+            matrix = np.asarray([record.embedding for _chunk_id, record in ordered], dtype=np.float32)
+            norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            norms[norms == 0.0] = 1.0
+            self._dense_matrix = matrix / norms
+        requested = [
+            (chunk_id, self._dense_row_by_id[chunk_id])
+            for chunk_id in chunk_ids
+            if chunk_id in self._dense_row_by_id
+        ]
+        if not requested:
+            return {}
+        query = np.asarray(query_embedding, dtype=np.float32)
+        norm = float(np.linalg.norm(query))
+        if norm == 0.0:
+            return {chunk_id: 0.0 for chunk_id, _row in requested}
+        query /= norm
+        rows = [row for _chunk_id, row in requested]
+        scores = self._dense_matrix[rows] @ query
+        return {
+            chunk_id: float(score)
+            for (chunk_id, _row), score in zip(requested, scores)
+        }
+
+    def sparse_scores(
+        self,
+        chunk_ids: Iterable[str],
+        query_sparse: dict[str, float] | None,
+    ) -> dict[str, float]:
+        """Score cached sparse vectors through an inverted posting index."""
+        if not query_sparse:
+            return {}
+        if self._sparse_postings is None:
+            postings: dict[str, list[tuple[str, float]]] = {}
+            for chunk_id, record in self.records.items():
+                for token_id, weight in (record.sparse_weights or {}).items():
+                    postings.setdefault(token_id, []).append((chunk_id, weight))
+            self._sparse_postings = postings
+        allowed = set(chunk_ids)
+        scores: dict[str, float] = {}
+        for token_id, query_weight in query_sparse.items():
+            for chunk_id, chunk_weight in self._sparse_postings.get(token_id, []):
+                if chunk_id in allowed:
+                    scores[chunk_id] = scores.get(chunk_id, 0.0) + query_weight * chunk_weight
+        return scores
 
 
 def build_chunk_embedding_records(
@@ -309,20 +375,44 @@ def bge_m3_colbert_scores(
     if not passages:
         return []
     encoder = get_bge_m3_model(model)
-    pairs = [[query, passage] for passage in passages]
-    output = encoder.compute_score(pairs, max_passage_length=max_passage_length)
-    if isinstance(output, dict):
-        scores = output.get("colbert")
-        if scores is None:
-            scores = output.get("colbert+sparse+dense")
-    else:
-        scores = output
-    if scores is None:
-        raise RuntimeError("BGE-M3 compute_score output did not include ColBERT scores.")
-    try:
-        return [float(score) for score in scores]
-    except TypeError:
-        return [float(scores)]
+    query_key = (model, hashlib.sha256(query.encode("utf-8")).hexdigest())
+    query_vec = _BGE_M3_COLBERT_QUERY_CACHE.get(query_key)
+    if query_vec is None:
+        output = encoder.encode(
+            [query],
+            return_dense=False,
+            return_sparse=False,
+            return_colbert_vecs=True,
+            max_length=BGE_M3_EMBED_MAX_LENGTH,
+        )
+        query_vec = output["colbert_vecs"][0]
+        _BGE_M3_COLBERT_QUERY_CACHE[query_key] = query_vec
+
+    passage_keys = [
+        (model, hashlib.sha256(passage.encode("utf-8")).hexdigest())
+        for passage in passages
+    ]
+    missing_positions = [
+        index for index, key in enumerate(passage_keys)
+        if key not in _BGE_M3_COLBERT_PASSAGE_CACHE
+    ]
+    if missing_positions:
+        output = encoder.encode(
+            [passages[index] for index in missing_positions],
+            return_dense=False,
+            return_sparse=False,
+            return_colbert_vecs=True,
+            max_length=max_passage_length,
+        )
+        for index, vector in zip(missing_positions, output["colbert_vecs"]):
+            _BGE_M3_COLBERT_PASSAGE_CACHE[passage_keys[index]] = vector
+        while len(_BGE_M3_COLBERT_PASSAGE_CACHE) > MAX_COLBERT_PASSAGE_CACHE_ITEMS:
+            _BGE_M3_COLBERT_PASSAGE_CACHE.pop(next(iter(_BGE_M3_COLBERT_PASSAGE_CACHE)))
+
+    return [
+        float(encoder.colbert_score(query_vec, _BGE_M3_COLBERT_PASSAGE_CACHE[key]))
+        for key in passage_keys
+    ]
 
 
 def get_bge_m3_model(model: str) -> Any:

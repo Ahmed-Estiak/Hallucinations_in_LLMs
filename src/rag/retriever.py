@@ -25,10 +25,8 @@ from src.rag.embeddings import (
     EmbeddingIndex,
     bge_m3_colbert_scores,
     count_complete_embedding_records,
-    cosine_similarity,
     embedding_text_for_chunk,
     ensure_embedding_cache,
-    sparse_dot,
 )
 from src.rag.retrieval_intent import (
     RetrievalIntent,
@@ -57,6 +55,7 @@ from src.rag.temporal_evidence import (
     current_match_score,
     is_current_count_intent,
     is_temporal_count_intent,
+    TIMELINE_EVIDENCE_TYPES,
     temporal_fact_match_kind,
     temporal_match_score,
 )
@@ -176,6 +175,7 @@ class RagRetriever:
         self._routing_embedding_index: EmbeddingIndex | None = None
         self._page_signals: list[dict[str, Any]] | None = None
         self._active_chunks: list[dict[str, Any]] | None = None
+        self._lexical_feature_cache: dict[int, dict[str, Any]] = {}
         self.enable_temporal_first = enable_temporal_first
         self.question_classifier = QuestionClassifier()
         self._source_selector: SourceSelector | None = None
@@ -196,6 +196,44 @@ class RagRetriever:
             mode=mode,
             top_n_sources=top_n_sources,
         ).retrieved_chunks
+
+    def warm_up(self, *, include_colbert: bool = True) -> dict[str, float]:
+        """Preload models/indexes and reusable features before measured requests."""
+        timings: dict[str, float] = {}
+        started = time.perf_counter()
+        routes = self.routing_units
+        routing_index = self.routing_embedding_index
+        chunk_index = self._embedding_index_for_rrf_mode("bge-m3-rrf")
+        timings["load_indexes_seconds"] = time.perf_counter() - started
+
+        warm_question = "astronomy planet moon count discovery date"
+        started = time.perf_counter()
+        query_features = routing_index.encode_query(warm_question)
+        timings["encode_query_seconds"] = time.perf_counter() - started
+
+        started = time.perf_counter()
+        routing_index.dense_scores((route["chunk_id"] for route in routes), query_features.dense)
+        routing_index.sparse_scores((route["chunk_id"] for route in routes), query_features.sparse)
+        chunk_index.dense_scores((chunk["chunk_id"] for chunk in self.chunks), query_features.dense)
+        chunk_index.sparse_scores((chunk["chunk_id"] for chunk in self.chunks), query_features.sparse)
+        timings["build_vector_indexes_seconds"] = time.perf_counter() - started
+
+        started = time.perf_counter()
+        empty_intent = build_retrieval_intent(warm_question, classifier=self.question_classifier)
+        empty_time = {"phrases": [], "years": [], "months": []}
+        for item in [*routes, *self.chunks]:
+            self._score_chunk(item, intent=empty_intent, time_constraints=empty_time)
+        timings["build_lexical_features_seconds"] = time.perf_counter() - started
+
+        if include_colbert and self.chunks:
+            started = time.perf_counter()
+            bge_m3_colbert_scores(
+                warm_question,
+                [embedding_text_for_chunk(self.chunks[0])],
+                model=chunk_index.model,
+            )
+            timings["warm_colbert_seconds"] = time.perf_counter() - started
+        return timings
 
     def retrieve_with_details(
         self,
@@ -1281,8 +1319,22 @@ class RagRetriever:
         missing_entities: list[str] = []
         resolved_source_ids: list[str] = []
         is_temporal_lookup = intent.has_time_lookup and bool(intent.time_value)
+        started = time.perf_counter()
+        current_matches_by_entity = (
+            {}
+            if is_temporal_lookup
+            else self._current_moon_count_matches_for_entities(entities)
+        )
+        result.retrieval_timings["moon_gate_resolve_entities_seconds"] = (
+            time.perf_counter() - started
+        )
+        started = time.perf_counter()
         for entity in entities:
-            match = self._resolve_moon_count_for_entity(entity, intent)
+            match = (
+                self._resolve_moon_count_for_entity(entity, intent)
+                if is_temporal_lookup
+                else current_matches_by_entity.get(entity.lower())
+            )
             if match is None:
                 if is_temporal_lookup:
                     resolved_lines.append(f"- {entity}: missing")
@@ -1306,6 +1358,9 @@ class RagRetriever:
                     f"(highest structured count found; source={chunk.get('source_id', '')})"
                 )
             resolved_source_ids.append(chunk.get("source_id", ""))
+        result.retrieval_timings["moon_gate_table_lines_seconds"] = (
+            time.perf_counter() - started
+        )
 
         table_title = (
             "Resolved temporal moon-count facts"
@@ -1344,12 +1399,25 @@ class RagRetriever:
 
         existing_ids = {item.chunk["chunk_id"] for item in result.retrieved_chunks}
         support_entities = missing_entities if is_temporal_lookup else entities
-        support_items = self._missing_moon_count_support_chunks(
-            support_entities,
-            intent=intent,
-            existing_chunk_ids=existing_ids | {table_chunk["chunk_id"]},
-            allowed_source_ids=None,
+        started = time.perf_counter()
+        support_items = (
+            self._missing_moon_count_support_chunks(
+                support_entities,
+                intent=intent,
+                existing_chunk_ids=existing_ids | {table_chunk["chunk_id"]},
+                allowed_source_ids=None,
+            )
+            if is_temporal_lookup
+            else self._moon_count_support_chunks_for_entities(
+                support_entities,
+                existing_chunk_ids=existing_ids | {table_chunk["chunk_id"]},
+                allowed_source_ids=None,
+            )
         )
+        result.retrieval_timings["moon_gate_support_select_seconds"] = (
+            time.perf_counter() - started
+        )
+        started = time.perf_counter()
         context_items = result.retrieved_chunks[:MOON_COUNT_CONTEXT_CHUNK_LIMIT]
         merged = {item.chunk["chunk_id"]: item for item in [table_item, *context_items, *support_items]}
         result.retrieved_chunks = list(merged.values())
@@ -1362,6 +1430,7 @@ class RagRetriever:
                 source_id = item.chunk["source_id"]
                 if source_id not in result.source_selection.selected_source_ids:
                     result.source_selection.selected_source_ids.append(source_id)
+        result.retrieval_timings["moon_gate_merge_seconds"] = time.perf_counter() - started
         return result
 
     def _moon_count_coverage_entities(self, intent: RetrievalIntent) -> list[str]:
@@ -1378,6 +1447,138 @@ class RagRetriever:
             for entity in intent.entity_terms
             if entity and entity not in references
         ]
+
+    def _current_moon_count_matches_for_entities(
+        self,
+        entities: list[str],
+    ) -> dict[str, tuple[dict[str, Any], str]]:
+        """Resolve current moon counts for many bodies with one corpus pass."""
+        entity_lookup = {entity.lower(): entity for entity in entities}
+        historical_floor: dict[str, int] = defaultdict(lambda: -1)
+        current_matches: dict[str, list[tuple[dict[str, Any], str]]] = defaultdict(list)
+        raw_matches: dict[str, tuple[dict[str, Any], str]] = {}
+
+        for chunk in self.retrieval_chunks:
+            fact = chunk.get("temporal_fact")
+            if not isinstance(fact, dict):
+                continue
+            if fact.get("predicate") != "moon_count" or not isinstance(fact.get("value"), int):
+                continue
+            subject = str(fact.get("subject", "")).lower()
+            if subject not in entity_lookup:
+                continue
+            if fact.get("evidence_type") in TIMELINE_EVIDENCE_TYPES:
+                historical_floor[subject] = max(historical_floor[subject], fact["value"])
+            match_kind = self._current_fact_match_kind_for_entity(fact, subject)
+            if match_kind:
+                current_matches[subject].append((chunk, match_kind))
+
+        resolved: dict[str, tuple[dict[str, Any], str]] = {}
+        for subject, matches in current_matches.items():
+            eligible = [
+                item for item in matches
+                if item[0]["temporal_fact"]["value"] >= historical_floor[subject]
+            ]
+            if not eligible:
+                continue
+            trusted = [
+                item for item in eligible
+                if item[0].get("trust_level") in {"official", "reference"}
+            ]
+            eligible = trusted or eligible
+            max_value = max(item[0]["temporal_fact"]["value"] for item in eligible)
+            selected = [
+                item for item in eligible
+                if item[0]["temporal_fact"]["value"] == max_value
+            ]
+            selected.sort(
+                key=lambda item: (
+                    item[0].get("trust_level") == "official",
+                    current_match_score(item[1]),
+                ),
+                reverse=True,
+            )
+            resolved[subject] = selected[0]
+
+        unresolved = [entity for entity in entities if entity.lower() not in resolved]
+        if unresolved:
+            raw_matches = self._raw_current_moon_count_matches_for_entities(unresolved)
+            for subject, match in raw_matches.items():
+                resolved.setdefault(subject, match)
+        return resolved
+
+    @staticmethod
+    def _current_fact_match_kind_for_entity(fact: dict[str, Any], subject: str) -> str:
+        if fact.get("predicate") != "moon_count":
+            return ""
+        if str(fact.get("subject", "")).lower() != subject:
+            return ""
+        evidence_type = fact.get("evidence_type")
+        if evidence_type == "explicit_current_sentence":
+            return "direct_current_assertion"
+        if evidence_type == "validated_table_current":
+            return "validated_current_table"
+        return ""
+
+    def _raw_current_moon_count_matches_for_entities(
+        self,
+        entities: list[str],
+    ) -> dict[str, tuple[dict[str, Any], str]]:
+        unresolved = {entity.lower(): entity for entity in entities}
+        resolved: dict[str, tuple[dict[str, Any], str]] = {}
+        for chunk in self.retrieval_chunks:
+            if not unresolved:
+                break
+            text = " ".join([
+                chunk.get("title", ""),
+                chunk.get("section", ""),
+                chunk.get("text", ""),
+            ]).lower()
+            for entity_lower, entity in list(unresolved.items()):
+                if entity_lower not in text:
+                    continue
+                value = self._raw_current_moon_count_value(entity_lower, text)
+                if value is None:
+                    continue
+                resolved_chunk = self._resolved_current_moon_count_chunk(chunk, entity, value)
+                resolved[entity_lower] = (resolved_chunk, "raw_current_assertion")
+                unresolved.pop(entity_lower, None)
+        return resolved
+
+    @staticmethod
+    def _raw_current_moon_count_value(entity_lower: str, text: str) -> int | None:
+        if re.search(rf"\b{re.escape(entity_lower)}\b[^.]*\bhas\s+no\s+natural\s+satellites\b", text):
+            return 0
+        if re.search(rf"\b{re.escape(entity_lower)}\b[^.]*\bhas\s+no\s+moons\b", text):
+            return 0
+        if re.search(rf"\b{re.escape(entity_lower)}\b[^.]*\bis\s+orbited\s+by\s+one\s+(?:permanent\s+)?natural\s+satellite\b", text):
+            return 1
+        if re.search(rf"\b(?:moon|the\s+moon)\s+is\s+{re.escape(entity_lower)}'s\s+only\s+natural\s+satellite\b", text):
+            return 1
+        return None
+
+    @staticmethod
+    def _resolved_current_moon_count_chunk(
+        chunk: dict[str, Any],
+        entity: str,
+        value: int,
+    ) -> dict[str, Any]:
+        resolved = dict(chunk)
+        resolved["chunk_id"] = f"{chunk['chunk_id']}__resolved_current_moon_count"
+        resolved["text"] = f"Resolved current source assertion: {entity} has {value} moons."
+        resolved["content_type"] = "resolved_fact"
+        resolved["temporal_fact"] = {
+            "subject": entity,
+            "predicate": "moon_count",
+            "value": value,
+            "evidence_type": "explicit_current_sentence",
+            "validation_status": "source_asserted",
+            "claim_type": "moon_count",
+            "observed_at": "",
+            "valid_until_exclusive": "",
+            "interval_semantics": "",
+        }
+        return resolved
 
     def _resolve_moon_count_for_entity(
         self,
@@ -1417,21 +1618,7 @@ class RagRetriever:
             if value is None:
                 continue
 
-            resolved = dict(chunk)
-            resolved["chunk_id"] = f"{chunk['chunk_id']}__resolved_current_moon_count"
-            resolved["text"] = f"Resolved current source assertion: {entity} has {value} moons."
-            resolved["content_type"] = "resolved_fact"
-            resolved["temporal_fact"] = {
-                "subject": entity,
-                "predicate": "moon_count",
-                "value": value,
-                "evidence_type": "explicit_current_sentence",
-                "validation_status": "source_asserted",
-                "claim_type": "moon_count",
-                "observed_at": "",
-                "valid_until_exclusive": "",
-                "interval_semantics": "",
-            }
+            resolved = self._resolved_current_moon_count_chunk(chunk, entity, value)
             return resolved, "raw_current_assertion"
         return None
 
@@ -1476,6 +1663,71 @@ class RagRetriever:
                 ))
             candidates.sort(key=lambda item: item.score, reverse=True)
             for item in candidates[:MOON_COUNT_SUPPORT_PER_ENTITY]:
+                support_items.append(item)
+                existing_chunk_ids.add(item.chunk["chunk_id"])
+                if len(support_items) >= MOON_COUNT_SUPPORT_LIMIT:
+                    return support_items
+        return support_items
+
+    def _moon_count_support_chunks_for_entities(
+        self,
+        entities: list[str],
+        *,
+        existing_chunk_ids: set[str],
+        allowed_source_ids: set[str] | None = None,
+    ) -> list[RetrievedChunk]:
+        """Select moon-count support chunks for many entities with one scan."""
+        entity_lowers = [entity.lower() for entity in entities]
+        by_entity: dict[str, list[RetrievedChunk]] = {entity: [] for entity in entity_lowers}
+        for chunk in self.retrieval_chunks:
+            chunk_id = chunk["chunk_id"]
+            if chunk_id in existing_chunk_ids:
+                continue
+            if allowed_source_ids is not None and chunk.get("source_id") not in allowed_source_ids:
+                continue
+            full_text = " ".join([
+                str(chunk.get("title", "")),
+                str(chunk.get("section", "")),
+                str(chunk.get("text", "")),
+            ])
+            full_text_lower = full_text.lower()
+            mentioned_entities = [
+                entity for entity in entity_lowers
+                if re.search(rf"\b{re.escape(entity)}\b", full_text_lower)
+            ]
+            if not mentioned_entities:
+                continue
+            if not cheap_count_moon_signal(full_text_lower):
+                continue
+            sentences = support_sentences(str(chunk.get("text", "")))
+            count_sentence_indexes = [
+                index for index, sentence in enumerate(sentences)
+                if cheap_count_moon_signal(sentence.lower())
+            ]
+            if not count_sentence_indexes:
+                continue
+            for entity in mentioned_entities:
+                support_score = fast_moon_count_support_score(
+                    chunk,
+                    entity,
+                    sentences=sentences,
+                    count_sentence_indexes=count_sentence_indexes,
+                )
+                if support_score is None:
+                    continue
+                score, reasons = support_score
+                by_entity[entity].append(RetrievedChunk(
+                    chunk=chunk,
+                    score=score,
+                    reasons=[f"missing_moon_count_support:{slug(entity)}", *reasons],
+                ))
+
+        support_items: list[RetrievedChunk] = []
+        for entity in entity_lowers:
+            candidates = sorted(by_entity[entity], key=lambda item: item.score, reverse=True)
+            for item in candidates[:MOON_COUNT_SUPPORT_PER_ENTITY]:
+                if item.chunk["chunk_id"] in existing_chunk_ids:
+                    continue
                 support_items.append(item)
                 existing_chunk_ids.add(item.chunk["chunk_id"])
                 if len(support_items) >= MOON_COUNT_SUPPORT_LIMIT:
@@ -1715,13 +1967,10 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_embedding: list[float],
     ) -> dict[str, float]:
-        scores: dict[str, float] = {}
-        for item in items:
-            embedding = embedding_index.get(item["chunk_id"])
-            if embedding is None:
-                continue
-            scores[item["chunk_id"]] = cosine_similarity(query_embedding, embedding)
-        return scores
+        return embedding_index.dense_scores(
+            (item["chunk_id"] for item in items),
+            query_embedding,
+        )
 
     def _sparse_scores_by_chunk(
         self,
@@ -1736,15 +1985,10 @@ class RagRetriever:
         embedding_index: EmbeddingIndex,
         query_sparse: dict[str, float] | None,
     ) -> dict[str, float]:
-        scores: dict[str, float] = {}
-        if not query_sparse:
-            return scores
-        for item in items:
-            sparse_weights = embedding_index.get_sparse(item["chunk_id"])
-            score = sparse_dot(query_sparse, sparse_weights)
-            if score > 0:
-                scores[item["chunk_id"]] = score
-        return scores
+        return embedding_index.sparse_scores(
+            (item["chunk_id"] for item in items),
+            query_sparse,
+        )
 
     def _select_sources_vector(
         self,
@@ -2225,12 +2469,29 @@ class RagRetriever:
         intent: RetrievalIntent,
         time_constraints: dict[str, list[str]],
     ) -> tuple[float, list[str]]:
-        text = " ".join([
-            chunk.get("title", ""),
-            chunk.get("section", ""),
-            chunk.get("text", ""),
-        ]).lower()
-        tokens = Counter(tokenize(text))
+        cache_key = id(chunk)
+        lexical_cache = getattr(self, "_lexical_feature_cache", None)
+        if lexical_cache is None:
+            lexical_cache = {}
+            self._lexical_feature_cache = lexical_cache
+        features = lexical_cache.get(cache_key)
+        if features is None:
+            text = " ".join([
+                chunk.get("title", ""),
+                chunk.get("section", ""),
+                chunk.get("text", ""),
+            ]).lower()
+            moon_score, moon_reasons = score_moon_count_context(chunk, text)
+            features = {
+                "text": text,
+                "tokens": Counter(tokenize(text)),
+                "predicate_hints": set(chunk.get("predicate_hints", [])),
+                "moon_score": moon_score,
+                "moon_reasons": moon_reasons,
+            }
+            lexical_cache[cache_key] = features
+        text = features["text"]
+        tokens = features["tokens"]
         score = 0.0
         reasons: list[str] = []
 
@@ -2247,7 +2508,7 @@ class RagRetriever:
                 score += 5.0
                 reasons.append(f"entity:{entity}")
 
-        predicate_hints = set(chunk.get("predicate_hints", []))
+        predicate_hints = features["predicate_hints"]
         for predicate in intent.predicate_terms:
             if predicate in predicate_hints:
                 score += 3.0
@@ -2275,9 +2536,8 @@ class RagRetriever:
         entity_match_present = any(entity and entity in text for entity in set(intent.entity_terms))
 
         if "moon_count" in intent.predicate_terms:
-            moon_score, moon_reasons = score_moon_count_context(chunk, text)
-            score += moon_score
-            reasons.extend(moon_reasons)
+            score += features["moon_score"]
+            reasons.extend(features["moon_reasons"])
         time_score, time_reasons = score_time_context(
             text,
             time_constraints,
@@ -2770,6 +3030,82 @@ def score_moon_count_support_chunk(
     return score, reasons
 
 
+def fast_moon_count_support_score(
+    chunk: dict[str, Any],
+    entity_lower: str,
+    *,
+    sentences: list[str],
+    count_sentence_indexes: list[int],
+) -> tuple[float, list[str]] | None:
+    """Fast support scoring for class-wide moon-count coverage.
+
+    This keeps the same broad ranking signals as score_moon_count_support_chunk()
+    but avoids expensive number-word parsing for every entity/chunk pair.
+    """
+    full_text = " ".join([
+        str(chunk.get("title", "")),
+        str(chunk.get("section", "")),
+        str(chunk.get("text", "")),
+    ]).lower()
+    if not re.search(rf"\b{re.escape(entity_lower)}\b", full_text):
+        return None
+    if not count_sentence_indexes:
+        return None
+
+    entity_sentence_indexes = [
+        index for index, sentence in enumerate(sentences)
+        if re.search(rf"\b{re.escape(entity_lower)}\b", sentence.lower())
+    ]
+
+    score = 20.0
+    reasons = ["direct_moon_count_sentence"]
+    if entity_sentence_indexes:
+        min_distance, best_count_index = min(
+            (
+                (abs(entity_index - count_index), count_index)
+                for entity_index in entity_sentence_indexes
+                for count_index in count_sentence_indexes
+            ),
+            key=lambda item: item[0],
+        )
+        best_count_sentence_len = len(count_claim_tokens(sentences[best_count_index]))
+        if min_distance == 0:
+            if best_count_sentence_len <= 80:
+                score += 12.0
+                reasons.append("same_sentence_entity_count_moon")
+            else:
+                score += 5.0
+                reasons.append("wide_sentence_entity_count_moon")
+        elif min_distance == 1:
+            score += 7.0
+            reasons.append("adjacent_sentence_entity_count_moon")
+        else:
+            score += max(1.0, 5.0 - min_distance)
+            reasons.append("nearby_entity_count_moon")
+    else:
+        reasons.append("entity_in_title_or_section")
+
+    if re.search(rf"\b{re.escape(entity_lower)}\b", str(chunk.get("title", "")).lower()):
+        score += 2.0
+        reasons.append("entity_in_title")
+    if re.search(rf"\b{re.escape(entity_lower)}\b", str(chunk.get("section", "")).lower()):
+        score += 1.0
+        reasons.append("entity_in_section")
+    if chunk.get("content_type") == "structured_fact":
+        score += 6.0
+        reasons.append("structured_moon_count_fact")
+    if "current moon count assertion" in str(chunk.get("section", "")).lower():
+        score += 4.0
+        reasons.append("current_moon_count_assertion")
+
+    multiple_bonus = min(len(count_sentence_indexes), 3) * 0.5
+    score += multiple_bonus
+    if len(count_sentence_indexes) > 1:
+        reasons.append(f"multiple_moon_count_sentences:{len(count_sentence_indexes)}")
+
+    return score, reasons
+
+
 def support_sentences(text: str) -> list[str]:
     normalized = re.sub(r"\s+", " ", text).strip()
     if not normalized:
@@ -2791,6 +3127,24 @@ def sentence_has_count_and_moon_term(sentence: str) -> bool:
             if parse_count_phrase(tokens[start:end]) is not None:
                 return True
     return False
+
+
+def cheap_count_moon_signal(text: str) -> bool:
+    """Cheaply reject chunks before expensive number-word parsing."""
+    if not re.search(r"\b(?:moon|moons|satellite|satellites)\b", text):
+        return False
+    number_word = (
+        r"zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
+        r"twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
+        r"nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
+        r"ninety|hundred|thousand"
+    )
+    number = rf"(?:\d[\d,]*|{number_word})"
+    moon = r"(?:moon|moons|satellite|satellites)"
+    return bool(
+        re.search(rf"\b{number}\b(?:\W+\w+){{0,8}}\W+\b{moon}\b", text)
+        or re.search(rf"\b{moon}\b(?:\W+\w+){{0,8}}\W+\b{number}\b", text)
+    )
 
 
 def count_claim_tokens(text: str) -> list[str]:
