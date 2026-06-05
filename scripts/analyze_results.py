@@ -9,7 +9,7 @@ import pandas as pd
 
 # Load the benchmark result table. Each row contains one question, the vanilla
 # model answer, the KG-assisted answer, and correctness labels for both.
-df = pd.read_csv("results/results_with_kg.csv")
+df = pd.read_csv("reports/final/results_with_kg.csv")
 
 # Find questions where OpenAI got worse after KG context was added.
 print("=" * 80)

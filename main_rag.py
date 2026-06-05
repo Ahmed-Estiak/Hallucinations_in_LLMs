@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--top-k", type=int, default=12)
     parser.add_argument("--per-source-limit", type=int, default=4)
     parser.add_argument("--top-n-sources", type=int, default=12)
-    parser.add_argument("--output", default="results/results_rag_llm.csv")
+    parser.add_argument("--output", default="reports/final/results_rag_llm.csv")
     parser.add_argument(
         "--build-missing-embeddings",
         action="store_true",

@@ -43,7 +43,7 @@ DEFAULT_METHODS = [
     "global",
 ]
 LEGACY_METHODS = ["vector", "hybrid"]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "reports" / "rag_audit"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "reports" / "debug" / "web"
 
 
 def load_questions(path: Path) -> dict[int, dict[str, Any]]:
@@ -268,7 +268,7 @@ def build_retriever(source_set: str) -> RagRetriever:
 def main() -> None:
     args = parse_args()
     if args.source_set == "pdf" and args.output_dir == DEFAULT_OUTPUT_DIR:
-        args.output_dir = PROJECT_ROOT / "reports" / "rag_pdf_audit"
+        args.output_dir = PROJECT_ROOT / "reports" / "debug" / "pdf"
     methods = list(args.methods)
     if args.include_legacy:
         methods.extend(method for method in LEGACY_METHODS if method not in methods)

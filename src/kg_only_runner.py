@@ -1,6 +1,6 @@
 """
 Run the benchmark using only KG retrieval/reasoning outputs, with no LLM calls.
-Saves results to results/results_kg_only.csv.
+Saves results to reports/final/results_kg_only.csv.
 """
 import json
 import sys
@@ -280,7 +280,7 @@ def run_kg_only_benchmark() -> None:
     kg_retriever = KGRetriever()
     kg_reasoning_engine = KGReasoningEngine()
     results = []
-    Path("results").mkdir(exist_ok=True)
+    Path("reports/final").mkdir(parents=True, exist_ok=True)
 
     total_questions = len(questions)
     kg_found_count = 0
@@ -334,7 +334,7 @@ def run_kg_only_benchmark() -> None:
         print(f"  Timing -> Question total: {question_elapsed:.2f}s")
 
     df = pd.DataFrame(results)
-    df.to_csv("results/results_kg_only.csv", index=False)
+    df.to_csv("reports/final/results_kg_only.csv", index=False)
 
     elapsed_seconds = time.time() - start_time
     print("\n" + "=" * 80)
@@ -343,7 +343,7 @@ def run_kg_only_benchmark() -> None:
     print(f"Total questions: {total_questions}")
     print(f"KG facts found for: {kg_found_count}/{total_questions} questions ({(kg_found_count/total_questions)*100:.1f}%)")
     print(f"KG-only correct: {kg_only_correct}/{total_questions} ({(kg_only_correct/total_questions)*100:.2f}%)")
-    print("\nResults saved to: results/results_kg_only.csv")
+    print("\nResults saved to: reports/final/results_kg_only.csv")
     print("=" * 80)
     print(f"Total runtime: {elapsed_seconds:.2f} seconds ({elapsed_seconds / 60:.2f} minutes)")
 

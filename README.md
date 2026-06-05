@@ -115,8 +115,9 @@ For method-isolation audits, disable it with:
 |   `-- rag_pdf_sources/               # PDF-only corpus, extracted text, and indexes
 |-- docs/                              # KG and integration design notes
 |-- external/                          # optional external Wikipedia cleaner
-|-- reports/                           # generated RAG audit reports; Git ignored
-|-- results/                           # benchmark result CSV/ODS files
+|-- reports/
+|   |-- final/                         # final benchmark/comparison reports
+|   `-- debug/                         # temporary audit, timing, and retrieval reports
 |-- scripts/                           # ingestion, index building, audit, and debug CLIs
 |-- src/
 |   |-- rag/                           # RAG extraction, indexing, retrieval, and evidence logic
@@ -129,7 +130,7 @@ For method-isolation audits, disable it with:
 `-- main_rag.py                        # web RAG + LLM benchmark
 ```
 
-Generated PDF files, extracted text, embedding caches, and audit reports are
+Generated PDF files, extracted text, embedding caches, and report outputs are
 excluded from Git through `.gitignore`.
 
 ## Requirements
@@ -272,19 +273,19 @@ Run all six recommended PDF retrieval methods over Q9, Q11, and Q15 through
 OpenAI:
 
 ```powershell
-$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 9 11 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai --output reports\rag_pdf_audit\openai_6_methods_3_questions.csv
+$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 9 11 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai --output reports\debug\pdf\openai_6_methods_3_questions.csv
 ```
 
 Run a fair method-isolation audit without temporal-first interception:
 
 ```powershell
-$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai --disable-temporal-first --output reports\rag_pdf_audit\q15_without_temporal_first.csv
+$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai --disable-temporal-first --output reports\debug\pdf\q15_without_temporal_first.csv
 ```
 
 Warm the persistent retriever before measured requests:
 
 ```powershell
-$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 11 --methods hierarchical-bge-m3-rrf --providers openai --warmup-retriever --output reports\rag_pdf_audit\q11_hierarchical_warm.csv
+$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 11 --methods hierarchical-bge-m3-rrf --providers openai --warmup-retriever --output reports\debug\pdf\q11_hierarchical_warm.csv
 ```
 
 Warm-up preloads BGE-M3/CUDA, vector indexes, lexical features, and ColBERT. It
@@ -318,6 +319,10 @@ includes:
 - total retrieval and provider-call timing;
 - route, chunk, RRF, ColBERT, moon-gate, and temporal-first timing;
 - OpenAI temporal embedding cache status and missing count.
+
+Final benchmark and comparison outputs belong in `reports/final/`. Temporary
+retrieval audits, prompt inspections, generated fact tables, and timing reports
+belong in `reports/debug/`.
 
 ## Tests
 

@@ -29,7 +29,7 @@ def run_benchmark():
         questions = json.load(f)
 
     results = []
-    Path("results").mkdir(exist_ok=True)
+    Path("reports/final").mkdir(parents=True, exist_ok=True)
 
     gemini_counter = 0
     total_questions = len(questions)
@@ -103,7 +103,7 @@ def run_benchmark():
 
     df = pd.DataFrame(results)
 
-    df.to_csv("results/results.csv", index=False)
+    df.to_csv("reports/final/results.csv", index=False)
 
     print("Final summary")
     print(

@@ -44,7 +44,7 @@ DEFAULT_METHODS = [
     "auto-source",
     "global",
 ]
-DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "rag_audit" / "rag_llm_method_matrix.csv"
+DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "debug" / "web" / "rag_llm_method_matrix.csv"
 
 
 def load_questions(path: Path, ids: list[int]) -> list[dict[str, Any]]:
@@ -293,7 +293,7 @@ def build_retriever(source_set: str, *, enable_temporal_first: bool = True) -> R
 def main() -> None:
     args = parse_args()
     if args.source_set == "pdf" and args.output == DEFAULT_OUTPUT:
-        args.output = PROJECT_ROOT / "reports" / "rag_pdf_audit" / "rag_llm_method_matrix.csv"
+        args.output = PROJECT_ROOT / "reports" / "debug" / "pdf" / "rag_llm_method_matrix.csv"
     questions = load_questions(args.questions_path, args.questions)
     rows = run_matrix(
         questions=questions,

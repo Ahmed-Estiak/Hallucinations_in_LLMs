@@ -65,7 +65,7 @@ kg_reasoning_engine = KGReasoningEngine()
 1. **Full Benchmark Run** (15 questions)
    - Execute: `python src/kg_runner.py`
    - Monitor for API errors or timeouts
-   - Outputs to: results/results_with_kg.csv
+   - Outputs to: reports/final/results_with_kg.csv
 
 2. **Performance Analysis**
    - Compare accuracy: vanilla LLM vs. KG-grounded

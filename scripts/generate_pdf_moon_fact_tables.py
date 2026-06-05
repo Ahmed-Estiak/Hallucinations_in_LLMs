@@ -16,7 +16,7 @@ from src.rag.pdf_paths import PDF_CHUNKS_PATH
 from src.rag.retriever import parse_count_phrase
 
 
-OUTPUT_DIR = PROJECT_ROOT / "reports" / "rag_pdf_audit"
+OUTPUT_DIR = PROJECT_ROOT / "reports" / "debug" / "pdf"
 CURRENT_ASSERTIONS_CSV = OUTPUT_DIR / "pdf_moon_current_assertions.csv"
 TIMELINE_ASSERTIONS_CSV = OUTPUT_DIR / "pdf_moon_timeline_assertions.csv"
 

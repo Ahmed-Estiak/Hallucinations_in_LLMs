@@ -1,7 +1,5 @@
 .env
 __pycache__/
-results/*.csv
-results/.~lock.*
 hallucination_llm_env/
 .venv/
 /.venv/
@@ -9,7 +7,6 @@ hallucination_llm_env/
 *.pyc
 .DS_Store
 .vscode/
-results/*.ods
 external/Wikipedia_text_extractor/
 data/rag_sources/docs_clean/**/*.txt
 data/rag_sources/web_raw/**/*.html
@@ -18,5 +15,7 @@ data/rag_pdf_sources/pdf_raw/*
 !data/rag_pdf_sources/pdf_raw/.gitkeep
 data/rag_pdf_sources/pdf_text/*.txt
 data/rag_pdf_sources/rag_index/*.jsonl
-reports/rag_audit/
-reports/rag_pdf_audit/
+reports/final/*
+!reports/final/.gitkeep
+reports/debug/*
+!reports/debug/.gitkeep

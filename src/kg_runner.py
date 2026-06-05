@@ -1,6 +1,6 @@
 """
 KG Runner: Benchmark with KG-grounded LLM answers
-Outputs results to results_with_kg.csv
+Outputs results to reports/final/results_with_kg.csv
 Integrates Advanced KG Reasoning System with question classification
 """
 import json
@@ -34,8 +34,8 @@ def _serialize_ground_truth(answer_spec):
 
 
 def _load_vanilla_results():
-    """Load vanilla results from results.csv keyed by question ID."""
-    path = Path("results/results.csv")
+    """Load vanilla results from the final report keyed by question ID."""
+    path = Path("reports/final/results.csv")
     if not path.exists():
         return {}
 
@@ -383,7 +383,7 @@ def _print_benchmark_summary(total_questions, kg_found_count, vanilla_reused_cou
 
     print("\n--- VANILLA LLM (No KG) ---")
     if vanilla_reused_count > 0:
-        print(f"Vanilla results reused for {vanilla_reused_count} questions from results/results.csv.")
+        print(f"Vanilla results reused for {vanilla_reused_count} questions from reports/final/results.csv.")
         print(f"OpenAI  -> Correct: {openai_vanilla_correct}/{vanilla_reused_count} ({(openai_vanilla_correct/vanilla_reused_count)*100:.2f}%)")
         print(f"Gemini  -> Correct: {gemini_vanilla_correct}/{vanilla_reused_count} ({(gemini_vanilla_correct/vanilla_reused_count)*100:.2f}%)")
     else:
@@ -402,7 +402,7 @@ def _print_benchmark_summary(total_questions, kg_found_count, vanilla_reused_cou
     else:
         print("No vanilla results available for improvement analysis.")
 
-    print("\nResults saved to: results/results_with_kg.csv")
+    print("\nResults saved to: reports/final/results_with_kg.csv")
     print("=" * 80)
 
 
@@ -410,7 +410,8 @@ def _save_partial_results(results):
     """Persist partial benchmark output after an interruption or API failure."""
     if not results:
         return
-    partial_path = Path("results/results_with_kg_partial.csv")
+    partial_path = Path("reports/debug/results_with_kg_partial.csv")
+    partial_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(results).to_csv(partial_path, index=False)
     print(f"Partial results saved to: {partial_path}")
 
@@ -423,13 +424,13 @@ def run_kg_benchmark():
 
     total_questions = len(questions)
     vanilla_data = _load_vanilla_results()
-    print(f"Loaded {len(vanilla_data)} vanilla results from results/results.csv for reuse.")
+    print(f"Loaded {len(vanilla_data)} vanilla results from reports/final/results.csv for reuse.")
 
     kg_retriever = KGRetriever()
     question_classifier = QuestionClassifier()
     kg_reasoning_engine = KGReasoningEngine()
     results = []
-    Path("results").mkdir(exist_ok=True)
+    Path("reports/final").mkdir(parents=True, exist_ok=True)
 
     gemini_call_counter = 0
     openai_vanilla_correct = 0
@@ -544,7 +545,7 @@ def run_kg_benchmark():
             raise
 
     df = pd.DataFrame(results)
-    df.to_csv("results/results_with_kg.csv", index=False)
+    df.to_csv("reports/final/results_with_kg.csv", index=False)
 
     _print_benchmark_summary(
         total_questions,

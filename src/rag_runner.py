@@ -52,7 +52,7 @@ def run_rag_benchmark(
     openai_embeddings_path: str | Path = DEFAULT_OPENAI_EMBEDDINGS_PATH,
     routing_units_path: str | Path = DEFAULT_ROUTING_UNITS_PATH,
     routing_embeddings_path: str | Path = DEFAULT_ROUTING_EMBEDDINGS_PATH,
-    output_path: str | Path = "results/results_rag_llm.csv",
+    output_path: str | Path = "reports/final/results_rag_llm.csv",
     top_k: int = 12,
     per_source_limit: int = 4,
     retrieval_mode: str = DEFAULT_RETRIEVAL_MODE,
