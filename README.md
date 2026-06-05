@@ -149,14 +149,29 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-Create a local `.env` file:
+For an exact reproduction of the tested Python 3.12/CUDA environment, use:
 
-```text
-OPENAI_API_KEY=...
-GEMINI_API_KEY=...
+```powershell
+python -m pip install --no-deps -r requirements-lock.txt
 ```
 
-The `.env` file is Git ignored.
+The lock file enumerates the complete tested runtime environment.
+`--no-deps` prevents pip from adding FlagEmbedding's unused `ir-datasets`
+benchmark dependency. Use `requirements.txt` when resolving compatible current
+versions is preferable to reproducing the tested environment exactly.
+
+Copy `.env.example` to a local `.env` file and add only the values needed by
+your workflow:
+
+```text
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+WIKIPEDIA_CLEANER_PATH=
+```
+
+`WIKIPEDIA_CLEANER_PATH` is optional when the cleaner is available at
+`external/Wikipedia_text_extractor/`. The `.env` file is Git ignored, while
+`.env.example` is safe to commit.
 
 ## Quick Start
 

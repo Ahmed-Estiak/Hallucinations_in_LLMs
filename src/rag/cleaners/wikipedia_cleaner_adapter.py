@@ -19,11 +19,17 @@ from types import ModuleType
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from dotenv import load_dotenv
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CLEANER_DIR = PROJECT_ROOT / "external" / "Wikipedia_text_extractor"
 DEFAULT_DOCS_CLEAN_DIR = PROJECT_ROOT / "data" / "rag_sources" / "docs_clean" / "wikipedia"
 DEFAULT_RAW_DIR = PROJECT_ROOT / "data" / "rag_sources" / "web_raw" / "wikipedia"
+
+# Make the documented cleaner override available to ingestion scripts that do
+# not import the provider-oriented src.config module.
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 @dataclass
@@ -48,10 +54,15 @@ class WikipediaCleanResult:
 
 def resolve_cleaner_dir(cleaner_dir: str | Path | None = None) -> Path:
     """Resolve and validate the external Wikipedia cleaner directory."""
+    configured_cleaner_dir = (
+        os.environ.get("WIKIPEDIA_CLEANER_PATH")
+        or os.environ.get("WIKIPEDIA_TEXT_EXTRACTOR_DIR")
+        or DEFAULT_CLEANER_DIR
+    )
     candidate = (
         Path(cleaner_dir)
         if cleaner_dir is not None
-        else Path(os.environ.get("WIKIPEDIA_TEXT_EXTRACTOR_DIR", DEFAULT_CLEANER_DIR))
+        else Path(configured_cleaner_dir)
     )
     candidate = candidate.expanduser().resolve()
     expected_file = candidate / "wiki_text_extractor.py"
@@ -59,7 +70,7 @@ def resolve_cleaner_dir(cleaner_dir: str | Path | None = None) -> Path:
         raise FileNotFoundError(
             "Wikipedia_text_extractor was not found. "
             "Clone https://github.com/Ahmed-Estiak/Wikipedia_text_extractor.git "
-            f"to {DEFAULT_CLEANER_DIR} or set WIKIPEDIA_TEXT_EXTRACTOR_DIR."
+            f"to {DEFAULT_CLEANER_DIR} or set WIKIPEDIA_CLEANER_PATH."
         )
     return candidate
 
@@ -171,4 +182,3 @@ def _safe_source_id(value: str) -> str:
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-
