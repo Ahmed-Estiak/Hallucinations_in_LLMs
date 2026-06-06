@@ -1,8 +1,20 @@
 """Build or refresh cached embeddings for RAG chunk retrieval.
 
-This script is intentionally cache-first. It reads the current chunk index,
-reuses embedding records whose provider/model/text hash still match, and only
-embeds new or changed chunks unless --refresh is passed.
+Workflow:
+    1. Select the web or PDF chunk index.
+    2. Resolve the embedding provider, model, and output cache path.
+    3. Load existing cache records.
+    4. Reuse records whose provider, model, and chunk-text hash still match.
+    5. Embed only missing or changed chunks, unless ``--refresh`` is passed.
+    6. Write one complete JSONL cache for the selected provider/source set.
+
+Provider outputs are intentionally separate:
+    - ``bge-m3`` stores dense vectors and sparse token weights.
+    - ``local`` stores dense SentenceTransformers/BGE-base vectors.
+    - ``openai`` stores dense vectors returned by the OpenAI embeddings API.
+
+The script does not build chunks. Run the relevant web/PDF index builder first.
+Using the OpenAI provider sends chunk text to OpenAI and incurs API usage.
 """
 
 from __future__ import annotations
@@ -36,7 +48,7 @@ from src.rag.pdf_paths import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Define the CLI used by both manual rebuilds and fallback cache setup."""
+    """Define cache-build options shared by the web and PDF corpora."""
     parser = argparse.ArgumentParser(description="Build embedding cache for RAG chunks.")
     parser.add_argument(
         "--source-set",
@@ -47,7 +59,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--chunks",
         default=str(PROJECT_ROOT / "data" / "rag_sources" / "rag_index" / "chunks.jsonl"),
-        help="Input chunk JSONL path",
+        help=(
+            "Input chunk JSONL path. An explicit path overrides the default "
+            "selected by --source-set."
+        ),
     )
     parser.add_argument(
         "--embeddings",
@@ -80,7 +95,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--batch-size",
         type=int,
         default=64,
-        help="Number of chunks to embed per model/API batch.",
+        help=(
+            "Number of pending chunks sent through each model/API batch. "
+            "Larger local batches use more GPU/CPU memory."
+        ),
     )
     parser.add_argument(
         "--refresh",
@@ -93,11 +111,18 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
 
-    # Normalize provider/model early so the cache key is stable. Each provider
-    # writes to a separate default file because dense-only and dense+sparse
-    # records are not interchangeable.
+    # Provider aliases are normalized before resolving defaults because the
+    # provider and model names form part of every record's cache identity.
     provider = normalize_provider(args.provider)
     model = args.model or default_model_for_provider(provider)
+
+    # Path precedence:
+    #   explicit --chunks/--embeddings
+    #   -> defaults for --source-set pdf
+    #   -> defaults for the web corpus
+    #
+    # Provider caches never share a file: their vector formats, dimensions,
+    # models, and retrieval behavior are not interchangeable.
     chunks_path = Path(args.chunks)
     embeddings_path = args.embeddings or str(PROJECT_ROOT / default_embeddings_path_for_provider(provider))
     if args.source_set == "pdf" and args.chunks == build_parser().get_default("chunks"):
@@ -110,15 +135,18 @@ def main() -> int:
         elif provider == "openai":
             embeddings_path = str(PROJECT_ROOT / PDF_OPENAI_EMBEDDINGS_PATH)
 
-    # chunks.jsonl is the canonical retrieval surface. If source cleaning or
-    # chunking changes, each chunk's embedding text hash changes and only those
-    # affected records are rebuilt.
+    # The chunk index is the canonical embedding input. Cache records include a
+    # text hash, so editing source text or rebuilding chunks invalidates only
+    # the affected records instead of forcing an unconditional full rebuild.
     chunks = load_jsonl(chunks_path)
+
+    # Missing cache files load as an empty record collection. Existing records
+    # are candidates for reuse; build_chunk_embedding_records validates each
+    # record against the requested provider, model, and current chunk content.
     existing_records = load_embedding_records(embeddings_path)
 
-    # build_chunk_embedding_records preserves existing valid records and embeds
-    # only pending chunks. For bge-m3 it stores both dense vectors and sparse
-    # token weights; for local/openai it stores dense vectors only.
+    # Only this call performs model inference or an OpenAI embeddings request.
+    # ``--refresh`` deliberately bypasses otherwise valid cached records.
     records = build_chunk_embedding_records(
         chunks,
         existing_records=existing_records,
@@ -127,6 +155,10 @@ def main() -> int:
         batch_size=args.batch_size,
         refresh=args.refresh,
     )
+
+    # Write the complete resolved cache, not merely the newly embedded subset.
+    # This keeps the JSONL aligned with the current chunk index and removes
+    # stale records belonging to chunks that no longer exist.
     write_embedding_records(embeddings_path, records)
     print(f"Embedding provider: {provider}")
     print(f"Embedding model: {model}")
