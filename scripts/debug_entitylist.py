@@ -1,16 +1,27 @@
 """
-Debug ENTITY_LIST questions to see what KG facts are returned.
+Inspect raw KG retrieval for selected list-answer benchmark questions.
 
-This script checks selected benchmark questions and prints parser output,
-classifier output, raw KG facts, and the formatted KG prompt context.
+For the hard-coded Q11/Q12 cases, the script prints:
+    1. The benchmark question and expected answer.
+    2. Entities, predicates, and time constraint produced by question parsing.
+    3. The answer-shape classification produced by QuestionClassifier.
+    4. Raw facts returned directly by KGRetriever with a per-query limit of 3.
+    5. The exact formatted fact text suitable for insertion into a KG prompt.
+
+This deliberately stops before KGReasoningEngine and before any LLM call. It is
+therefore useful for deciding whether a list-answer failure originates in
+question parsing/raw retrieval or in a later reasoning/prompt/model stage.
+
+The script is read-only: it loads ``data/qa_92.json`` and the retriever's KG
+data, prints diagnostics, and does not write reports or call provider APIs.
 """
 import json
 import sys
 from pathlib import Path
 
 
-# Make direct execution work from the repository root with:
-# `python scripts/debug_entitylist.py`.
+# Add the repository root so ``src`` imports work when this file is executed as
+# a script instead of imported as a package module.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
@@ -19,14 +30,17 @@ from src.kg_retriever import KGRetriever
 from src.question_parser import parse_question
 
 
-# Load all benchmark questions from the QA dataset.
+# Load the benchmark definitions once. Each selected row provides both the
+# natural-language question and its expected entity-list answer for comparison.
 with open("data/qa_92.json") as f:
     questions = json.load(f)
 
-# Check Q11 and Q12, the ENTITY_LIST/LIST-style questions being debugged here.
+# These IDs are intentionally explicit because this is a focused diagnostic,
+# not a general benchmark runner. Q11 and Q12 exercise LIST-style answers and
+# expose whether raw KG retrieval covers all expected entities.
 for qid in [11, 12]:
-    # Find the full question record so we can compare parser/retrieval output
-    # against the expected answer.
+    # Select the complete benchmark row so retrieved facts can be inspected
+    # against the declared ground truth.
     q = next(q for q in questions if q["id"] == qid)
     question = q["question"]
     ground_truth = q["answer_spec"]["value"]
@@ -36,7 +50,9 @@ for qid in [11, 12]:
     print(f"Ground Truth: {ground_truth}")
     print("=" * 80)
 
-    # Parse the question into the signals used for KG retrieval.
+    # parse_question supplies the exact low-level arguments passed to
+    # KGRetriever below. Missing entities/predicates at this stage explain why
+    # relevant facts may never reach later reasoning.
     parsed = parse_question(question)
     entities = parsed["entities"]
     predicates = parsed["predicates"]
@@ -46,14 +62,15 @@ for qid in [11, 12]:
     print(f"Parsed predicates: {predicates}")
     print(f"Time constraint: {time_constraint}")
 
-    # Classify the question to confirm which high-level question type the
-    # pipeline thinks it is handling.
+    # Classification is displayed for diagnosis only. This script does not use
+    # the classification to invoke KGReasoningEngine or alter raw retrieval.
     classifier = QuestionClassifier()
     classified = classifier.classify(question)
     print(f"\nClassified as: {classified.primary_type.name}")
 
-    # Retrieve matching KG facts using the parsed entities, predicates, and
-    # time constraint.
+    # Retrieve raw KG facts directly. The limit of 3 is intentionally small so
+    # missing list members caused by retrieval ordering/capping are visible.
+    # Full KG benchmark behavior may additionally apply KGReasoningEngine.
     kg_retriever = KGRetriever()
     facts = kg_retriever.retrieve(entities, predicates, time_constraint, limit=3)
 
@@ -64,6 +81,7 @@ for qid in [11, 12]:
             f"{f.get('object')} ({f.get('time', 'unknown')})"
         )
 
-    # Show the exact KG text that would be inserted into a model prompt.
+    # Format only the retrieved raw facts. This shows the prompt-ready evidence
+    # boundary, but no prompt is built and no LLM/provider is called.
     formatted = kg_retriever.format_facts_for_prompt(facts)
     print(f"\nFormatted for prompt:\n{formatted}")
