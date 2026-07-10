@@ -19,3 +19,4 @@ reports/final/*
 !reports/final/.gitkeep
 reports/debug/*
 !reports/debug/.gitkeep
+docs/THESIS_PROJECT_BRIEF.md
