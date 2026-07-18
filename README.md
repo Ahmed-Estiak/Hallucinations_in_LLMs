@@ -294,10 +294,10 @@ its configured fallback.
 ## Run RAG Method Audits
 
 Run all six recommended PDF retrieval methods over Q9, Q11, and Q15 through
-OpenAI:
+OpenAI and Gemini:
 
 ```powershell
-$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 9 11 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai --output reports\debug\pdf\openai_6_methods_3_questions.csv
+$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_method_matrix.py --source-set pdf --questions 9 11 15 --methods hierarchical-bge-m3-rrf bge-m3-rrf bge-base-rrf openai-embedding-rrf auto-source global --providers openai gemini --output reports\debug\pdf\pdf_6_methods_3_questions_openai_gemini.csv
 ```
 
 Run a fair method-isolation audit without temporal-first interception:
@@ -315,6 +315,16 @@ $env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\run_rag_llm_me
 Warm-up preloads BGE-M3/CUDA, vector indexes, lexical features, and ColBERT. It
 does not remove retrieval stages. Warm-up time is recorded separately from the
 measured query time.
+
+Generate the combined evaluation comparison report from completed KG/Web/PDF
+CSV outputs:
+
+```powershell
+$env:PYTHONIOENCODING='utf-8'; .\.venv\Scripts\python.exe scripts\generate_evaluation_comparison_report.py --web-rag reports\debug\web\web_6_methods_3_questions_openai_gemini.csv --pdf-rag reports\debug\pdf\pdf_6_methods_3_questions_openai_gemini.csv
+```
+
+The report generator only reads existing CSV files. It does not call OpenAI,
+Gemini, or any embedding API.
 
 ## Performance Optimizations
 
