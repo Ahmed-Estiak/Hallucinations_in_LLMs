@@ -724,15 +724,7 @@
   },
 
   {
-    "subject": "Blue moon",
-    "predicate": "planet_with",
-    "object": null,
-    "time": null,
-    "unit": null,
-    "note": "The phrase \"blue moon\" refers to an extra full moon on Earth; no other planet has a phenomenon termed a \"blue moon.\"",
-    "source": null,
-    "is_supported": false,
-    "reason": "“Blue moon” is an Earth-specific term for an extra full moon in a calendar cycle – no other planet has a concept of a “blue moon.”"
+    
   },
   {
   "subject": "Planetary rings",
