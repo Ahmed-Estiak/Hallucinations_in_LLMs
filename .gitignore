@@ -1,4 +1,5 @@
 .env
+ai_test_q.py
 __pycache__/
 hallucination_llm_env/
 .venv/
