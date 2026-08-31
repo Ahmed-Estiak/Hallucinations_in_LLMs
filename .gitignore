@@ -1,5 +1,6 @@
 .env
 ai_test_q.py
+docs/AI test questions.docx
 __pycache__/
 hallucination_llm_env/
 .venv/
